@@ -1,6 +1,9 @@
+"""
+Contains functions can be used in MP-SPDZ circuits.
+"""
+
 from Compiler.library import print_ln
 from Compiler.types import sint, Matrix
-
 
 
 def read_data(num_parties: int, num_columns: int, num_rows: int) -> list[Matrix]:
@@ -23,7 +26,6 @@ def print_data(num_columns: int, num_rows: int, data: Matrix):
     for i in range(num_columns):
         for j in range(num_rows):
             print_ln("data[{}][{}]: %s".format(i, j), data[i][j].reveal())
-
 
 
 # Top 5 functions to implement
