@@ -2,10 +2,9 @@ from pathlib import Path
 import os
 
 from Compiler.library import print_ln
-from Compiler.types import Matrix, sint, sfix
 from Compiler.compilerLib import Compiler
 
-from mpcstats_lib import read_data, print_data, mean
+from mpcstats_lib import read_data, print_data, mean, join
 
 
 MPC_PROTOCOL = "semi"
@@ -26,18 +25,11 @@ PLAYER_DATA = [
     ],
     # party 1
     [
-        [3, 0, 1, 2],  # column 0
-        [50, 60, 70, 80],  # column 1
-    ],
+        [3, 0, 4],
+        [50, 60, 70],
+    ]
 ]
 NUM_PARTIES = len(PLAYER_DATA)
-NUM_COLUMNS = len(PLAYER_DATA[0])
-NUM_ROWS = len(PLAYER_DATA[0][0])
-
-
-# To enforce round to the nearest integer, instead of probabilistic truncation
-# Ref: https://github.com/data61/MP-SPDZ/blob/e93190f3b72ee2d27837ca1ca6614df6b52ceef2/doc/machine-learning.rst?plain=1#L347-L353
-sfix.round_nearest = True
 
 
 def compile_run(computation):
@@ -71,25 +63,40 @@ if __name__ == "__main__":
     # Computation defined by the user
     def computation():
         # Read all data from all parties
-        all_data = read_data(NUM_PARTIES, NUM_COLUMNS, NUM_ROWS)
         # 0 1 2 3
         # 152 160 170 180
-        data_party_0 = all_data[0]
+        data_party_0 = PLAYER_DATA[0]
+        matrix_0 = read_data(0, len(data_party_0), len(data_party_0[0]))
         print_ln("data_party_0:")
-        print_data(NUM_COLUMNS, NUM_ROWS, data_party_0)
+        print_data(matrix_0)
 
         # 3 0 1 2
         # 50 60 70 80
-        data_party_1 = all_data[1]
+        data_party_1 = PLAYER_DATA[1]
+        matrix_1 = read_data(1, len(data_party_1), len(data_party_1[0]))
         print_ln("data_party_1:")
-        print_data(NUM_COLUMNS, NUM_ROWS, data_party_1)
+        print_data(matrix_1)
 
         # Get the column 1
         column_index = 1
-        column_1 = [data_party_0[column_index][i] for i in range(NUM_ROWS)]
+        column_1 = [matrix_0[column_index][i] for i in range(matrix_0.shape[1])]
         # Calculate the mean of column 1
         column_mean = mean(column_1)
         print_ln("column_mean: %s", column_mean.reveal())
+
+        # Join the two matrices based on the matching index in the specified columns
+        # [
+        #     [0, 1, 2, 3],
+        #     [152, 160, 170, 180],
+        #     [0, MAGIC_NUMBER, MAGIC_NUMBER, 3],
+        #     [60, MAGIC_NUMBER, MAGIC_NUMBER, 50],
+        # ]
+        new_data = join(matrix_0, matrix_1, 0, 0)
+        print_ln("new_data:")
+        print_data(new_data)
+        column_2_mean = mean([new_data[2][i] for i in range(new_data.shape[1])])
+        print_ln("column_2_mean: %s", column_2_mean.reveal())
+
 
     # Compile and run the computation with the given data with all parties in the local machine
     compile_run(computation)
