@@ -4,7 +4,7 @@ import os
 from Compiler.library import print_ln
 from Compiler.compilerLib import Compiler
 
-from mpcstats_lib import read_data, print_data, mean, join
+from mpcstats_lib import read_data, print_data, mean, join, median, covariance, correlation, where
 
 
 MPC_PROTOCOL = "semi"
@@ -21,12 +21,12 @@ PLAYER_DATA = [
     # party 0
     [
         [0, 1, 2, 3],  # column 0
-        [152, 160, 170, 180],  # column 1
+        [170, 160, 152, 180],  # column 1
     ],
     # party 1
     [
-        [3, 0, 4],
-        [50, 60, 70],
+        [3, 0, 4, 5],
+        [50, 60, 70, 100],
     ]
 ]
 NUM_PARTIES = len(PLAYER_DATA)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     def computation():
         # Read all data from all parties
         # 0 1 2 3
-        # 152 160 170 180
+        # 170 160 152 180
         data_party_0 = PLAYER_DATA[0]
         matrix_0 = read_data(0, len(data_party_0), len(data_party_0[0]))
         print_ln("data_party_0:")
@@ -80,6 +80,8 @@ if __name__ == "__main__":
         # Get the column 1
         column_index = 1
         column_1 = [matrix_0[column_index][i] for i in range(matrix_0.shape[1])]
+        _filter_1 = [ele >160 for ele in column_1]
+        column_2 = [matrix_1[column_index][i] for i in range(matrix_1.shape[1])]
         # Calculate the mean of column 1
         column_mean = mean(column_1)
         print_ln("column_mean: %s", column_mean.reveal())
@@ -87,15 +89,22 @@ if __name__ == "__main__":
         # Join the two matrices based on the matching index in the specified columns
         # [
         #     [0, 1, 2, 3],
-        #     [152, 160, 170, 180],
-        #     [0, MAGIC_NUMBER, MAGIC_NUMBER, 3],
-        #     [60, MAGIC_NUMBER, MAGIC_NUMBER, 50],
+        #     [170, 160, 152, 180],
+        #     [0, MAGIC_NUMBER, MAGIC_NUMBER, 3, MAGIC_NUMEBER],
+        #     [60, MAGIC_NUMBER, MAGIC_NUMBER, 50, MAGIC_NUMBER],
         # ]
         new_data = join(matrix_0, matrix_1, 0, 0)
         print_ln("new_data:")
         print_data(new_data)
-        column_2_mean = mean([new_data[2][i] for i in range(new_data.shape[1])])
-        print_ln("column_2_mean: %s", column_2_mean.reveal())
+        result = mean([new_data[3][i] for i in range(new_data.shape[1])])
+
+        # Some other tests
+        # result = median(column_1)
+        # result = where(_filter_1, column_1)
+        # result = covariance(column_1, column_2)
+        # result = correlation(column_1, column_2)
+
+        print_ln("result: %s", result.reveal())
 
 
     # Compile and run the computation with the given data with all parties in the local machine

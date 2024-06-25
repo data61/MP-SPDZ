@@ -2,9 +2,10 @@
 Contains functions can be used in MP-SPDZ circuits.
 """
 
-from Compiler.library import print_ln
-from Compiler.types import sint, sfix, Matrix
+from Compiler.library import print_ln, for_range
+from Compiler.types import sint, sfix, Matrix, sfloat, Array
 from Compiler.util import if_else
+from Compiler.mpc_math import sqrt
 
 
 MAGIC_NUMBER = 999
@@ -46,8 +47,24 @@ def mean(data: list[sint]):
 
 
 def median(data: list[sint]):
-    # TODO: implement median
-    raise NotImplementedError
+    # TODO: Check if Array.create_from is properly constrained // if I dont put reference, it's just from the mp-spdz doc itself
+    data = Array.create_from(data)
+    # TODO: Check if there's a need to use sint(0), can we just use 0? would that violate constraint?
+    median_odd = sint(0)
+    median_even = sint(0)
+    data.sort()
+    size = sum(if_else(i!= MAGIC_NUMBER, 1, 0) for i in data)
+
+    # TODO: Check if for_range is any different than naive Python for-loop
+    @for_range(len(data))
+    def _(i):
+        # TODO: Check if wrapping sint() makes sense/ properly constrained
+        # TODO: Check why we cannot just use size.int_div(2) -> it returns wrong result, so now we use the method below instead.
+        median_odd.update(median_odd+(size==2*sint(i)+size%2)*data[i])
+        # TODO: Check if there's the need to use update: See example in Compiler.library.for_range(start, stop=None, step=None) in the mp-spdz doc itself
+        median_even.update(median_even+(size==2*sint(i)+size%2)*data[i]/2+(size-2==2*sint(i)+size%2)*data[i]/2)
+    # TODO: Check if size%2 is properly constrained
+    return (size%2)*median_odd + (1-size%2)*median_even
 
 
 def join(data1: Matrix, data2: Matrix, data1_column_index: int, data2_column_index: int) -> Matrix:
@@ -109,18 +126,52 @@ def join(data1: Matrix, data2: Matrix, data1_column_index: int, data2_column_ind
 
 
 def covariance(data1: list[sint], data2: list[sint]):
-    # TODO: implement covariance
-    raise NotImplementedError
+    n = len(data1)
+    total1 = sum(if_else(i!= MAGIC_NUMBER, i, 0) for i in data1)
+    total2 = sum(if_else(i!= MAGIC_NUMBER, i, 0) for i in data2)
+    count = sum(if_else(i!= MAGIC_NUMBER, 1, 0) for i in data1)
+    mean1 = total1/count
+    mean2 = total2/count
+    data1 = Array.create_from(if_else(i!=MAGIC_NUMBER, i, mean1) for i in data1)
+    data2 = Array.create_from(if_else(i!=MAGIC_NUMBER, i, mean2) for i in data2)
+    # TODO: Check if there's a need to use sfloat(0), can we do something like 0.0
+    x = sfloat(0)
+    @for_range(n)
+    def _(i):
+        x.update(x+(data1[i]-mean1)*(data2[i]-mean2))
+    return x/(count-1)
 
 
 def correlation(data1: list[sint], data2: list[sint]):
-    # TODO: implement correlation
-    raise NotImplementedError
+    n = len(data1)
+    total1 = sum(if_else(i!= MAGIC_NUMBER, i, 0) for i in data1)
+    total2 = sum(if_else(i!= MAGIC_NUMBER, i, 0) for i in data2)
+    count = sum(if_else(i!= MAGIC_NUMBER, 1, 0) for i in data1)
+    mean1 = total1/count
+    mean2 = total2/count
+    data1 = Array.create_from(if_else(i!=MAGIC_NUMBER, i, mean1) for i in data1)
+    data2 = Array.create_from(if_else(i!=MAGIC_NUMBER, i, mean2) for i in data2)
+    numerator = sfloat(0)
+    denominator1 = sfloat(0)
+    denominator2 = sfloat(0)
+    @for_range(n)
+    def _(i):
+        numerator.update(numerator+(data1[i]-mean1)*(data2[i]-mean2))
+        denominator1.update(denominator1+(data1[i]-mean1).square())
+        denominator2.update(denominator2+(data2[i]-mean2).square())
+    # Check if wrapping sfix() is properly constrainted.
+    return numerator/(sqrt(sfix(denominator1))*sqrt(sfix(denominator2)))
 
 
 def where(_filter: list[sint], data: list[sint]):
-    # TODO: implement where
-    raise NotImplementedError
+    n = len(data)
+    data = Array.create_from(data)
+    _filter = Array.create_from(_filter)
+    res = sint.Array(n)
+    @for_range(n)
+    def _(i):
+        res[i] = _filter[i]*data[i] + (1-_filter[i])*MAGIC_NUMBER
+    return res
 
 
 # LATER
