@@ -170,7 +170,7 @@ def where(_filter: list[sint], data: list[sint]):
     res = sint.Array(n)
     @for_range(n)
     def _(i):
-        res[i] = _filter[i]*data[i] + (1-_filter[i])*MAGIC_NUMBER
+        res[i] = if_else(_filter[i], data[i], MAGIC_NUMBER)
     return res
 
 
