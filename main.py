@@ -4,7 +4,7 @@ import os
 from Compiler.library import print_ln
 from Compiler.compilerLib import Compiler
 
-from mpcstats_lib import read_data, print_data, mean, join, median, covariance, correlation, where
+from mpcstats_lib import read_data, print_data, mean, join, median, covariance, correlation, where, geometric_mean
 
 
 MPC_PROTOCOL = "semi"
@@ -103,6 +103,7 @@ if __name__ == "__main__":
         # result = where(_filter_1, column_1)
         # result = covariance(column_1, column_2)
         # result = correlation(column_1, column_2)
+        # result = geometric_mean(column_1)
 
         print_ln("result: %s", result.reveal())
 

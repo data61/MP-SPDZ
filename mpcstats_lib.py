@@ -2,12 +2,13 @@
 Contains functions can be used in MP-SPDZ circuits.
 """
 
-from Compiler.library import print_ln, for_range
+from Compiler.library import print_ln, for_range, if_, runtime_error
 from Compiler.types import sint, sfix, Matrix, sfloat, Array
 from Compiler.util import if_else
-from Compiler.mpc_math import sqrt
+from Compiler.mpc_math import sqrt, exp2_fx, log2_fx
 
 
+# geometric_mean assumes MAGIC_NUMBER to be non-negative
 MAGIC_NUMBER = 999
 
 # To enforce round to the nearest integer, instead of probabilistic truncation
@@ -174,12 +175,27 @@ def where(_filter: list[sint], data: list[sint]):
     return res
 
 
-# LATER
-
 def geometric_mean(data: list[sint]):
-    # TODO: implement geometric_mean
-    raise NotImplementedError
+    # check the validity of the dataset
+    num_non_positives = sum(if_else(i <= 0, 1, 0) for i in data).reveal()
+    @if_(num_non_positives > 0)
+    def _():
+        runtime_error('geometric_mean: all numbers in the dataset must be positive')
 
+    num_magic_nums = sum(if_else(i == MAGIC_NUMBER, 1, 0) for i in data).reveal()
+    @if_(len(data) == num_magic_nums)
+    def _():
+        runtime_error('geometric_mean: dataset is empty')
+
+    # comupte geometric mean
+    log_sum = sum(if_else(i != MAGIC_NUMBER, log2_fx(i), 0) for i in data)
+    num_log_sums = sum(if_else(i != MAGIC_NUMBER, 1, 0) for i in data)
+    exponent = log_sum / num_log_sums
+
+    return exp2_fx(exponent)
+
+
+# LATER
 
 def harmonic_mean(data: list[sint]):
     # TODO: implement harmonic_mean
