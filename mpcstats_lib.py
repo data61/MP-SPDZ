@@ -2,7 +2,7 @@
 Contains functions can be used in MP-SPDZ circuits.
 """
 
-from Compiler.library import print_ln, for_range, runtime_error
+from Compiler.library import print_ln, for_range, runtime_error, if_
 from Compiler.types import sint, sfix, Matrix, sfloat, Array
 from Compiler.util import if_else
 from Compiler.mpc_math import sqrt, exp2_fx, log2_fx
@@ -178,11 +178,13 @@ def where(_filter: list[sint], data: list[sint]):
 def geometric_mean(data: list[sint]):
     # check the validity of the dataset
     num_non_positives = sum(if_else(i <= 0, 1, 0) for i in data).reveal()
-    if num_non_positives > 0:
+    @if_(num_non_positives > 0)
+    def _():
         runtime_error('geometric_mean: all numbers in the dataset must be positive')
 
     num_magic_nums = sum(if_else(i == MAGIC_NUMBER, 1, 0) for i in data).reveal()
-    if len(data) == num_magic_nums:
+    @if_(len(data) == num_magic_nums)
+    def _():
         runtime_error('geometric_mean: dataset is empty')
 
     # comupte geometric mean
