@@ -127,9 +127,9 @@ test_cases = [
 num_rows = 10
 num_cols = 2
 num_parties = 2
-num_tests = 1
+num_iterations = 1
 
-for _ in range(num_tests):
+for _ in range(num_iterations):
     for test_case in test_cases:
         player_data = gen_player_data(
             num_rows,
