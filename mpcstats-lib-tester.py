@@ -9,12 +9,12 @@ from mpcstats_lib import read_data
 import mpcstats_lib
 
 def gen_computation(
+    player_data_id,
     player_data,
     tc,
     prefix_tag_beg,
     prefix_tag_end,
 ):
-
     def get_col(party_id):
         data = player_data[party_id]
         mat = read_data(party_id, len(data), len(data[0]))
@@ -24,32 +24,28 @@ def gen_computation(
     def computation():
         party_ids = list(range(tc.num_params))
         col1 = get_col(party_ids[0])
-        raw_col1 = player_data[party_ids[0]][tc.selected_col]
 
         if tc.num_params == 1:
-            mpc_res = tc.mpcstats_func(col1).reveal()
-            python_stats_res = tc.python_stats_func(raw_col1) 
+            res = tc.mpcstats_func(col1).reveal()
+
         elif tc.num_params == 2:
             col2 = get_col(party_ids[1])
-            raw_col2 = player_data[party_ids[1]][tc.selected_col]
-
-            mpc_res = tc.mpcstats_func(col1, col2).reveal()
-            python_stats_res = tc.python_stats_func(raw_col1, raw_col2) 
+            res = tc.mpcstats_func(col1, col2).reveal()
         else:
             runtime_error(f'# of func params is expected to be 1 or 2, but got {num_func_params}')
 
-        print_ln('%s%s%s%s,%s', prefix_tag_beg, tc.name, prefix_tag_end, mpc_res, python_stats_res)
+        print_ln('%s%s:m:%s%s%s', prefix_tag_beg, player_data_id, tc.name, prefix_tag_end, res)
 
     return computation
 
-def compile_and_run(computation, num_ptys, mpc_script, prog):
+def compile_and_run(computation, num_parties, mpc_script, prog):
     # compile .x
     compiler = Compiler()
     compiler.register_function(prog)(computation)
     compiler.compile_func()
 
     # execute .x
-    cmd = f'PLAYERS={num_ptys} {mpc_script} {prog}'
+    cmd = f'PLAYERS={num_parties} {mpc_script} {prog}'
     r = os.system(cmd)
     if r != 0:
         raise ValueError(f'Executing mpc failed: {r}')
@@ -86,6 +82,28 @@ def gen_player_data(
         
         res.append(mat)
     return res
+
+def run_python_stats_func(
+    player_data_id,
+    player_data,
+    tc,
+    prefix_tag_beg,
+    prefix_tag_end,
+): 
+    party_ids = list(range(tc.num_params))
+    col1 = player_data[party_ids[0]][tc.selected_col]
+
+    if tc.num_params == 1:
+        res = tc.python_stats_func(col1) 
+
+    elif tc.num_params == 2:
+        col2 = player_data[party_ids[1]][tc.selected_col]
+
+        res = tc.python_stats_func(col1, col2) 
+    else:
+        runtime_error(f'# of func params is expected to be 1 or 2, but got {num_func_params}')
+
+    print(f'{prefix_tag_beg}{player_data_id}:p:{tc.name}{prefix_tag_end}{res}')
 
 root = Path(__file__).parent
 mpc_script = root / 'Scripts' / 'semi.sh'
@@ -129,6 +147,8 @@ num_cols = 2
 num_parties = 2
 num_iterations = 1
 
+player_data_id = 1
+
 for _ in range(num_iterations):
     for test_case in test_cases:
         player_data = gen_player_data(
@@ -140,6 +160,7 @@ for _ in range(num_iterations):
         )
 
         computation = gen_computation(
+            player_data_id,
             player_data,
             test_case,
             '<<<|',
@@ -153,4 +174,14 @@ for _ in range(num_iterations):
             mpc_script,
             'testmpc',
         )
+        
+        run_python_stats_func(
+            player_data_id,
+            player_data,
+            test_case,
+            '<<<|',
+            '|>>>',
+        )
+
+        player_data_id += 1
 
