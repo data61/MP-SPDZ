@@ -38,9 +38,7 @@ def gen_computation(
         else:
             runtime_error(f'# of func params is expected to be 1 or 2, but got {num_func_params}')
 
-        diff = abs(mpc_res - python_stats_res)
-
-        print_ln('%s%s%s%s,%s,%s', prefix_tag_beg, tc.name, prefix_tag_end, mpc_res, python_stats_res, diff)
+        print_ln('%s%s%s%s,%s', prefix_tag_beg, tc.name, prefix_tag_end, mpc_res, python_stats_res)
 
     return computation
 
@@ -102,6 +100,8 @@ class TestCase:
     python_stats_func: any
     num_params: int
     selected_col: int
+    num_range_beg: int
+    num_range_end: int
 
 test_cases = [
     TestCase(
@@ -110,23 +110,35 @@ test_cases = [
         statistics.geometric_mean,
         num_params = 1,
         selected_col = 1,
-    )
+        num_range_beg = 1,
+        num_range_end = 10000,
+    ),
+    TestCase(
+        'correlation', 
+        mpcstats_lib.correlation,
+        statistics.correlation,
+        num_params = 2,
+        selected_col = 1,
+        num_range_beg = 1,
+        num_range_end = 100,
+    ),
 ]
 
 num_rows = 10
 num_cols = 2
 num_parties = 2
+num_tests = 1
 
-for _ in range(1):
-    player_data = gen_player_data(
-        num_rows,
-        num_cols,
-        num_parties,
-        1,
-        10000,
-    )
-
+for _ in range(num_tests):
     for test_case in test_cases:
+        player_data = gen_player_data(
+            num_rows,
+            num_cols,
+            num_parties,
+            test_case.num_range_beg,
+            test_case.num_range_end,
+        )
+
         computation = gen_computation(
             player_data,
             test_case,
