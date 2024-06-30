@@ -1,49 +1,68 @@
+import glob, os, random, shutil, statistics
+from dataclasses import dataclass
 from pathlib import Path
-import os, random, shutil, statistics
 
 from Compiler.library import print_ln
 from Compiler.compilerLib import Compiler
 
-from mpcstats_lib import read_data, geometric_mean
+from mpcstats_lib import read_data
+import mpcstats_lib
 
 def gen_computation(
     player_data,
-    party_id,
-    selected_col
+    tc,
+    prefix_tag_beg,
+    prefix_tag_end,
 ):
-    def computation():
+
+    def get_col(party_id):
         data = player_data[party_id]
-        mat= read_data(party_id, len(data), len(data[0]))
-        col = [mat[selected_col][i] for i in range(mat.shape[1])]
+        mat = read_data(party_id, len(data), len(data[0]))
+        col = [mat[tc.selected_col][i] for i in range(mat.shape[1])]
+        return col
 
-        mpc_res = geometric_mean(col).reveal()
+    def computation():
+        party_ids = list(range(tc.num_params))
+        col1 = get_col(party_ids[0])
+        raw_col1 = player_data[party_ids[0]][tc.selected_col]
 
-        raw_col = player_data[party_id][selected_col]
-        stats_lib_res = statistics.geometric_mean(raw_col) 
+        if tc.num_params == 1:
+            mpc_res = tc.mpcstats_func(col1).reveal()
+            python_stats_res = tc.python_stats_func(raw_col1) 
+        elif tc.num_params == 2:
+            col2 = get_col(party_ids[1])
+            raw_col2 = player_data[party_ids[1]][tc.selected_col]
 
-        diff = abs(mpc_res - stats_lib_res)
+            mpc_res = tc.mpcstats_func(col1, col2).reveal()
+            python_stats_res = tc.python_stats_func(raw_col1, raw_col2) 
+        else:
+            runtime_error(f'# of func params is expected to be 1 or 2, but got {num_func_params}')
 
-        print_ln('===>%s,%s,%s', mpc_res, stats_lib_res, diff)
+        diff = abs(mpc_res - python_stats_res)
+
+        print_ln('%s%s%s%s,%s,%s', prefix_tag_beg, tc.name, prefix_tag_end, mpc_res, python_stats_res, diff)
 
     return computation
 
 def compile_and_run(computation, num_ptys, mpc_script, prog):
-    # compile computation
+    # compile .x
     compiler = Compiler()
     compiler.register_function(prog)(computation)
     compiler.compile_func()
 
-    # execute
+    # execute .x
     cmd = f'PLAYERS={num_ptys} {mpc_script} {prog}'
     r = os.system(cmd)
     if r != 0:
-        raise ValueError(f'Executing mpc script failed. Error code: {r}')
+        raise ValueError(f'Executing mpc failed: {r}')
 
 def create_player_data_files(data_dir, player_data):
-    # creaet an empty data dir
-    if os.path.isdir(data_dir):
-        shutil.rmtree(data_dir)
-    data_dir.mkdir(parents=True)
+    # prepare an empty data dir
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    for file in glob.glob(os.path.join(data_dir, '*')):
+        if os.path.isfile(file):
+            os.remove(file)
 
     # create data files for all parties
     for party_index, player_data in enumerate(player_data):
@@ -53,12 +72,18 @@ def create_player_data_files(data_dir, player_data):
                 f.write(' '.join(map(str, col)))
                 f.write('\n')
 
-def gen_player_data(num_rows, num_cols, num_ptys, num_range_beg, num_range_end):
+def gen_player_data(
+    num_rows,
+    num_cols,
+    num_parties,
+    num_range_beg,
+    num_range_end,
+):
     res = []
-    for _ in range(num_ptys):
+    for _ in range(num_parties):
         mat = []
         for _ in range(num_cols):
-            col = [random.randint(num_range_beg, num_range_end) for _ in range(num_rows)]
+            col = [random.randrange(num_range_beg, num_range_end) for _ in range(num_rows)]
             mat.append(col)
         
         res.append(mat)
@@ -70,27 +95,50 @@ mpc_script = root / 'Scripts' / 'semi.sh'
 # create player data dir
 data_dir = root / "Player-Data"
 
-party_id_g = 0  # use party 1 data
-selected_col_g = 1
+@dataclass
+class TestCase:
+    name: str
+    mpcstats_func: any
+    python_stats_func: any
+    num_params: int
+    selected_col: int
 
-result_csv = root / 'result.csv'
+test_cases = [
+    TestCase(
+        'geometric_mean', 
+        mpcstats_lib.geometric_mean,
+        statistics.geometric_mean,
+        num_params = 1,
+        selected_col = 1,
+    )
+]
+
+num_rows = 10
+num_cols = 2
+num_parties = 2
 
 for _ in range(1):
-    num_rows = 10
-    num_cols = 2
-    num_ptys = 2
-
     player_data = gen_player_data(
         num_rows,
         num_cols,
-        num_ptys,
+        num_parties,
         1,
-        10000
+        10000,
     )
-    party_id = 0
-    selected_col = 1
 
-    computation = gen_computation(player_data, party_id, selected_col)
-    create_player_data_files(data_dir, player_data)
-    compile_and_run(computation, num_ptys, mpc_script, 'testmpc')
+    for test_case in test_cases:
+        computation = gen_computation(
+            player_data,
+            test_case,
+            '<<<|',
+            '|>>>',
+        )
+        create_player_data_files(data_dir, player_data)
+
+        compile_and_run(
+            computation,
+            num_parties,
+            mpc_script,
+            'testmpc',
+        )
 
