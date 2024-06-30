@@ -6,27 +6,28 @@ from Compiler.compilerLib import Compiler
 
 from mpcstats_lib import read_data, geometric_mean
 
-# made global to share the variables with computation()
-player_data_g = []
-selected_col_g = 0
-party_id_g = 0
-fp_g = None
+def gen_computation(
+    player_data,
+    party_id,
+    selected_col
+):
+    def computation():
+        data = player_data[party_id]
+        mat= read_data(party_id, len(data), len(data[0]))
+        col = [mat[selected_col][i] for i in range(mat.shape[1])]
 
-def computation():
-    data = player_data_g[party_id_g]
-    mat= read_data(party_id_g, len(data), len(data[0]))
-    col = [mat[selected_col_g][i] for i in range(mat.shape[1])]
+        mpc_res = geometric_mean(col).reveal()
 
-    mpc_res = geometric_mean(col).reveal()
+        raw_col = player_data[party_id][selected_col]
+        stats_lib_res = statistics.geometric_mean(raw_col) 
 
-    raw_col = player_data_g[party_id_g][selected_col_g]
-    stats_lib_res = statistics.geometric_mean(raw_col) 
+        diff = abs(mpc_res - stats_lib_res)
 
-    diff = abs(mpc_res - stats_lib_res)
+        print_ln('===>%s,%s,%s', mpc_res, stats_lib_res, diff)
 
-    print_ln('===>%s,%s,%s', mpc_res, stats_lib_res, diff)
+    return computation
 
-def compile_run(computation, num_ptys, mpc_script, prog):
+def compile_and_run(computation, num_ptys, mpc_script, prog):
     # compile computation
     compiler = Compiler()
     compiler.register_function(prog)(computation)
@@ -36,7 +37,7 @@ def compile_run(computation, num_ptys, mpc_script, prog):
     cmd = f'PLAYERS={num_ptys} {mpc_script} {prog}'
     r = os.system(cmd)
     if r != 0:
-        raise ValueError(f'Executing mpc script failedom. Error code: {r}')
+        raise ValueError(f'Executing mpc script failed. Error code: {r}')
 
 def create_player_data_files(data_dir, player_data):
     # creaet an empty data dir
@@ -79,13 +80,17 @@ for _ in range(1):
     num_cols = 2
     num_ptys = 2
 
-    player_data_g = gen_player_data(
+    player_data = gen_player_data(
         num_rows,
         num_cols,
         num_ptys,
         1,
         10000
     )
-    create_player_data_files(data_dir, player_data_g)
-    compile_run(computation, num_ptys, mpc_script, 'testmpc')
+    party_id = 0
+    selected_col = 1
+
+    computation = gen_computation(player_data, party_id, selected_col)
+    create_player_data_files(data_dir, player_data)
+    compile_and_run(computation, num_ptys, mpc_script, 'testmpc')
 
