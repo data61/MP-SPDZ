@@ -18,7 +18,7 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - name: Run geometric mean test
+      - name: Run tests
         run: python ci/geometric-mean.py
 
   correlation:
@@ -30,7 +30,7 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - name: Run geometric mean test
+      - name: Run tests
         run: python ci/correlation.py
 
   covariance:
@@ -42,7 +42,7 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - name: Run geometric mean test
+      - name: Run tests
         run: python ci/covariance.py
 
   median:
@@ -54,6 +54,6 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - name: Run geometric mean test
+      - name: Run tests
         run: python ci/median.py
 
