@@ -9,24 +9,27 @@ from Compiler.compilerLib import Compiler
 
 from mpcstats_lib import MAGIC_NUMBER, read_data
 from pathlib import Path
-import glob, random, re, shutil, statistics, subprocess
+import ast, glob, random, re, shutil, statistics, subprocess
 
-def gen_computation(
+def get_col(player_data, party_id, selected_col):
+    data = player_data[party_id]
+    mat = read_data(party_id, len(data), len(data[0]))
+    col = [mat[selected_col][i] for i in range(mat.shape[1])]
+    return col
+
+def gen_stat_func_comp(
     player_data,
     selected_col,
     func,
     num_params,
 ):
-    def get_col(party_id):
-        data = player_data[party_id]
-        mat = read_data(party_id, len(data), len(data[0]))
-        col = [mat[selected_col][i] for i in range(mat.shape[1])]
-        return col
+    def get_col_wrap(party_id):
+        return get_col(player_data, party_id, selected_col)
 
     if num_params == 1:
         def computation():
             party_ids = list(range(num_params))
-            col = get_col(party_ids[0])
+            col = get_col_wrap(party_ids[0])
             res = func(col).reveal()
             print_ln('result: %s', res)
         return computation
@@ -34,14 +37,30 @@ def gen_computation(
     elif num_params == 2:
         def computation():
             party_ids = list(range(num_params))
-            col1 = get_col(party_ids[0])
-            col2 = get_col(party_ids[1])
+            col1 = get_col_wrap(party_ids[0])
+            col2 = get_col_wrap(party_ids[1])
             res = func(col1, col2).reveal()
             print_ln('result: %s', res)
         return computation
 
     else:
         raise Exception(f'# of func params is expected to be 1 or 2, but got {num_params}')
+
+def gen_elem_filter_comp(
+    player_data,
+    selected_col,
+    func,
+    elem_filter_gen,
+):
+    def computation():
+        party_ids = [0]
+        col = get_col(player_data, party_ids[0], selected_col)
+
+        elem_filter = elem_filter_gen(col)
+        res = func(elem_filter, col).reveal()
+        print_ln('result: %s', res)
+
+    return computation
 
 def run_mpcstats_func(
     computation,
@@ -142,8 +161,7 @@ def extract_result_from_mpspdz_out(out):
     for line in stdout.splitlines():
         succ_m = re.search(succ_re, line)
         if succ_m:
-            num = succ_m.group(1)
-            return (True, float(num))
+            return (True, succ_m.group(1))
 
         fail_m = re.search(fail_re, line)
         if fail_m:
@@ -151,7 +169,7 @@ def extract_result_from_mpspdz_out(out):
             
     raise Exception('Result missing in MP-SPDZ output')
 
-def execute_test(
+def execute_stat_func_test(
     mpcstats_func,
     pystats_func,
     num_params,
@@ -159,7 +177,7 @@ def execute_test(
     selected_col,
     tolerance,
 ):
-    computation = gen_computation(
+    computation = gen_stat_func_comp(
         player_data,
         selected_col,
         mpcstats_func,
@@ -190,7 +208,41 @@ def execute_test(
         selected_col,
         pystats_func,
     )
-    assert abs(mpspdz_res[1] - pystats_res) < tolerance
+    assert abs(float(mpspdz_res[1]) - pystats_res) < tolerance
+
+def execute_elem_filter_test(
+    func,
+    elem_filter_gen,
+    player_data,
+    selected_col,
+    exp,
+):
+    computation = gen_elem_filter_comp(
+        player_data,
+        selected_col,
+        func,
+        elem_filter_gen,
+    )
+
+    root = Path(__file__).parent.parent
+
+    data_dir = root / "Player-Data"
+    create_player_data_files(data_dir, player_data)
+
+    protocol = 'semi'
+    mpc_script = root / 'Scripts' / f'{protocol}.sh'
+    num_parties = len(player_data)
+    mpspdz_out = run_mpcstats_func(
+        computation,
+        num_parties,
+        mpc_script,
+        'testmpc',
+    )
+    mpspdz_res = extract_result_from_mpspdz_out(mpspdz_out)
+    mpspdz_res_val = ast.literal_eval(mpspdz_res[1]) 
+
+    assert mpspdz_res[0] is True
+    assert mpspdz_res_val == exp
 
 def run_func_many_times_with_random_data(
     mpcstats_func,
