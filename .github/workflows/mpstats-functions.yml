@@ -11,6 +11,7 @@ jobs:
 
   geometric-mean:
     needs: setup
+    runs-on: ubuntu-latest
     steps:
       - name: Run geometric mean test
         run: python ci/geometric-mean.py
