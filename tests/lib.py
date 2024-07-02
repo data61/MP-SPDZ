@@ -1,6 +1,4 @@
-import glob, os, random, re, shutil, statistics, sys
-from dataclasses import dataclass
-from pathlib import Path
+import os, sys
 
 # add parent dir to Python path
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -10,18 +8,8 @@ from Compiler.library import print_ln
 from Compiler.compilerLib import Compiler
 
 from mpcstats_lib import MAGIC_NUMBER, read_data
-
-from enum import Enum
-import subprocess
-from typing import NamedTuple
-
-class Succ:
-    def __init__(self, tolerance):
-        self.tolerance = tolerance
-
-class Fail:
-    def __init__(self, pattern):
-        self.pattern = pattern
+from pathlib import Path
+import glob, random, re, shutil, statistics, subprocess
 
 def gen_computation(
     player_data,
@@ -53,7 +41,7 @@ def gen_computation(
         return computation
 
     else:
-        runtime_error(f'# of func params is expected to be 1 or 2, but got {num_params}')
+        raise Exception(f'# of func params is expected to be 1 or 2, but got {num_params}')
 
 def run_mpcstats_func(
     computation,
@@ -74,7 +62,7 @@ def run_mpcstats_func(
         return (res.stdout, res.returncode)
 
     except subprocess.CalledProcessError as e:
-        raise ValueError(f'Executing MPC failed ({e.returncode}): stdout: {e.stdout}, stderr: {e.stderr}')
+        raise Exception(f'Executing MPC failed ({e.returncode}): stdout: {e.stdout}, stderr: {e.stderr}')
 
 def create_player_data_files(data_dir, player_data):
     # prepare an empty data dir
@@ -144,7 +132,7 @@ def run_pystats_func(
 
         return func(col1, col2) 
     else:
-        runtime_error(f'# of func params is expected to be 1 or 2, but got {num_params}')
+        raise Exception(f'# of func params is expected to be 1 or 2, but got {num_params}')
 
 def extract_result_from_mpspdz_out(out):
     stdout, _ = out
@@ -161,80 +149,54 @@ def extract_result_from_mpspdz_out(out):
         if fail_m:
             return (False, fail_m.group(1))
             
-    raise ValueError('Result missing in MP-SPDZ output')
+    raise Exception('Result missing in MP-SPDZ output')
 
-def fail_test(name):
-    print(f"--> Test '{name}' failed")
-    sys.exit(1)
-
-def test_function(
-    name,
+def execute_test(
     mpcstats_func,
     pystats_func,
     num_params,
     player_data,
     selected_col,
-    exp,
+    tolerance,
 ):
-    try:
-        computation = gen_computation(
-            player_data,
-            selected_col,
-            mpcstats_func,
-            num_params,
-        )
+    computation = gen_computation(
+        player_data,
+        selected_col,
+        mpcstats_func,
+        num_params,
+    )
 
-        root = Path(__file__).parent.parent
+    root = Path(__file__).parent.parent
 
-        data_dir = root / "Player-Data"
-        create_player_data_files(data_dir, player_data)
+    data_dir = root / "Player-Data"
+    create_player_data_files(data_dir, player_data)
 
-        protocol = 'semi'
-        mpc_script = root / 'Scripts' / f'{protocol}.sh'
-        num_parties = len(player_data)
-        mpspdz_out = run_mpcstats_func(
-            computation,
-            num_parties,
-            mpc_script,
-            'testmpc',
-        )
-        mpspdz_res = extract_result_from_mpspdz_out(mpspdz_out)
+    protocol = 'semi'
+    mpc_script = root / 'Scripts' / f'{protocol}.sh'
+    num_parties = len(player_data)
+    mpspdz_out = run_mpcstats_func(
+        computation,
+        num_parties,
+        mpc_script,
+        'testmpc',
+    )
+    mpspdz_res = extract_result_from_mpspdz_out(mpspdz_out)
 
-        if isinstance(exp, Succ):
-            if mpspdz_res[0] == False:
-                fail_test(name)
+    assert mpspdz_res[0] is True
 
-            pystats_res = run_pystats_func(
-                player_data,
-                num_params,
-                selected_col,
-                pystats_func,
-            )
-            diff = abs(mpspdz_res[1] - pystats_res)
-            print(f"Diff: {diff}")
-            if (diff > exp.tolerance):
-                fail_test(name)
-            print(f"--> Test '{name}' passed")
+    pystats_res = run_pystats_func(
+        player_data,
+        num_params,
+        selected_col,
+        pystats_func,
+    )
+    assert abs(mpspdz_res[1] - pystats_res) < tolerance
 
-        elif isinstance(exp, Fail):
-            if mpspdz_res[0] == True:
-                fail_test(name)
-            if not exp.pattern in mpspdz_res[1]: 
-                fail_test(name)
-            print(f"--> Test '{name}' passed")
-
-        else:
-            raise ValueError(f'expectation should be either Succ or Fail, but got f{exp.__name__}')
-
-    except Exception as e:
-        print(f"Test '{name}' failed: {e}")
-        fail_test(name)
-
-def run_function_with_random_data(
-    test_name,
+def run_func_many_times_with_random_data(
     mpcstats_func,
     pystats_func,
     num_interation,
+    gen_player_data,
 ):
     raise NotImplementedError(__name__)
 
