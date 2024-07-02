@@ -9,16 +9,16 @@ jobs:
   test-on-ubuntu-latest:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the pushed branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           architecture: 'x64'
-
-      - name: List files in the repository
-        run: |
-          echo "Listing contents of the repository:"
-          ls -la
 
       - name: Install Python dependencies
         run: |
@@ -27,11 +27,6 @@ jobs:
 
       - name: Install MP-SPDZ dependencies
         run: sudo apt-get install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool
-
-      - name: Check out the pushed branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
 
       - name: Set up MP-SPDZ
         run: make setup
