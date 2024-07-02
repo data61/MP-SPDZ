@@ -1,4 +1,4 @@
-name: Geometric Mean
+name: mpstats functions
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - '*'
 
 jobs:
-  build:
+  geometric-mean:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,5 +31,6 @@ jobs:
         run: make -j8 semi-party.x
 
       - name: Run test
-        run: ci/geometric-mean.py
+        run: python ci/geometric-mean.py
+
 
