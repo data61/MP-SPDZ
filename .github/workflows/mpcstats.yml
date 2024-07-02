@@ -15,6 +15,11 @@ jobs:
           python-version: '3.12'
           architecture: 'x64'
 
+      - name: List files in the repository
+        run: |
+          echo "Listing contents of the repository:"
+          ls -la
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
