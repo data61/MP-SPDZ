@@ -18,6 +18,9 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
+      - name: Compile semi-party.x
+        run: make -j8 semi-party.x
+
       - name: Run tests
         run: python ci/geometric-mean.py
 
@@ -29,6 +32,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+
+      - name: Compile semi-party.x
+        run: make -j8 semi-party.x
 
       - name: Run tests
         run: python ci/correlation.py
@@ -42,6 +48,9 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
+      - name: Compile semi-party.x
+        run: make -j8 semi-party.x
+
       - name: Run tests
         run: python ci/covariance.py
 
@@ -53,6 +62,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+
+      - name: Compile semi-party.x
+        run: make -j8 semi-party.x
 
       - name: Run tests
         run: python ci/median.py
