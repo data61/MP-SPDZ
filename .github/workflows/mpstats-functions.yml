@@ -21,3 +21,39 @@ jobs:
       - name: Run geometric mean test
         run: python ci/geometric-mean.py
 
+  correlation:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pushed branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Run geometric mean test
+        run: python ci/correlation.py
+
+  covariance:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pushed branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Run geometric mean test
+        run: python ci/covariance.py
+
+  median:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pushed branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Run geometric mean test
+        run: python ci/median.py
+
