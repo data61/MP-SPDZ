@@ -1,0 +1,35 @@
+name: Geometric Mean
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the pushed branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+    
+      - name: Set up MP-SPDZ
+        run: make setup
+
+      - name: Set up MP-SPDZ
+        run: make setup
+
+      - name: Compile semi-party.x
+        run: make -j8 semi-party.x
+
+      - name: Run test
+        run: ci/geometric-mean.py
+
