@@ -33,4 +33,4 @@ jobs:
         run: make -j8 semi-party.x
 
       - name: Run tests
-        run: pytest -v
+        run: pytest tests -v
