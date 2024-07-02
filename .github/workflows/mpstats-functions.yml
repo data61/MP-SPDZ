@@ -8,6 +8,6 @@ on:
 jobs:
   geometric-mean:
     uses: ./.github/workflows/ubuntu-setup.yml
-      steps:
-        - name: Run geometric mean test
-          run: python ci/geometric-mean.py
+    steps:
+      - name: Run geometric mean test
+        run: python ci/geometric-mean.py
