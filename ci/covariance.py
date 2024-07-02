@@ -5,8 +5,8 @@ import statistics
 
 test_function(
     'good input',
-    mpcstats_lib.correlation,
-    statistics.correlation,
+    mpcstats_lib.covariance,
+    statistics.covariance,
     num_params = 2,
     player_data = player_data_4x2_2_party,
     selected_col = 1,

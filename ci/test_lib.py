@@ -148,7 +148,7 @@ def run_pystats_func(
 
 def extract_result_from_mpspdz_out(out):
     stdout, _ = out
-    succ_re = r'^result:\s*(\d+\.\d+)$'
+    succ_re = r'^result: (.*)$'
     fail_re = r'^User exception: (.*)$'
 
     for line in stdout.splitlines():

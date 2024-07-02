@@ -5,9 +5,9 @@ import statistics
 
 test_function(
     'good input',
-    mpcstats_lib.correlation,
-    statistics.correlation,
-    num_params = 2,
+    mpcstats_lib.median,
+    statistics.median,
+    num_params = 1,
     player_data = player_data_4x2_2_party,
     selected_col = 1,
     exp = Succ(0.01),
