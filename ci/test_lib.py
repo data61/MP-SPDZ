@@ -198,7 +198,6 @@ def test_function(
             mpc_script,
             'testmpc',
         )
-        print(mpspdz_out)
         mpspdz_res = extract_result_from_mpspdz_out(mpspdz_out)
 
         if isinstance(exp, Succ):

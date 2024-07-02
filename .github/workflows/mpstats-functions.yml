@@ -6,17 +6,25 @@ on:
       - '*'
 
 jobs:
-  setup:
-    uses: ./.github/workflows/ubuntu-setup.yml
-
   geometric-mean:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+    
+      - name: Install dependencies
+        run: sudo apt-get install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool
+
       - name: Check out the pushed branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+
+      - name: Set up MP-SPDZ
+        run: make setup
 
       - name: Compile semi-party.x
         run: make -j8 semi-party.x
@@ -25,13 +33,24 @@ jobs:
         run: python ci/geometric-mean.py
 
   correlation:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+    
+      - name: Install dependencies
+        run: sudo apt-get install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool
+
       - name: Check out the pushed branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+
+      - name: Set up MP-SPDZ
+        run: make setup
 
       - name: Compile semi-party.x
         run: make -j8 semi-party.x
@@ -40,13 +59,24 @@ jobs:
         run: python ci/correlation.py
 
   covariance:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+    
+      - name: Install dependencies
+        run: sudo apt-get install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool
+
       - name: Check out the pushed branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+
+      - name: Set up MP-SPDZ
+        run: make setup
 
       - name: Compile semi-party.x
         run: make -j8 semi-party.x
@@ -55,13 +85,24 @@ jobs:
         run: python ci/covariance.py
 
   median:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+    
+      - name: Install dependencies
+        run: sudo apt-get install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool
+
       - name: Check out the pushed branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+
+      - name: Set up MP-SPDZ
+        run: make setup
 
       - name: Compile semi-party.x
         run: make -j8 semi-party.x
