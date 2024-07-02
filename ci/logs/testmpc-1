@@ -1,0 +1,2 @@
+Using statistical security parameter 40
+libc++abi: terminating due to uncaught exception of type std::runtime_error: silverman.local : Receiving error - 1 : Connection reset by peer

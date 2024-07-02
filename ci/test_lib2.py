@@ -8,12 +8,18 @@ from Compiler.compilerLib import Compiler
 from mpcstats_lib import read_data
 import mpcstats_lib
 
+from enum import Enum
+from typing import NamedTuple
+import subprocess
+
+class Exp(Enum):
+    Success = 1
+    Failure = 2
+
 def gen_computation(
     player_data_id,
     player_data,
     tc,
-    prefix_tag_beg,
-    prefix_tag_end,
 ):
     def get_col(party_id):
         data = player_data[party_id]
@@ -34,7 +40,7 @@ def gen_computation(
         else:
             runtime_error(f'# of func params is expected to be 1 or 2, but got {num_func_params}')
 
-        print_ln('%s%s:m:%s%s%s', prefix_tag_beg, player_data_id, tc.name, prefix_tag_end, res)
+        print_ln('result: %s', res)
 
     return computation
 
@@ -46,9 +52,14 @@ def compile_and_run(computation, num_parties, mpc_script, prog):
 
     # execute .x
     cmd = f'PLAYERS={num_parties} {mpc_script} {prog}'
-    r = os.system(cmd)
-    if r != 0:
-        raise ValueError(f'Executing mpc failed: {r}')
+
+    try:
+        res = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+
+        return (True, (res.stdout, res.stderr))
+
+    except subprocess.CalledProcessError as e:
+        return (False, None)
 
 def create_player_data_files(data_dir, player_data):
     # prepare an empty data dir
@@ -111,77 +122,37 @@ mpc_script = root / 'Scripts' / 'semi.sh'
 # create player data dir
 data_dir = root / "Player-Data"
 
-@dataclass
-class TestCase:
-    name: str
-    mpcstats_func: any
-    python_stats_func: any
-    num_params: int
-    selected_col: int
-    num_range_beg: int
-    num_range_end: int
-
-test_cases = [
-    TestCase(
-        'geometric_mean', 
-        mpcstats_lib.geometric_mean,
-        statistics.geometric_mean,
-        num_params = 1,
-        selected_col = 1,
-        num_range_beg = 1,
-        num_range_end = 10000,
-    ),
-    TestCase(
-        'correlation', 
-        mpcstats_lib.correlation,
-        statistics.correlation,
-        num_params = 2,
-        selected_col = 1,
-        num_range_beg = 1,
-        num_range_end = 100,
-    ),
-]
-
 num_rows = 10
 num_cols = 2
 num_parties = 2
 num_iterations = 1
 
-player_data_id = 1
+computation = gen_computation(
+    player_data_id,
+    player_data,
+    test_case,
+)
 
-for _ in range(num_iterations):
-    for test_case in test_cases:
-        player_data = gen_player_data(
-            num_rows,
-            num_cols,
-            num_parties,
-            test_case.num_range_beg,
-            test_case.num_range_end,
-        )
+create_player_data_files(data_dir, player_data)
 
-        computation = gen_computation(
-            player_data_id,
-            player_data,
-            test_case,
-            '<<<|',
-            '|>>>',
-        )
-        create_player_data_files(data_dir, player_data)
+compile_and_run(
+    computation,
+    num_parties,
+    mpc_script,
+    'testmpc',
+)
 
-        compile_and_run(
-            computation,
-            num_parties,
-            mpc_script,
-            'testmpc',
-        )
-        
-        run_python_stats_func(
-            player_data_id,
-            player_data,
-            test_case,
-            '<<<|',
-            '|>>>',
-        )
+def test_function(
+    mpcstats_func,
+    python_stats_func,
+    player_data,
+    exp
+):
+    res = exec_computation(player_data)
 
-        player_data_id += 1
+    if exp[0] == Exp.Success:
+        pass
+    elif exp[1] == Exp.Failure:
+        pass
+
 
