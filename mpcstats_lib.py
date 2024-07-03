@@ -2,7 +2,7 @@
 Contains functions can be used in MP-SPDZ circuits.
 """
 
-from Compiler.library import print_ln, for_range, runtime_error, if_
+from Compiler.library import print_ln, for_range
 from Compiler.types import sint, sfix, Matrix, sfloat, Array
 from Compiler.util import if_else
 from Compiler.mpc_math import sqrt, exp2_fx, log2_fx

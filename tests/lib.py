@@ -1,15 +1,9 @@
-import os, sys
-
-# add parent dir to Python path
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-sys.path.append(parent_dir)
-
 from Compiler.library import print_ln
 from Compiler.compilerLib import Compiler
 
 from mpcstats_lib import MAGIC_NUMBER, read_data
 from pathlib import Path
-import ast, glob, random, re, shutil, statistics, subprocess
+import ast, glob, os, random, re, shutil, statistics, subprocess, sys
 
 def load_to_matrices(player_data):
     return [read_data(i, len(p), len(p[0])) for i,p in enumerate(player_data)]
