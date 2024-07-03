@@ -11,11 +11,11 @@ from mpcstats_lib import MAGIC_NUMBER, read_data
 from pathlib import Path
 import ast, glob, random, re, shutil, statistics, subprocess
 
-def get_col(player_data, party_id, selected_col):
-    data = player_data[party_id]
-    mat = read_data(party_id, len(data), len(data[0]))
-    col = [mat[selected_col][i] for i in range(mat.shape[1])]
-    return col
+def load_to_matrices(player_data):
+    return [read_data(i, len(p), len(p[0])) for i,p in enumerate(player_data)]
+
+def load_column(m, selected_col):
+    return [m[selected_col][i] for i in range(m.shape[1])]
 
 def gen_stat_func_comp(
     player_data,
@@ -23,44 +23,25 @@ def gen_stat_func_comp(
     func,
     num_params,
 ):
-    def get_col_wrap(party_id):
-        return get_col(player_data, party_id, selected_col)
-
     if num_params == 1:
         def computation():
-            party_ids = list(range(num_params))
-            col = get_col_wrap(party_ids[0])
+            ms = load_to_matrices(player_data)
+            col = load_column(ms[0], selected_col)
             res = func(col).reveal()
             print_ln('result: %s', res)
         return computation
 
     elif num_params == 2:
         def computation():
-            party_ids = list(range(num_params))
-            col1 = get_col_wrap(party_ids[0])
-            col2 = get_col_wrap(party_ids[1])
+            ms = load_to_matrices(player_data)
+            col1 = load_column(ms[0], selected_col)
+            col2 = load_column(ms[1], selected_col)
             res = func(col1, col2).reveal()
             print_ln('result: %s', res)
         return computation
 
     else:
         raise Exception(f'# of func params is expected to be 1 or 2, but got {num_params}')
-
-def gen_elem_filter_comp(
-    player_data,
-    selected_col,
-    func,
-    elem_filter_gen,
-):
-    def computation():
-        party_ids = [0]
-        col = get_col(player_data, party_ids[0], selected_col)
-
-        elem_filter = elem_filter_gen(col)
-        res = func(elem_filter, col).reveal()
-        print_ln('result: %s', res)
-
-    return computation
 
 def run_mpcstats_func(
     computation,
@@ -217,12 +198,13 @@ def execute_elem_filter_test(
     selected_col,
     exp,
 ):
-    computation = gen_elem_filter_comp(
-        player_data,
-        selected_col,
-        func,
-        elem_filter_gen,
-    )
+    def computation():
+        ms = load_to_matrices(player_data)
+        col = load_column(ms[0], selected_col)
+
+        elem_filter = elem_filter_gen(col)
+        res = func(elem_filter, col).reveal()
+        print_ln('result: %s', res)
 
     root = Path(__file__).parent.parent
 
@@ -243,10 +225,6 @@ def execute_elem_filter_test(
 
     assert mpspdz_res[0] is True
     assert mpspdz_res_val == exp
-
-# convert player_data to list of matrices
-def load_to_matrices(player_data):
-    return [read_data(i, len(p), len(p[0])) for i,p in enumerate(player_data)]
 
 def execute_join_test(
     func,
