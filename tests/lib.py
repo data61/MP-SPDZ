@@ -244,6 +244,55 @@ def execute_elem_filter_test(
     assert mpspdz_res[0] is True
     assert mpspdz_res_val == exp
 
+# convert player_data to list of matrices
+def load_to_matrices(player_data):
+    return [read_data(i, len(p), len(p[0])) for i,p in enumerate(player_data)]
+
+def execute_join_test(
+    func,
+    player_data,
+    p1_key_col,
+    p2_key_col,
+    exp_m,
+):
+    root = Path(__file__).parent.parent
+
+    data_dir = root / "Player-Data"
+    create_player_data_files(data_dir, player_data)
+
+    # compile a dummy .x to define curr_tape that is required by Matrix constructor
+    compiler = Compiler()
+    def dummy_comp():
+        pass
+    compiler.register_function('')(dummy_comp)
+    compiler.compile_func()
+
+    def computation():
+        ms = load_to_matrices(player_data)
+        res = func(
+            ms[0],
+            ms[1],
+            p1_key_col,
+            p2_key_col,
+        ).reveal()
+        print_ln('result: %s', res)
+
+    protocol = 'semi'
+    mpc_script = root / 'Scripts' / f'{protocol}.sh'
+    num_parties = len(player_data)
+    mpspdz_out = run_mpcstats_func(
+        computation,
+        num_parties,
+        mpc_script,
+        'testmpc',
+    )
+    mpspdz_res = extract_result_from_mpspdz_out(mpspdz_out)
+    mpspdz_res_val = ast.literal_eval(mpspdz_res[1]) 
+    print(mpspdz_res_val)
+
+    assert mpspdz_res[0] is True
+    assert mpspdz_res_val == exp_m
+
 def run_func_many_times_with_random_data(
     mpcstats_func,
     pystats_func,

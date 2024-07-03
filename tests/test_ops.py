@@ -1,7 +1,7 @@
 import pytest, statistics
 
 import mpcstats_lib
-from .lib import execute_elem_filter_test, execute_stat_func_test
+from .lib import execute_elem_filter_test, execute_join_test, execute_stat_func_test
 
 player_data_4x2_2_party = [
     # party 0
@@ -102,3 +102,29 @@ def test_where_success():
         lambda col: [n > 40 for n in col],
         [M, M, M, M],
     )
+
+def test_join_success():
+    M = mpcstats_lib.MAGIC_NUMBER
+
+    execute_join_test(
+        mpcstats_lib.join,
+        [
+            [
+                [0, 1, 2, 3],
+                [152, 160, 170, 180],
+            ],
+            [
+                [3, 0, 4],
+                [50, 60, 70],
+            ],
+        ],
+        0,
+        0,
+        [
+            [0, 1, 2, 3],
+            [152, 160, 170, 180],
+            [0, M, M, 3],
+            [60, M, M, 50],
+        ],
+    )
+
