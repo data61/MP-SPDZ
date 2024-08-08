@@ -54,7 +54,7 @@ def maskField(a, k):
 def EQZ(a, k):
     prog = program.Program.prog
     if prog.use_split():
-        from GC.types import sbitvec
+        from Compiler.GC.types import sbitvec
         v = sbitvec(a, k).v
         bit = util.tree_reduce(operator.and_, (~b for b in v))
         return types.sintbit.conv(bit)
