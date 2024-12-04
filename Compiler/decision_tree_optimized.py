@@ -1,6 +1,7 @@
 from Compiler.types import *
 from Compiler.sorting import *
 from Compiler.library import *
+from Compiler.decision_tree import get_type, PrefixSum, PrefixSumR, PrefixSum_inv, PrefixSumR_inv, SortPerm, GroupSum, GroupPrefixSum, GroupFirstOne, output_decision_tree, pick, run_decision_tree, test_decision_tree
 from Compiler import util, oram
 
 from itertools import accumulate
@@ -35,113 +36,19 @@ def ApplyInversePermutation(perm, x):
     reveal_sort(perm, res, True)
     return res
 
-def get_type(x):
-    if isinstance(x, (Array, SubMultiArray)):
-        return x.value_type
-    elif isinstance(x, (tuple, list)):
-        x = x[0] + x[-1]
-        if util.is_constant(x):
-            return cint
-        else:
-            return type(x)
-    else:
-        return type(x)
-
+def VectMax(key, *data, debug=False):
+    def reducer(x, y):
+        b = x[0]*y[1] > y[0]*x[1]
+        return [b.if_else(xx, yy) for xx, yy in zip(x, y)]
+    res = util.tree_reduce(reducer, zip(key, *data))
+    return res
 
 def Custom_GT_Fractions(x_num, x_den, y_num, y_den, n_threads=2):
     b = (x_num*y_den) > (x_den*y_num)
     b = Array.create_from(b).get_vector()
     return b
 
-def PrefixSum(x):
-    return x.get_vector().prefix_sum()
-
-def PrefixSumR(x):
-    tmp = get_type(x).Array(len(x))
-    tmp.assign_vector(x)
-    break_point()
-    tmp[:] = tmp.get_reverse_vector().prefix_sum()
-    break_point()
-    return tmp.get_reverse_vector()
-
-def PrefixSum_inv(x):
-    tmp = get_type(x).Array(len(x) + 1)
-    tmp.assign_vector(x, base=1)
-    tmp[0] = 0
-    return tmp.get_vector(size=len(x), base=1) - tmp.get_vector(size=len(x))
-
-def PrefixSumR_inv(x):
-    tmp = get_type(x).Array(len(x) + 1)
-    tmp.assign_vector(x)
-    tmp[-1] = 0
-    return tmp.get_vector(size=len(x)) - tmp.get_vector(base=1, size=len(x))
-
-class SortPerm:
-    def __init__(self, x):
-        B = sint.Matrix(len(x), 2)
-        B.set_column(0, 1 - x.get_vector())
-        B.set_column(1, x.get_vector())
-        self.perm = Array.create_from(dest_comp(B))
-    def apply(self, x):
-        res = Array.create_from(x)
-        reveal_sort(self.perm, res, False)
-        return res
-    def unapply(self, x):
-        res = Array.create_from(x)
-        reveal_sort(self.perm, res, True)
-        return res
-
-def Sort(keys, *to_sort, n_bits=None, time=False):
-    if time:
-        start_timer(1)
-    for k in keys:
-        assert len(k) == len(keys[0])
-    n_bits = n_bits or [None] * len(keys)
-    bs = Matrix.create_from(
-        sum([k.get_vector().bit_decompose(nb)
-             for k, nb in reversed(list(zip(keys, n_bits)))], []))
-    get_vec = lambda x: x[:] if isinstance(x, Array) else x
-    res = Matrix.create_from(get_vec(x).v if isinstance(get_vec(x), sfix) else x
-                             for x in to_sort)
-    res = res.transpose()
-    if time:
-        start_timer(11)
-    radix_sort_from_matrix(bs, res)
-    if time:
-        stop_timer(11)
-        stop_timer(1)
-    res = res.transpose()
-    return [sfix._new(get_vec(x), k=get_vec(y).k, f=get_vec(y).f)
-            if isinstance(get_vec(y), sfix)
-            else x for (x, y) in zip(res, to_sort)]
-
-def VectMax(key, *data, debug=False):
-    def reducer(x, y):
-        b = x[0]*y[1] > y[0]*x[1]
-        return [b.if_else(xx, yy) for xx, yy in zip(x, y)]
-    res = util.tree_reduce(reducer, zip(key, *data))[1:]
-    return res
-
-def GroupSum(g, x):
-    assert len(g) == len(x)
-    p = PrefixSumR(x) * g
-    pi = SortPerm(g.get_vector().bit_not())
-    p1 = pi.apply(p)
-    s1 = PrefixSumR_inv(p1)
-    d1 = PrefixSum_inv(s1)
-    d = pi.unapply(d1) * g
-    return PrefixSum(d)
-
-def GroupPrefixSum(g, x):
-    assert len(g) == len(x)
-    s = get_type(x).Array(len(x) + 1)
-    s[0] = 0
-    s.assign_vector(PrefixSum(x), base=1)
-    q = get_type(s).Array(len(x))
-    q.assign_vector(s.get_vector(size=len(x)) * g)
-    return s.get_vector(size=len(x), base=1) - GroupSum(g, q)
-
-def GroupMax(g, keys, *x):
+def GroupMax(g, keys, *x, debug=False):
     assert len(keys) == len(g)
     for xx in x:
         assert len(xx) == len(g)
@@ -159,7 +66,6 @@ def GroupMax(g, keys, *x):
         g_new.assign_vector(g_old.get_vector(size=vsize).bit_or(
             g_old.get_vector(size=vsize, base=w)), base=w)
         b = Custom_GT_Fractions(keys.get_vector(size=vsize), x[0].get_vector(size=vsize), keys.get_vector(size=vsize, base=w), x[0].get_vector(size=vsize, base=w))
-        #b = keys.get_vector(size=vsize) > keys.get_vector(size=vsize, base=w)
         for xx in [keys] + x:
             a = b.if_else(xx.get_vector(size=vsize),
                           xx.get_vector(size=vsize, base=w))
@@ -200,11 +106,10 @@ def ComputeGini(g, x, y, notysum, ysum, debug=False):
     t = p[:].if_else(MIN_VALUE, t[:])
     return res_num, res_den, t
 
-
 MIN_VALUE = -10000
 
-def FormatLayer(h, g, *a):
-    return CropLayer(h, *FormatLayer_without_crop(g, *a))
+def FormatLayer(h, g, *a, debug=False):
+    return CropLayer(h, *FormatLayer_without_crop(g, *a, debug=debug))
 
 def FormatLayer_without_crop(g, *a, debug=False):
     for x in a:
@@ -221,18 +126,13 @@ def CropLayer(k, *v):
         n = 2 ** k
     return [vv[:min(n, len(vv))] for vv in v]
 
-def TrainLeafNodes(h, g, y, NID):
+def TrainLeafNodes(h, g, y, NID, Label, debug=False):
     assert len(g) == len(y)
     assert len(g) == len(NID)
-    return FormatLayer(h, g, NID, Label)
-
-def GroupFirstOne(g, b):
-    assert len(g) == len(b)
-    s = GroupPrefixSum(g, b)
-    return s * b == 1
+    return FormatLayer(h, g, NID, Label, debug=debug)
 
 class TreeTrainer:
-    def GetInversePermutation(self, perm):
+    def GetInversePermutation(self, perm, n_threads=2):
         res = Array.create_from(self.identity_permutation)
         reveal_sort(perm, res)
         return res
@@ -244,12 +144,14 @@ class TreeTrainer:
         for xx in x:
             assert len(xx) == len(AID)
         e = sint.Matrix(m, n)
+
         @for_range_multithread(self.n_threads, 1, m)
         def _(j):
             e[j][:] = AID[:] == j
-        xx = sum(x[j] * e[j] for j in range(m))
-        return 2 * xx < Threshold
+        xx = sum(x[j]*e[j] for j in range(m)) 
 
+        return 2 * xx.get_vector() < Threshold.get_vector()
+    
     def TestSelection(self, g, x, y, pis, notysum, ysum, time=False):
         for xx in x:
             assert(len(xx) == len(g))
@@ -337,22 +239,19 @@ class TreeTrainer:
 
     @method_block
     def train_layer(self, k):
+        g = self.g
         x = self.x
         y = self.y
-        g = self.g
         NID = self.NID
         pis = self.pis
-
         s0 = GroupSum(g, y.get_vector().bit_not())
         s1 = GroupSum(g, y.get_vector())
-
         a, t = self.TestSelection(g, x, y, pis, s0, s1)
         b = self.ApplyTests(x, a, t)
         p = SortPerm(g.get_vector().bit_not())
-
         self.nids[k], self.aids[k], self.thresholds[k]= FormatLayer_without_crop(g[:], NID, a, t, debug=self.debug)
         self.g, self.x, self.y, self.NID, self.pis = self.UpdateState(g, x, y, pis, NID, b, k)
-        
+
         @if_(k >= (len(self.nids)-1))
         def _():
             self.label = Array.create_from(s0 < s1)
@@ -395,14 +294,19 @@ class TreeTrainer:
         self.NID.assign_all(1)
         self.y = Array.create_from(y)
         self.x = Matrix.create_from(x)
+        self.pis = sint.Matrix(m, n)
         self.nids, self.aids = [sint.Matrix(h, n) for i in range(2)]
         self.thresholds = self.x.value_type.Matrix(h, n)
-        self.identity_permutation = sint.Array(n)
+        self.identity_permutation = sint.Array(n) 
         self.label = sintbit.Array(n)
+        self.zeros = sint.Array(n)
+        self.zeros.assign_all(0)
         self.n_threads = n_threads
         self.debug_selection = False
-        self.debug_threading = False
+        self.debug_threading = True
         self.debug_gini = False
+        self.debug_init = False
+        self.debug_vectmax = False
         self.debug = False
         self.time = False
 
@@ -415,13 +319,14 @@ class TreeTrainer:
             self.identity_permutation[i] = sint(i)
 
         h = len(self.nids)
+
         self.pis = self.SetupPerm(self.g, self.x, self.y)
 
         @for_range(h)
         def _(k):
             self.train_layer(k)
         return self.get_tree(h, self.label)
-
+    
     def train_with_testing(self, *test_set, output=False):
         """ Train decision tree and test against test data.
 
@@ -449,92 +354,18 @@ class TreeTrainer:
         for k in range(h):
             Layer[k] = CropLayer(k, self.nids[k], self.aids[k],
                                  self.thresholds[k])
-        Layer[h] = TrainLeafNodes(h, self.g[:], self.y[:], self.NID, Label)
+        Layer[h] = TrainLeafNodes(h, self.g[:], self.y[:], self.NID, Label, debug=self.debug)
         return Layer
 
 def DecisionTreeTraining(x, y, h, binary=False):
     return TreeTrainer(x, y, h, binary=binary).train()
 
-def output_decision_tree(layers):
-    """ Print decision tree output by :py:class:`TreeTrainer`. """
-    print_ln('full model %s', util.reveal(layers))
-    for i, layer in enumerate(layers[:-1]):
-        print_ln('level %s:', i)
-        for j, x in enumerate(('NID', 'AID', 'Thr')):
-            print_ln(' %s: %s', x, util.reveal(layer[j]))
-    print_ln('leaves:')
-    for j, x in enumerate(('NID', 'result')):
-        print_ln(' %s: %s', x, util.reveal(layers[-1][j]))
-
-def pick(bits, x):
-    if len(bits) == 1:
-        return bits[0] * x[0]
-    else:
-        try:
-            return x[0].dot_product(bits, x)
-        except:
-            return sum(aa * bb for aa, bb in zip(bits, x))
-
-def run_decision_tree(layers, data):
-    """ Run decision tree against sample data.
-
-    :param layers: tree output by :py:class:`TreeTrainer`
-    :param data: sample data (:py:class:`~Compiler.types.Array`)
-    :returns: binary label
-
-    """
-    h = len(layers) - 1
-    index = 1
-    for k, layer in enumerate(layers[:-1]):
-        assert len(layer) == 3
-        for x in layer:
-            assert len(x) <= 2 ** k
-        bits = layer[0].equal(index, k)
-        threshold = pick(bits, layer[2])
-        key_index = pick(bits, layer[1])
-        if key_index.is_clear:
-            key = data[key_index]
-        else:
-            key = pick(
-                oram.demux(key_index.bit_decompose(util.log2(len(data)))), data)
-        child = 2 * key < threshold
-        index += child * 2 ** k
-    bits = layers[h][0].equal(index, h)
-    return pick(bits, layers[h][1])
-
-def test_decision_tree(name, layers, y, x, n_threads=None, time=False):
-    if time:
-        start_timer(100)
-    n = len(y)
-    x = x.transpose().reveal()
-    y = y.reveal()
-    guess = regint.Array(n)
-    truth = regint.Array(n)
-    correct = regint.Array(2)
-    parts = regint.Array(2)
-    layers = [[Array.create_from(util.reveal(x)) for x in layer]
-              for layer in layers]
-    @for_range_multithread(n_threads, 1, n)
-    def _(i):
-        guess[i] = run_decision_tree([[part[:] for part in layer]
-                                      for layer in layers], x[i]).reveal()
-        truth[i] = y[i].reveal()
-    @for_range(n)
-    def _(i):
-        parts[truth[i]] += 1
-        c = (guess[i].bit_xor(truth[i]).bit_not())
-        correct[truth[i]] += c
-    print_ln('%s for height %s: %s/%s (%s/%s, %s/%s)', name, len(layers) - 1,
-             sum(correct), n, correct[0], parts[0], correct[1], parts[1])
-    if time:
-        stop_timer(100)
-
 class TreeClassifier:
-    """ Tree classification with convenient interface. Uses
+    """ Tree classification that uses
     :py:class:`TreeTrainer` internally.
 
-    :param max_depth: the depth of the decision tree
-    :param n_threads: number of threads used in training
+    :param max_depth: Depth of decision tree
+    :param n_threads: Number of threads used
 
     """
     def __init__(self, max_depth, n_threads=None):
@@ -551,8 +382,8 @@ class TreeClassifier:
     def fit(self, X, y, attr_types=None):
         """ Train tree.
 
-        :param X: sample data with row-wise samples (sint/sfix matrix)
-        :param y: binary labels (sint list/array)
+        :param X: Attribute values
+        :param y: Binary labels
 
         """
         self.tree = TreeTrainer(
@@ -560,6 +391,9 @@ class TreeClassifier:
             attr_lengths=self.get_attr_lengths(attr_types),
             n_threads=self.n_threads).train()
 
+    def output(self):
+        output_decision_tree(self.tree)
+    
     def fit_with_testing(self, X_train, y_train, X_test, y_test,
                          attr_types=None, output_trees=False, debug=False):
         """ Train tree with accuracy output after every level.
@@ -595,41 +429,3 @@ class TreeClassifier:
         def _(i):
             res[i] = run_decision_tree(self.tree, X[i])
         return res
-
-    def output(self):
-        """ Output decision tree. """
-        output_decision_tree(self.tree)
-
-def preprocess_pandas(data):
-    """ Preprocess pandas data frame to suit
-    :py:class:`TreeClassifier` by expanding non-continuous attributes
-    to several binary attributes as a unary encoding.
-
-    :returns: a tuple of the processed data and a type list for the
-      :py:obj:`attr_types` argument.
-
-    """
-    import pandas
-    import numpy
-    res = []
-    types = []
-    for i, t in enumerate(data.dtypes):
-        if pandas.api.types.is_int64_dtype(t):
-            res.append(data.iloc[:,i].to_numpy())
-            types.append('c')
-        elif pandas.api.types.is_object_dtype(t):
-            values = list(filter(lambda x: isinstance(x, str),
-                                 list(data.iloc[:,i].unique())))
-            print('converting the following to unary:', values)
-            if len(values) == 2:
-                res.append(data.iloc[:,i].to_numpy() == values[1])
-                types.append('b')
-            else:
-                for value in values:
-                    res.append(data.iloc[:,i].to_numpy() == value)
-                    types.append('b')
-        else:
-            raise CompilerError('unknown pandas type: ' + t)
-    res = numpy.array(res)
-    res = numpy.swapaxes(res, 0, 1)
-    return res, types
