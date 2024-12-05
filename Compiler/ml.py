@@ -2925,10 +2925,12 @@ class SGD(Optimizer):
         self.layers = layers
         self.n_epochs = n_epochs
         self.nablas = []
+        self.momentum_values = []
         self.delta_thetas = []
         for layer in layers:
             self.nablas.extend(layer.nablas())
             for theta in layer.thetas():
+                self.momentum_values.append(theta.same_shape())
                 self.delta_thetas.append(theta.same_shape())
         self.set_learning_rate(0.01)
         self.debug = debug
@@ -2948,23 +2950,27 @@ class SGD(Optimizer):
                     j = i + label * len(X_by_label[0])
                     self.layers[0].X[j] = X[i]
                     self.layers[-1].Y[j] = label
+        for y in self.momentum_values:
+            y.assign_all(0)
         for y in self.delta_thetas:
             y.assign_all(0)
         super(SGD, self).reset()
 
     def _update(self, i_epoch, i_batch, batch):
-        for nabla, theta, delta_theta in zip(self.nablas, self.thetas,
-                                             self.delta_thetas):
+        for nabla, theta, momentum_value, delta_theta in zip(self.nablas, self.thetas,
+                                             self.momentum_values, self.delta_thetas):
             @multithread(self.n_threads, nabla.total_size())
             def _(base, size):
-                old = delta_theta.get_vector(base, size)
+                old = momentum_value.get_vector(base, size)
                 red_old = self.momentum * old
                 rate = self.gamma.expand_to_vector(size)
                 nabla_vector = nabla.get_vector(base, size)
                 log_batch_size = math.log(len(batch), 2)
                 # divide by len(batch) by truncation
                 # increased rate if len(batch) is not a power of two
-                pre_trunc = nabla_vector.v * rate.v
+                diff = red_old - nabla_vector
+                pre_trunc = diff.v * rate.v
+                momentum_value.assign_vector(diff, base)
                 k = max(nabla_vector.k, rate.k) + rate.f
                 m = rate.f + int(log_batch_size)
                 if self.early_division:
@@ -2973,8 +2979,7 @@ class SGD(Optimizer):
                     v = pre_trunc.round(k, m, signed=True,
                                         nearest=sfix.round_nearest)
                 new = nabla_vector._new(v)
-                diff = red_old - new
-                delta_theta.assign_vector(diff, base)
+                delta_theta.assign_vector(new, base)
                 theta.assign_vector(theta.get_vector(base, size) +
                                     delta_theta.get_vector(base, size), base)
             if self.print_update_average:
