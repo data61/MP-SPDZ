@@ -40,13 +40,6 @@ public:
 
 private:
     SubProcessor<T>& proc;
-    vector<T> to_shuffle;
-    vector<vector<T>> config;
-    vector<T> tmp;
-    int unit_size;
-
-    size_t n_shuffle;
-    bool exact;
 
     /**
      * Generates and returns a newly generated random permutation. This permutation is generated locally.
@@ -66,19 +59,16 @@ private:
      *      e.g. [2, 4, 0, 3, 1] -> perm(1) = 4
      *
      * @param config_player The player tasked with generating the random permutation from which to configure the waksman network.
-     * @param n_shuffle The size of the permutation to generate.
+     * @param n The size of the permutation to generate.
      */
-    void configure(int config_player, vector<int>* perm, int n);
-    void player_round(int config_player);
+    vector<vector<T>> configure(int config_player, vector<int>* perm, int n);
 
-    void waksman(StackedVector<T>& a, int depth, int start);
-    void cond_swap(T& x, T& y, const T& b);
+    int prep_multiple(StackedVector<T>& a, vector<size_t> &sizes, vector<size_t> &sources, vector<size_t> &unit_sizes, vector<vector<T>>& to_shuffle, vector<bool> &exact);
+    void finalize_multiple(StackedVector<T>& a, vector<size_t>& sizes, vector<size_t>& unit_sizes, vector<size_t>& destinations, vector<bool>& isExact, vector<vector<T>>& to_shuffle);
 
-    void iter_waksman(bool reverse = false);
-    void waksman_round(int size, bool inwards, bool reverse);
-
-    void pre(StackedVector<T>& a, size_t n, size_t input_base);
-    void post(StackedVector<T>& a, size_t n, size_t input_base);
+    void parallel_waksman_round(size_t pass, int depth, bool inwards, vector<vector<T>>& toShuffle, vector<size_t>& unit_sizes, vector<bool>& reverse, vector<shuffle_type>& shuffles);
+    vector<array<int, 5>> waksman_round_init(vector<T>& toShuffle, size_t shuffle_unit_size, int depth, vector<vector<T>>& iter_waksman_config, bool inwards, bool reverse);
+    void waksman_round_finish(vector<T>& toShuffle, size_t unit_size, vector<array<int, 5>> indices);
 
 public:
     map<long, long> stats;
@@ -90,21 +80,10 @@ public:
 
     int generate(int n_shuffle, store_type& store);
 
-    /**
-     *
-     * @param a The vector of registers representing the stack // TODO: Is this correct?
-     * @param n The size of the input vector to shuffle
-     * @param unit_size Determines how many vector items constitute a single block with regards to permutation:
-     *                  i.e. input vector [1,2,3,4] with <code>unit_size=2</code> under permutation map [1,0]
-     *                  would result in [3,4,1,2]
-     * @param output_base The starting address of the output vector (i.e. the location to write the inverted permutation to)
-     * @param input_base The starting address of the input vector (i.e. the location from which to read the permutation)
-     * @param shuffle The preconfigured waksman network (shuffle) to use
-     * @param reverse Boolean indicating whether to apply the inverse of the permutation
-     * @see SecureShuffle::generate for obtaining a shuffle handle
-     */
-    void apply(StackedVector<T>& a, size_t n, int unit_size, size_t output_base,
-            size_t input_base, shuffle_type& shuffle, bool reverse);
+    void apply_multiple(StackedVector<T>& a, vector<size_t>& sizes, vector<size_t>& destinations, vector<size_t>& sources,
+                       vector<size_t>& unit_sizes, vector<size_t>& handles, vector<bool>& reverse, store_type& store);
+    void apply_multiple(StackedVector<T>& a, vector<size_t>& sizes, vector<size_t>& destinations, vector<size_t>& sources,
+                       vector<size_t>& unit_sizes, vector<shuffle_type>& shuffles, vector<bool>& reverse);
 
     /**
      * Calculate the secret inverse permutation of stack given secret permutation.

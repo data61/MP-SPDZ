@@ -96,8 +96,7 @@ public:
   void secure_shuffle(const Instruction& instruction);
   size_t generate_secure_shuffle(const Instruction& instruction,
       ShuffleStore& shuffle_store);
-  void apply_shuffle(const Instruction& instruction, int handle,
-          ShuffleStore& shuffle_store);
+  void apply_shuffle(const Instruction& instruction, ShuffleStore& shuffle_store);
   void inverse_permutation(const Instruction& instruction);
 
   void input_personal(const vector<int>& args);

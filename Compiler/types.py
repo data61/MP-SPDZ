@@ -3122,7 +3122,7 @@ class sint(_secret, _int):
     @read_mem_value
     def secure_permute(self, shuffle, unit_size=1, reverse=False):
         res = sint(size=self.size)
-        applyshuffle(res, self, unit_size, shuffle, reverse)
+        applyshuffle(self.size, res, self, unit_size, shuffle, reverse)
         return res
 
     def inverse_permutation(self):
@@ -7282,12 +7282,20 @@ class SubMultiArray(_vectorizable):
         :param reverse: whether to apply inverse (default: False)
 
         """
-        if n_threads is not None:
-            permutation = MemValue(permutation)
-        @library.for_range_multithread(n_threads, 1, self.get_part_size())
-        def _(i):
-            self.set_column(i, self.get_column(i).secure_permute(
-                permutation, reverse=reverse))
+        if self.value_type == sint:
+            unit_size = self.get_part_size()
+            n = self.sizes[0] * unit_size
+            res = sint(size=n)
+            applyshuffle(n, res, self[:], unit_size, permutation, reverse)
+            self.assign_vector(res)
+        else:
+            if n_threads is not None:
+                permutation = MemValue(permutation)
+            @library.for_range_multithread(n_threads, 1, self.get_part_size())
+            def iter(i):
+                column = self.get_column(i)
+                column = column.secure_permute(permutation, reverse=reverse)
+                self.set_column(i, column)
 
     def sort(self, key_indices=None, n_bits=None, batcher=False):
         """ Sort sub-arrays (different first index) in place.
