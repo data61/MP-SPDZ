@@ -2749,9 +2749,10 @@ class gensecshuffle(shuffle_base):
     def add_usage(self, req_node):
         self.add_gen_usage(req_node, self.args[1])
 
-class applyshuffle(base.VectorInstruction, shuffle_base):
+class applyshuffle(shuffle_base, base.Mergeable):
     """ Generate secure shuffle to bit used several times.
 
+    :param: vector size (int)
     :param: destination (sint)
     :param: source (sint)
     :param: number of elements to be treated as one (int)
@@ -2761,15 +2762,20 @@ class applyshuffle(base.VectorInstruction, shuffle_base):
     """
     __slots__ = []
     code = base.opcodes['APPLYSHUFFLE']
-    arg_format = ['sw','s','int','ci','int']
+    arg_format = itertools.cycle(['int', 'sw','s','int','ci','int'])
+    is_vec = lambda self: True # Ensures dead-code elimination works.
 
     def __init__(self, *args, **kwargs):
         super(applyshuffle, self).__init__(*args, **kwargs)
-        assert len(args[0]) == len(args[1])
-        assert len(args[0]) > args[2]
+        assert (len(args) % 6) == 0
+        for i in range(0, len(args), 6):
+            assert args[i] == len(args[i+1])
+            assert args[i] == len(args[i + 2])
+            assert args[i] > args[i + 3]
 
     def add_usage(self, req_node):
-        self.add_apply_usage(req_node, len(self.args[0]), self.args[2])
+        for i in range(0, len(self.args), 6):
+            self.add_apply_usage(req_node, self.args[i], self.args[i + 3])
 
 class delshuffle(base.Instruction):
     """ Delete secure shuffle.

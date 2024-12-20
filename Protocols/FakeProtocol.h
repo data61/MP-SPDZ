@@ -37,8 +37,8 @@ public:
         return store.add();
     }
 
-    void apply(StackedVector<T>& a, size_t n, int unit_size, size_t output_base,
-            size_t input_base, int, bool)
+    void apply(StackedVector<T>& a, size_t n, size_t unit_size, size_t output_base,
+            size_t input_base, size_t, bool)
     {
         auto source = a.begin() + input_base;
         auto dest = a.begin() + output_base;
@@ -49,13 +49,29 @@ public:
         if (n > 1)
         {
             // swap first two to pass check
-            for (int i = 0; i < unit_size; i++)
+            for (size_t i = 0; i < unit_size; i++)
                 swap(a[output_base + i], a[output_base + i + unit_size]);
         }
     }
 
-    void inverse_permutation(StackedVector<T>&, size_t, size_t, size_t)
-    {
+    void inverse_permutation(StackedVector<T> &, size_t, size_t, size_t) {
+        throw runtime_error("inverse permutation not implemented");
+    };
+
+    void apply_multiple(StackedVector<T> &a, vector<size_t> &sizes, vector<size_t> &destinations,
+                                    vector<size_t> &sources,
+                                    vector<size_t> &unit_sizes, vector<size_t> &handles, vector<bool> &reverses,
+                                    store_type&) {
+        const auto n_shuffles = sizes.size();
+        assert(sources.size() == n_shuffles);
+        assert(destinations.size() == n_shuffles);
+        assert(unit_sizes.size() == n_shuffles);
+        assert(handles.size() == n_shuffles);
+        assert(reverses.size() == n_shuffles);
+
+        for (size_t i = 0; i < n_shuffles; i++) {
+            this->apply(a, sizes[i], unit_sizes[i], destinations[i], sources[i], handles[i], reverses[i]);
+        }
     }
 };
 

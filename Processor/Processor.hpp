@@ -908,13 +908,28 @@ size_t SubProcessor<T>::generate_secure_shuffle(const Instruction& instruction,
 }
 
 template<class T>
-void SubProcessor<T>::apply_shuffle(const Instruction& instruction, int handle,
-    ShuffleStore& shuffle_store)
+void SubProcessor<T>::apply_shuffle(const Instruction& instruction,
+                                    ShuffleStore& shuffle_store)
 {
-    shuffler.apply(S, instruction.get_size(), instruction.get_start()[2],
-            instruction.get_start()[0], instruction.get_start()[1],
-            shuffle_store.get(handle),
-            instruction.get_start()[4]);
+    const auto& args = instruction.get_start();
+
+    const auto n_shuffles = args.size() / 6;
+    vector<size_t> sizes(n_shuffles, 0);
+    vector<size_t> destinations(n_shuffles, 0);
+    vector<size_t> sources(n_shuffles, 0);
+    vector<size_t> unit_sizes(n_shuffles, 0);
+    vector<size_t> shuffles(n_shuffles, 0);
+    vector<bool> reverse(n_shuffles, false);
+    for (size_t i = 0; i < n_shuffles; i++) {
+        sizes[i] = args[6 * i];
+        destinations[i] = args[6 * i + 1];
+        sources[i] = args[6 * i + 2];
+        unit_sizes[i] = args[6 * i + 3];
+        shuffles[i] = Proc->read_Ci(args[6 * i + 4]);
+        reverse[i] = args[6 * i + 5];
+    }
+    shuffler.apply_multiple(S, sizes, destinations, sources, unit_sizes, shuffles, reverse, shuffle_store);
+
     maybe_check();
 }
 
