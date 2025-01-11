@@ -5119,7 +5119,7 @@ class custom_sfix(sfix):
         """
         from .GC.types import sbit, cbits
 
-        print("!!! in _RabbitLT")
+        print("!!! in _RabbitLTB")
         R_bits = cbits.bit_decompose_clear(R, 64)
         y = [sbit() for i in range(k)]
         z = [sbit() for i in range(k)]
@@ -5213,7 +5213,7 @@ class custom_sfix(sfix):
         print("!!! in __le__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = not self.rabbitLTS(b, a)
+        result = 1 - self.rabbitLTS(b, a)
         return result
 
 
@@ -5229,7 +5229,7 @@ class custom_sfix(sfix):
         print("!!! in __ge__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = not self.rabbitLTS(b, a)
+        result = 1 - self.rabbitLTS(b, a)
         return result
     
 
@@ -5237,7 +5237,7 @@ class custom_sfix(sfix):
         print("!!! in __eq__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = (not self.rabbitLTS(a, b)) and (not self.rabbitLTS(b, a))
+        result = (1 - self.rabbitLTS(a, b)) and (1 - self.rabbitLTS(b, a))
         return result
     
 
@@ -5245,7 +5245,7 @@ class custom_sfix(sfix):
         print("!!! in __ne__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = not (not self.rabbitLTS(a, b)) and (not self.rabbitLTS(b, a))
+        result = 1 - (1 - self.rabbitLTS(a, b)) and (1 - self.rabbitLTS(b, a))
         return result
 
 
