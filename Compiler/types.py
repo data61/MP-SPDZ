@@ -5107,6 +5107,148 @@ class unreduced_sfix(_single):
         assert self.m == other.m
         self.v.update(other.v)
 
+
+class custom_sfix(sfix):
+
+    def _RabbitLTB(self, R, x, k):
+        """
+        res = R <? x (logarithmic rounds version)
+
+        R: clear integer register
+        x: array of secret bits
+        """
+        from .GC.types import sbit, cbits
+
+        print("!!! in _RabbitLT")
+        R_bits = cbits.bit_decompose_clear(R, 64)
+        y = [sbit() for i in range(k)]
+        z = [sbit() for i in range(k)]
+        w = [sbit() for i in range(k)]
+
+        for i in range(k):
+            y[i] = x[i].bit_xor(R_bits[i])
+            y[i] = ~y[i]
+
+        z[k-1] = y[k-1]
+        w[k-1] = ~y[k-1]
+
+        y = y[::-1]
+
+        def and_op(x, y, z=None):
+            return x & y
+        
+        z = floatingpoint.PreOpL(and_op, y)[::-1]
+
+        for i in range(k-1,0,-1): # no optimizing
+            w[i-1] = z[i-1] ^ z[i]
+
+        out = [sbit() for i in range(k)]
+        for i in range(k):
+            out[i] = R_bits[i] & w[i]
+
+        total = out[0]
+        for i in range(1, k):
+            total = total ^ out[i]
+
+        return total
+
+    def rabbitLTC(self, s, a, c, BIT_SIZE = 64):
+        """
+        s = (c ?< a)
+
+        BIT_SIZE: bit length of a
+        """
+        # try:
+        #     print("!!! in rabbitLTC. Comparing a=", a)
+        # except:
+        #     print("rabbit ltc: print 1 failed")
+
+        from .GC.types import cbits
+        length_eda = BIT_SIZE
+
+        M = P_VALUES[64]
+        R = (M - 1) // 2
+
+        r, r_bits = sint.get_edabit(length_eda, True)
+        masked_a = (a + r).reveal()
+        masked_b = masked_a + M - R
+
+        print("!!! in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, c=%s", M, R, masked_a, masked_b, c)
+
+        w = [None, None, None, None]
+
+        w[1] = self._RabbitLTB(masked_a, r_bits, BIT_SIZE)
+        w[2] = self._RabbitLTB(masked_b, r_bits, BIT_SIZE)
+
+        print("!!! in rabbitLTC. w1=%s, w2=%s", w[1].reveal(), w[2].reveal())
+        w[3] = cint(masked_b > c)
+        w3_bits = cbits.bit_decompose_clear(w[3], 64)
+
+        movs(s, sint.conv(w[1] ^ w[2] ^ w3_bits[0]))
+
+
+    def rabbitLTS(self, a, b):
+        # try:
+        #     print("!!! in rabbitLTS, other=", other.v)
+        # except:
+        #     print("rabbitLTS: print 1 failed")
+
+        res = sint()
+        self.rabbitLTC(res, a - b, 0, program.bit_length)
+        return res
+
+
+    # These are based on the implementation
+    # self.rabbitLTS(a, b) = rabbitLTC(a-b, 0)
+
+    def __lt__(self, other):
+        print("!!! in __le__, calling rabbitLTS")
+        a = self.v
+        b = other.v
+        result = self.rabbitLTS(a, b)
+        return result
+
+
+    def __le__(self, other):
+        print("!!! in __le__, calling rabbitLTS")
+        a = self.v
+        b = other.v
+        result = not self.rabbitLTS(b, a)
+        return result
+
+
+    def __gt__(self, other):
+        print("!!! in __gt__, calling rabbitLTS")
+        a = self.v
+        b = other.v
+        result = self.rabbitLTS(b, a)
+        return result
+    
+
+    def __ge__(self, other):
+        print("!!! in __ge__, calling rabbitLTS")
+        a = self.v
+        b = other.v
+        result = not self.rabbitLTS(b, a)
+        return result
+    
+
+    def __eq__(self, other):
+        print("!!! in __eq__, calling rabbitLTS")
+        a = self.v
+        b = other.v
+        result = (not self.rabbitLTS(a, b)) and (not self.rabbitLTS(b, a))
+        return result
+    
+
+    def __ne__(self, other):
+        print("!!! in __ne__, calling rabbitLTS")
+        a = self.v
+        b = other.v
+        result = not (not self.rabbitLTS(a, b)) and (not self.rabbitLTS(b, a))
+        return result
+
+
 sfix.unreduced_type = unreduced_sfix
 
 sfix.set_precision(16, 31)
