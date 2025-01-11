@@ -5237,7 +5237,7 @@ class custom_sfix(sfix):
         print("!!! in __eq__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = (1 - self.rabbitLTS(a, b)) and (1 - self.rabbitLTS(b, a))
+        result = (1 - self.rabbitLTS(a, b)) * (1 - self.rabbitLTS(b, a))
         return result
     
 
@@ -5245,7 +5245,7 @@ class custom_sfix(sfix):
         print("!!! in __ne__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = 1 - (1 - self.rabbitLTS(a, b)) and (1 - self.rabbitLTS(b, a))
+        result = 1 - (1 - self.rabbitLTS(a, b)) * (1 - self.rabbitLTS(b, a))
         return result
 
 
