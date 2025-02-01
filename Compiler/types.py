@@ -5181,11 +5181,15 @@ class custom_sfix(sfix):
         w[2] = self._RabbitLTB(masked_b, r_bits, BIT_SIZE)
 
         print("!!! in rabbitLTC. w1=%s, w2=%s", w[1].reveal(), w[2].reveal())
-        w[3] = cint(masked_b > c)
+        w[3] = cint(masked_b < (M - R))
         w3_bits = cbits.bit_decompose_clear(w[3], 64)
 
         movs(s, sint.conv(w[1] ^ w[2] ^ w3_bits[0]))
 
+
+    def rabbitLTS_fix(self, a, b):
+        return 1 - self.rabbitLTS(b, a)
+    
 
     def rabbitLTS(self, a, b):
         # try:
@@ -5205,7 +5209,7 @@ class custom_sfix(sfix):
         print("!!! in __le__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = self.rabbitLTS(a, b)
+        result = self.rabbitLTS_fix(a, b)
         return result
 
 
@@ -5213,7 +5217,7 @@ class custom_sfix(sfix):
         print("!!! in __le__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = 1 - self.rabbitLTS(b, a)
+        result = 1 - self.rabbitLTS_fix(b, a)
         return result
 
 
@@ -5221,7 +5225,7 @@ class custom_sfix(sfix):
         print("!!! in __gt__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = self.rabbitLTS(b, a)
+        result = self.rabbitLTS_fix(b, a)
         return result
     
 
@@ -5229,7 +5233,7 @@ class custom_sfix(sfix):
         print("!!! in __ge__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = 1 - self.rabbitLTS(b, a)
+        result = 1 - self.rabbitLTS_fix(b, a)
         return result
     
 
@@ -5237,7 +5241,7 @@ class custom_sfix(sfix):
         print("!!! in __eq__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = (1 - self.rabbitLTS(a, b)) * (1 - self.rabbitLTS(b, a))
+        result = (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
         return result
     
 
@@ -5245,7 +5249,7 @@ class custom_sfix(sfix):
         print("!!! in __ne__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = 1 - (1 - self.rabbitLTS(a, b)) * (1 - self.rabbitLTS(b, a))
+        result = 1 - (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
         return result
 
 
