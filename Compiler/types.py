@@ -5152,7 +5152,7 @@ class custom_sfix(sfix):
 
         return total
 
-    def rabbitLTC(self, s, a, c, BIT_SIZE = 64):
+    def rabbitLTC(self, a, c, BIT_SIZE = 64):
         """
         s = (c ?< a)
 
@@ -5171,7 +5171,7 @@ class custom_sfix(sfix):
 
         r, r_bits = sint.get_edabit(length_eda, True)
         masked_a = (a + r).reveal()
-        masked_b = masked_a + M - R
+        masked_b = masked_a + M - R # mod M
 
         print("!!! in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, c=%s", M, R, masked_a, masked_b, c)
 
@@ -5182,9 +5182,10 @@ class custom_sfix(sfix):
 
         print("!!! in rabbitLTC. w1=%s, w2=%s", w[1].reveal(), w[2].reveal())
         w[3] = cint(masked_b < (M - R))
-        w3_bits = cbits.bit_decompose_clear(w[3], 64)
+        #w3_bits = cbits.bit_decompose_clear(w[3], 64)
 
-        movs(s, sint.conv(w[1] ^ w[2] ^ w3_bits[0]))
+        return 1 - (w[1] - w[2] + w[3])
+        #movs(s, sint.conv(w[1] ^ w[2] ^ w3_bits[0]))
 
 
     def rabbitLTS_fix(self, a, b):
@@ -5197,8 +5198,7 @@ class custom_sfix(sfix):
         # except:
         #     print("rabbitLTS: print 1 failed")
 
-        res = sint()
-        self.rabbitLTC(res, a - b, 0, program.bit_length)
+        res = self.rabbitLTC(a - b, 0, program.bit_length)
         return res
 
 
@@ -5233,7 +5233,7 @@ class custom_sfix(sfix):
         print("!!! in __ge__, calling rabbitLTS")
         a = self.v
         b = other.v
-        result = 1 - self.rabbitLTS_fix(b, a)
+        result = 1 - self.rabbitLTS_fix(a, b)
         return result
     
 
