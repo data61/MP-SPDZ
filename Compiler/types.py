@@ -5171,7 +5171,7 @@ class custom_sfix(sfix):
 
         r, r_bits = sint.get_edabit(length_eda, True)
         masked_a = (a + r).reveal()
-        masked_b = masked_a + M - R # mod M
+        masked_b = (masked_a + M - R) % M
 
         print("!!! in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, c=%s", M, R, masked_a, masked_b, c)
 
