@@ -5119,7 +5119,7 @@ class custom_sfix(sfix):
         """
         from .GC.types import sbit, cbits
 
-        print("!!! in _RabbitLTB")
+        library.print_ln("!!! in _RabbitLTB")
         R_bits = cbits.bit_decompose_clear(R, 64)
         y = [sbit() for i in range(k)]
         z = [sbit() for i in range(k)]
@@ -5173,14 +5173,14 @@ class custom_sfix(sfix):
         masked_a = (a + r).reveal()
         masked_b = (masked_a + M - R) % M
 
-        print("!!! in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, c=%s", M, R, masked_a, masked_b, c)
+        library.print_ln("!!! in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, c=%s", M, R, masked_a, masked_b, c)
 
         w = [None, None, None, None]
 
         w[1] = self._RabbitLTB(masked_a, r_bits, BIT_SIZE)
         w[2] = self._RabbitLTB(masked_b, r_bits, BIT_SIZE)
 
-        print("!!! in rabbitLTC. w1=%s, w2=%s", w[1].reveal(), w[2].reveal())
+        library.print_ln("!!! in rabbitLTC. w1=%s, w2=%s", w[1].reveal(), w[2].reveal())
         w[3] = cint(masked_b < (M - R))
         #w3_bits = cbits.bit_decompose_clear(w[3], 64)
 
@@ -5206,7 +5206,7 @@ class custom_sfix(sfix):
     # self.rabbitLTS(a, b) = rabbitLTC(a-b, 0)
 
     def __lt__(self, other):
-        print("!!! in __le__, calling rabbitLTS")
+        library.print_ln("!!! in __le__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = self.rabbitLTS_fix(a, b)
@@ -5214,7 +5214,7 @@ class custom_sfix(sfix):
 
 
     def __le__(self, other):
-        print("!!! in __le__, calling rabbitLTS")
+        library.print_ln("!!! in __le__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = 1 - self.rabbitLTS_fix(b, a)
@@ -5222,7 +5222,7 @@ class custom_sfix(sfix):
 
 
     def __gt__(self, other):
-        print("!!! in __gt__, calling rabbitLTS")
+        library.print_ln("!!! in __gt__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = self.rabbitLTS_fix(b, a)
@@ -5230,7 +5230,7 @@ class custom_sfix(sfix):
     
 
     def __ge__(self, other):
-        print("!!! in __ge__, calling rabbitLTS")
+        library.print_ln("!!! in __ge__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = 1 - self.rabbitLTS_fix(a, b)
@@ -5238,7 +5238,7 @@ class custom_sfix(sfix):
     
 
     def __eq__(self, other):
-        print("!!! in __eq__, calling rabbitLTS")
+        library.print_ln("!!! in __eq__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
@@ -5246,7 +5246,7 @@ class custom_sfix(sfix):
     
 
     def __ne__(self, other):
-        print("!!! in __ne__, calling rabbitLTS")
+        library.print_ln("!!! in __ne__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = 1 - (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
