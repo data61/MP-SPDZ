@@ -5161,7 +5161,7 @@ class custom_sfix(sfix):
 
         return total
 
-    def rabbitLTC(self, a, c, BIT_SIZE = 64):
+    def rabbitLTC(self, a, c, BIT_SIZE = 32):
         """
         s = (c ?< a)
 
@@ -5175,22 +5175,23 @@ class custom_sfix(sfix):
         from .GC.types import cbits
         length_eda = BIT_SIZE
 
-        M = P_VALUES[64]
+        M = P_VALUES[32]
         R = (M - 1) // 2
 
         r, r_bits = sint.get_edabit(length_eda, True)
         masked_a = (a + r).reveal()
         masked_b = masked_a + M - R
 
-        library.print_ln("[DEBUG CARMEN] in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, c=%s", M, R, masked_a, masked_b, c)
+        library.print_ln("[DEBUG CARMEN] in rabbitLTC comparing a=%s < c=%s", a, c)
+        library.print_ln("[DEBUG CARMEN] in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, eda_bit=", M, R, masked_a, masked_b, r.reveal())
 
         w = [None, None, None, None]
 
-        library.print_ln("[DEBUG CARMEN]: comparing R=%s < x=%s", masked_a, r.reveal())
+        library.print_ln("[DEBUG CARMEN]: comparing masked_a=%s < edabit=%s", masked_a, r.reveal())
         w[1] = self.LTBits(masked_a, r_bits, BIT_SIZE)
         library.print_ln("[DEBUG CARMEN]: result of comparison = %s", w[1].reveal())
 
-        library.print_ln("[DEBUG CARMEN]: comparing R=%s < x=%s", masked_b, r.reveal())
+        library.print_ln("[DEBUG CARMEN]: comparing masked_b=%s < edabit=%s", masked_b, r.reveal())
         w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
         library.print_ln("[DEBUG CARMEN]: result of comparison = %s", w[2].reveal())
 
