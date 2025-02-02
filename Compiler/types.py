@@ -5116,7 +5116,7 @@ class custom_sfix(sfix):
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
         z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
         w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
-        return sum((1-R_bits[i]) & w[i] for i in range(BIT_SIZE))
+        return 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
 
 
     def Dragos_RabbitLTB(self, R, x, k):
@@ -5175,7 +5175,7 @@ class custom_sfix(sfix):
         from .GC.types import cbits
         length_eda = BIT_SIZE
 
-        M = P_VALUES[32]
+        M = P_VALUES[64]
         R = (M - 1) // 2
 
         r, r_bits = sint.get_edabit(length_eda, True)
