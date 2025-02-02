@@ -5113,38 +5113,9 @@ class custom_sfix(sfix):
     # R: clear-text; x: edabit in binary format
     def LTBits(self, R, x, BIT_SIZE):
         R_bits = cint.bit_decompose(R, BIT_SIZE)
-        library.print_ln("LTBits: R=%s", R)
-        library.print_without_ln("LTBits: R_bits= ")
-
-        for i in range(BIT_SIZE):
-            if (R_bits[i] == 0):
-                library.print_without_ln("0")
-            else:
-                library.print_without_ln("1")
-
-        library.print_without_ln("\nLTBits: y= ")
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
-        for i in range(BIT_SIZE):
-            if (y[i].reveal() == 0):
-                library.print_without_ln("0")
-            else:
-                library.print_without_ln("1")
-
-        library.print_without_ln("\nLTBits: z= ")
         z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
-        for i in range(BIT_SIZE):
-            if (z[i].reveal() == 0):
-                library.print_without_ln("0")
-            else:
-                library.print_without_ln("1")
-
-        library.print_without_ln("\nLTBits: w= ")
         w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
-        for i in range(BIT_SIZE):
-            if (w[i].reveal() == 0):
-                library.print_without_ln("0")
-            else:
-                library.print_without_ln("1")
         
         return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
         library.print_ln("\nLTBits: return =%s", return_value.reveal())
@@ -5193,7 +5164,7 @@ class custom_sfix(sfix):
 
         return total
 
-    def rabbitLTC(self, a, c, BIT_SIZE = 32):
+    def rabbitLTZ(self, x, BIT_SIZE = 64):
         """
         s = (c ?< a)
 
@@ -5208,13 +5179,13 @@ class custom_sfix(sfix):
         length_eda = BIT_SIZE
 
         M = P_VALUES[64]
-        R = (M - 1) // 2
+        R = (M - 1) // 2 # for marking 0
 
         r, r_bits = sint.get_edabit(length_eda, True)
-        masked_a = (a + r).reveal()
-        masked_b = masked_a + M - R
+        masked_a = (x + r).reveal()
+        masked_b = (x + r + M - R).reveal()
 
-        library.print_ln("[DEBUG CARMEN] in rabbitLTC comparing a=%s < c=%s", a.reveal(), c)
+        library.print_ln("[DEBUG CARMEN] in rabbitLTC comparing x=%s < c=0", x.reveal())
         library.print_ln("[DEBUG CARMEN] in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, eda_bit=%s", M, R, masked_a, masked_b, r.reveal())
 
         w = [None, None, None, None]
@@ -5235,7 +5206,7 @@ class custom_sfix(sfix):
         library.print_ln("[DEBUG CARMEN]: result of comparison w3 = %s", w[3])
         #w3_bits = cbits.bit_decompose_clear(w[3], 64)
 
-        final_result = 1 - (w[1] - w[2] + w[3])
+        final_result = w[1] - w[2] + w[3]
         library.print_ln("[DEBUG CARMEN]: final result before return = %s", final_result.reveal())
         return final_result
         #movs(s, sint.conv(w[1] ^ w[2] ^ w3_bits[0]))
@@ -5253,7 +5224,7 @@ class custom_sfix(sfix):
         #     print("rabbitLTS: print 1 failed")
 
         library.print_ln("[DEBUG CARMEN]: in the LTS")
-        res = self.rabbitLTC(a - b, 0, program.bit_length)
+        res = self.rabbitLTZ(a - b)
         return res
 
 
