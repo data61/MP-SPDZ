@@ -5131,7 +5131,7 @@ class custom_sfix(sfix):
         """
         from .GC.types import sbit, cbits
 
-        library.print_ln("[DEBUG CARMEN] in _RabbitLTB")
+        library.print_ln("[DEBUG CARMEN] in _RabbitLTB dragos")
         R_bits = cbits.bit_decompose_clear(R, 64)
         y = [sbit() for i in range(k)]
         z = [sbit() for i in range(k)]
@@ -5192,12 +5192,12 @@ class custom_sfix(sfix):
 
         library.print_ln("[DEBUG CARMEN]: w1 comparing masked_a=%s < edabit=%s", masked_a, r.reveal())
         library.print_ln("[DEBUG CARMEN]: masked_a - edabit= %s", (masked_a - r.reveal()))
-        w[1] = self.LTBits(masked_a, r_bits, BIT_SIZE)
+        w[1] = self.Dragos_RabbitLTB(masked_a, r_bits, BIT_SIZE)
         library.print_ln("[DEBUG CARMEN]: result of comparison w1 = %s", w[1].reveal())
 
         library.print_ln("[DEBUG CARMEN]: w2 comparing masked_b=%s < edabit=%s", masked_b, r.reveal())
         library.print_ln("[DEBUG CARMEN]: masked_b - edabit= %s", (masked_b - r.reveal()))
-        w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
+        w[2] = self.Dragos_RabbitLTB(masked_b, r_bits, BIT_SIZE)
         library.print_ln("[DEBUG CARMEN]: result of comparison w2 = %s", w[2].reveal())
 
         library.print_ln("[DEBUG CARMEN]: w3 comparing in cleartext %s < %s", masked_b, M - R)
