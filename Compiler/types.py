@@ -5110,7 +5110,8 @@ class unreduced_sfix(_single):
 
 class custom_sfix(sfix):
 
-    def LTBits(R, x, BIT_SIZE):
+    # R: clear-text; x: edabit in binary format
+    def LTBits(self, R, x, BIT_SIZE):
         R_bits = cint.bit_decompose(R, BIT_SIZE)
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
         z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
