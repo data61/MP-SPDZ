@@ -5122,20 +5122,20 @@ class custom_sfix(sfix):
         library.print_without_ln("\nLTBits: y= ")
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
         for i in range(BIT_SIZE):
-            library.print_without_ln(y[i])
+            library.print_without_ln(y[i].reveal())
 
         library.print_without_ln("\nLTBits: z= ")
         z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
         for i in range(BIT_SIZE):
-            library.print_without_ln(R_bits[i])
+            library.print_without_ln(z[i].reveal())
 
         library.print_without_ln("\nLTBits: w= ")
         w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
         for i in range(BIT_SIZE):
-            library.print_without_ln(R_bits[i])
+            library.print_without_ln(w[i].reveal())
         
         return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
-        library.print_ln("LTBits: return = ")
+        library.print_ln("\nLTBits: return =%s", return_value.reveal())
         return return_value
 
 
