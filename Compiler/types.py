@@ -5117,22 +5117,34 @@ class custom_sfix(sfix):
         library.print_without_ln("LTBits: R_bits= ")
 
         for i in range(BIT_SIZE):
-            library.print_without_ln(R_bits[i])
+            if (R_bits[i] == 0):
+                library.print_without_ln("0")
+            else:
+                library.print_without_ln("1")
 
         library.print_without_ln("\nLTBits: y= ")
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
         for i in range(BIT_SIZE):
-            library.print_without_ln(y[i].reveal())
+            if (y[i].reveal() == 0):
+                library.print_without_ln("0")
+            else:
+                library.print_without_ln("1")
 
         library.print_without_ln("\nLTBits: z= ")
         z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
         for i in range(BIT_SIZE):
-            library.print_without_ln(z[i].reveal())
+            if (z[i].reveal() == 0):
+                library.print_without_ln("0")
+            else:
+                library.print_without_ln("1")
 
         library.print_without_ln("\nLTBits: w= ")
         w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
         for i in range(BIT_SIZE):
-            library.print_without_ln(w[i].reveal())
+            if (w[i].reveal() == 0):
+                library.print_without_ln("0")
+            else:
+                library.print_without_ln("1")
         
         return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
         library.print_ln("\nLTBits: return =%s", return_value.reveal())
