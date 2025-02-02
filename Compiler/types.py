@@ -5114,12 +5114,19 @@ class custom_sfix(sfix):
     def LTBits(self, R, x, BIT_SIZE):
         R_bits = cint.bit_decompose(R, BIT_SIZE)
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
-        z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        z = floatingpoint.PreOpL(floatingpoint.or_op, y) + [0]
         w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
-        
+
         return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
         library.print_ln("\nLTBits: return =%s", return_value.reveal())
         return return_value
+
+        # z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        # w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
+        
+        # return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
+        # library.print_ln("\nLTBits: return =%s", return_value.reveal())
+        # return return_value
 
 
     def Dragos_RabbitLTB(self, R, x, k):
@@ -5192,12 +5199,12 @@ class custom_sfix(sfix):
 
         library.print_ln("[DEBUG CARMEN]: w1 comparing masked_a=%s < edabit=%s", masked_a, r.reveal())
         library.print_ln("[DEBUG CARMEN]: masked_a - edabit= %s", (masked_a - r.reveal()))
-        w[1] = self.Dragos_RabbitLTB(masked_a, r_bits, BIT_SIZE)
+        w[1] = self.LTBits(masked_a, r_bits, BIT_SIZE)
         library.print_ln("[DEBUG CARMEN]: result of comparison w1 = %s", w[1].reveal())
 
         library.print_ln("[DEBUG CARMEN]: w2 comparing masked_b=%s < edabit=%s", masked_b, r.reveal())
         library.print_ln("[DEBUG CARMEN]: masked_b - edabit= %s", (masked_b - r.reveal()))
-        w[2] = self.Dragos_RabbitLTB(masked_b, r_bits, BIT_SIZE)
+        w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
         library.print_ln("[DEBUG CARMEN]: result of comparison w2 = %s", w[2].reveal())
 
         library.print_ln("[DEBUG CARMEN]: w3 comparing in cleartext %s < %s", masked_b, M - R)
