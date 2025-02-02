@@ -5110,7 +5110,15 @@ class unreduced_sfix(_single):
 
 class custom_sfix(sfix):
 
-    def _RabbitLTB(self, R, x, k):
+    def LTBits(R, x, BIT_SIZE):
+        R_bits = cint.bit_decompose(R, BIT_SIZE)
+        y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
+        z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
+        return sum((1-R_bits[i]) & w[i] for i in range(BIT_SIZE))
+
+
+    def Dragos_RabbitLTB(self, R, x, k):
         """
         res = R <? x (logarithmic rounds version)
 
@@ -5119,7 +5127,7 @@ class custom_sfix(sfix):
         """
         from .GC.types import sbit, cbits
 
-        library.print_ln("!!! in _RabbitLTB")
+        library.print_ln("[DEBUG CARMEN] in _RabbitLTB")
         R_bits = cbits.bit_decompose_clear(R, 64)
         y = [sbit() for i in range(k)]
         z = [sbit() for i in range(k)]
@@ -5159,7 +5167,7 @@ class custom_sfix(sfix):
         BIT_SIZE: bit length of a
         """
         # try:
-        #     print("!!! in rabbitLTC. Comparing a=", a)
+        #     print("[DEBUG CARMEN] in rabbitLTC. Comparing a=", a)
         # except:
         #     print("rabbit ltc: print 1 failed")
 
@@ -5171,33 +5179,43 @@ class custom_sfix(sfix):
 
         r, r_bits = sint.get_edabit(length_eda, True)
         masked_a = (a + r).reveal()
-        masked_b = (masked_a + M - R) % M
+        masked_b = masked_a + M - R
 
-        library.print_ln("!!! in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, c=%s", M, R, masked_a, masked_b, c)
+        library.print_ln("[DEBUG CARMEN] in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, c=%s", M, R, masked_a, masked_b, c)
 
         w = [None, None, None, None]
 
-        w[1] = self._RabbitLTB(masked_a, r_bits, BIT_SIZE)
-        w[2] = self._RabbitLTB(masked_b, r_bits, BIT_SIZE)
+        library.print_ln("[DEBUG CARMEN]: comparing R=%s < x=%s", masked_a, r.reveal())
+        w[1] = self.LTBits(masked_a, r_bits, BIT_SIZE)
+        library.print_ln("[DEBUG CARMEN]: result of comparison = %s", w[1].reveal())
 
-        library.print_ln("!!! in rabbitLTC. w1=%s, w2=%s", w[1].reveal(), w[2].reveal())
+        library.print_ln("[DEBUG CARMEN]: comparing R=%s < x=%s", masked_b, r.reveal())
+        w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
+        library.print_ln("[DEBUG CARMEN]: result of comparison = %s", w[2].reveal())
+
+        library.print_ln("lastly, comparing in cleartext %s < %s", masked_b, M - R)
         w[3] = cint(masked_b < (M - R))
+        library.print_ln("[DEBUG CARMEN]: result of comparison = %s", w[3])
         #w3_bits = cbits.bit_decompose_clear(w[3], 64)
 
-        return 1 - (w[1] - w[2] + w[3])
+        final_result = 1 - (w[1] - w[2] + w[3])
+        library.print_ln("[DEBUG CARMEN]: final result before return = %s", final_result.reveal())
+        return final_result
         #movs(s, sint.conv(w[1] ^ w[2] ^ w3_bits[0]))
 
 
     def rabbitLTS_fix(self, a, b):
+        library.print_ln("[DEBUG CARMEN]: in the LTS fix")
         return 1 - self.rabbitLTS(b, a)
     
 
     def rabbitLTS(self, a, b):
         # try:
-        #     print("!!! in rabbitLTS, other=", other.v)
+        #     print("[DEBUG CARMEN] in rabbitLTS, other=", other.v)
         # except:
         #     print("rabbitLTS: print 1 failed")
 
+        library.print_ln("[DEBUG CARMEN]: in the LTS")
         res = self.rabbitLTC(a - b, 0, program.bit_length)
         return res
 
@@ -5206,7 +5224,7 @@ class custom_sfix(sfix):
     # self.rabbitLTS(a, b) = rabbitLTC(a-b, 0)
 
     def __lt__(self, other):
-        library.print_ln("!!! in __le__, calling rabbitLTS")
+        library.print_ln("[DEBUG CARMEN] in __le__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = self.rabbitLTS_fix(a, b)
@@ -5214,7 +5232,7 @@ class custom_sfix(sfix):
 
 
     def __le__(self, other):
-        library.print_ln("!!! in __le__, calling rabbitLTS")
+        library.print_ln("[DEBUG CARMEN] in __le__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = 1 - self.rabbitLTS_fix(b, a)
@@ -5222,7 +5240,7 @@ class custom_sfix(sfix):
 
 
     def __gt__(self, other):
-        library.print_ln("!!! in __gt__, calling rabbitLTS")
+        library.print_ln("[DEBUG CARMEN] in __gt__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = self.rabbitLTS_fix(b, a)
@@ -5230,7 +5248,7 @@ class custom_sfix(sfix):
     
 
     def __ge__(self, other):
-        library.print_ln("!!! in __ge__, calling rabbitLTS")
+        library.print_ln("[DEBUG CARMEN] in __ge__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = 1 - self.rabbitLTS_fix(a, b)
@@ -5238,7 +5256,7 @@ class custom_sfix(sfix):
     
 
     def __eq__(self, other):
-        library.print_ln("!!! in __eq__, calling rabbitLTS")
+        library.print_ln("[DEBUG CARMEN] in __eq__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
@@ -5246,7 +5264,7 @@ class custom_sfix(sfix):
     
 
     def __ne__(self, other):
-        library.print_ln("!!! in __ne__, calling rabbitLTS")
+        library.print_ln("[DEBUG CARMEN] in __ne__, calling rabbitLTS")
         a = self.v
         b = other.v
         result = 1 - (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
