@@ -5183,7 +5183,7 @@ class custom_sfix(sfix):
         masked_b = masked_a + M - R
 
         library.print_ln("[DEBUG CARMEN] in rabbitLTC comparing a=%s < c=%s", a.reveal(), c)
-        library.print_ln("[DEBUG CARMEN] in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, eda_bit=", M, R, masked_a, masked_b, r.reveal())
+        library.print_ln("[DEBUG CARMEN] in rabbitLTC. M=%s, R=%s, masked_a=%s, masked_b=%s, eda_bit=%s", M, R, masked_a, masked_b, r.reveal())
 
         w = [None, None, None, None]
 
