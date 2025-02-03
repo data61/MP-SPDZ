@@ -5115,22 +5115,22 @@ class custom_sfix(sfix):
         R_bits = cint.bit_decompose(R, BIT_SIZE)
         library.print_ln("\nLTBits: R_bits=")
         for i in range(BIT_SIZE):
-            library.print_without_ln(R_bits[i])
+            library.print_ln(R_bits[i])
 
-        library.print_without_ln("\nLTBits: y= ")
+        library.print_ln("\nLTBits: y= ")
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
-        for i in range(BIT_SIZE):
-            library.print_without_ln(y[i].reveal())
+        for i in range(3):
+            library.print_ln(y[i].reveal())
 
-        library.print_without_ln("\nLTBits: z= ")
+        library.print_ln("\nLTBits: z= ")
         z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
         for i in range(BIT_SIZE):
-            library.print_without_ln(z[i].reveal())
+            library.print_ln(z[i].reveal())
 
-        library.print_without_ln("\nLTBits: w= ")
+        library.print_ln("\nLTBits: w= ")
         w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
         for i in range(BIT_SIZE):
-            library.print_without_ln(w[i].reveal())
+            library.print_ln(w[i].reveal())
 
         return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
         library.print_ln("\nLTBits: return =%s", return_value.reveal())
