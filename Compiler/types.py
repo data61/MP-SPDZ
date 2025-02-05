@@ -5127,18 +5127,58 @@ class custom_sfix(sfix):
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", y[i].reveal())
 
-        library.print_ln("\nLTBits: z= ")
-        z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        library.print_ln("\nLTBits: z1 inv inv= ")
+        z1 = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", z[i].reveal())
 
-        library.print_ln("\nLTBits: w= ")
-        w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
+        library.print_ln("\nLTBits: z2 inv notinv= ")
+        z2 = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1]) + [0]
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", z[i].reveal())
+
+        library.print_ln("\nLTBits: z3 notinv inv= ")
+        z3 = floatingpoint.PreOpL(floatingpoint.or_op, y)[::-1] + [0]
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", z[i].reveal())
+
+        library.print_ln("\nLTBits: z4 notnot= ")
+        z4 = floatingpoint.PreOpL(floatingpoint.or_op)+ [0]
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", z[i].reveal())
+
+        library.print_ln("\nLTBits: w1 from z1= ")
+        w1 = [z1[i] - z1[i + 1] for i in range(BIT_SIZE)]
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", w[i].reveal())
 
-        return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
-        library.print_ln("\nLTBits: return =%s", return_value.reveal())
+        library.print_ln("\nLTBits: w2 from z2= ")
+        w2 = [z2[i] - z2[i + 1] for i in range(BIT_SIZE)]
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", w[i].reveal())
+
+        library.print_ln("\nLTBits: w3 from z3= ")
+        w3 = [z3[i] - z3[i + 1] for i in range(BIT_SIZE)]
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", w[i].reveal())
+
+        library.print_ln("\nLTBits: w4 from z4= ")
+        w4 = [z4[i] - z4[i + 1] for i in range(BIT_SIZE)]
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", w[i].reveal())
+
+        return_value = 1 - sum((R_bits[i] & w1[i]) for i in range(BIT_SIZE))
+        library.print_ln("\nLTBits: return for z1=%s", return_value.reveal())
+
+        return_value = 1 - sum((R_bits[i] & w2[i]) for i in range(BIT_SIZE))
+        library.print_ln("\nLTBits: return for z2 =%s", return_value.reveal())
+
+        return_value = 1 - sum((R_bits[i] & w3 [i]) for i in range(BIT_SIZE))
+        library.print_ln("\nLTBits: return for z3=%s", return_value.reveal())
+
+        return_value = 1 - sum((R_bits[i] & w4[i]) for i in range(BIT_SIZE))
+        library.print_ln("\nLTBits: return for z4 =%s", return_value.reveal())
+
         library.print_ln("!!!!! end LTBits")
         return return_value
 
