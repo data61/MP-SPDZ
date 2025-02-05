@@ -5112,10 +5112,15 @@ class custom_sfix(sfix):
 
     # R: clear-text; x: edabit in binary format
     def LTBits(self, R, x, BIT_SIZE):
+        library.print_ln("!!!!! In LTBits")
         R_bits = cint.bit_decompose(R, BIT_SIZE)
-        library.print_ln("\nLTBits: R_bits=")
+        library.print_ln("\nLTBits: R_bits= ")
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", R_bits[i])
+
+        library.print_ln("\nLTBits: edabit= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", x[i].reveal())
 
         library.print_ln("\nLTBits: y= ")
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
@@ -5134,6 +5139,7 @@ class custom_sfix(sfix):
 
         return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
         library.print_ln("\nLTBits: return =%s", return_value.reveal())
+        library.print_ln("!!!!! end LTBits")
         return return_value
 
         # z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
