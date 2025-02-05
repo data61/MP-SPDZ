@@ -5143,7 +5143,7 @@ class custom_sfix(sfix):
             library.print_without_ln("%s", z3[i].reveal())
 
         library.print_ln("\nLTBits: z4 notnot= ")
-        z4 = floatingpoint.PreOpL(floatingpoint.or_op)+ [0]
+        z4 = floatingpoint.PreOpL(floatingpoint.or_op, y)+ [0]
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", z4[i].reveal())
 
