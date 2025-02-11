@@ -5114,73 +5114,25 @@ class custom_sfix(sfix):
     def LTBits(self, R, x, BIT_SIZE):
         library.print_ln("!!!!! In LTBits")
         R_bits = cint.bit_decompose(R, BIT_SIZE)
-        library.print_ln("\nLTBits: R_bits= ")
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", R_bits[i])
+        # library.print_ln("\nLTBits: R_bits= ")
+        # for i in range(BIT_SIZE):
+        #     library.print_without_ln("%s", R_bits[i])
 
-        library.print_ln("\nLTBits: edabit= ")
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", x[i].reveal())
+        # library.print_ln("\nLTBits: edabit= ")
+        # for i in range(BIT_SIZE):
+        #     library.print_without_ln("%s", x[i].reveal())
 
-        library.print_ln("\nLTBits: y= ")
+        # library.print_ln("\nLTBits: y= ")
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", y[i].reveal())
+        # for i in range(BIT_SIZE):
+        #     library.print_without_ln("%s", y[i].reveal())
 
-        library.print_ln("\nLTBits: z1 inv inv= ")
-        z1 = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", z1[i].reveal())
+        z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
 
-        library.print_ln("\nLTBits: z2 inv notinv= ")
-        z2 = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1]) + [0]
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", z2[i].reveal())
-
-        library.print_ln("\nLTBits: z3 notinv inv= ")
-        z3 = floatingpoint.PreOpL(floatingpoint.or_op, y)[::-1] + [0]
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", z3[i].reveal())
-
-        library.print_ln("\nLTBits: z4 notnot= ")
-        z4 = floatingpoint.PreOpL(floatingpoint.or_op, y)+ [0]
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", z4[i].reveal())
-
-        library.print_ln("\nLTBits: w1 from z1= ")
-        w1 = [z1[i] - z1[i + 1] for i in range(BIT_SIZE)]
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", w1[i].reveal())
-
-        library.print_ln("\nLTBits: w2 from z2= ")
-        w2 = [z2[i] - z2[i + 1] for i in range(BIT_SIZE)]
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", w2[i].reveal())
-
-        library.print_ln("\nLTBits: w3 from z3= ")
-        w3 = [z3[i] - z3[i + 1] for i in range(BIT_SIZE)]
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", w3[i].reveal())
-
-        library.print_ln("\nLTBits: w4 from z4= ")
-        w4 = [z4[i] - z4[i + 1] for i in range(BIT_SIZE)]
-        for i in range(BIT_SIZE):
-            library.print_without_ln("%s", w4[i].reveal())
-
-        return_value1 = 1 - sum((R_bits[i] & w1[i]) for i in range(BIT_SIZE))
-        library.print_ln("\nLTBits: return for z1=%s", return_value1.reveal())
-
-        return_value2 = 1 - sum((R_bits[i] & w2[i]) for i in range(BIT_SIZE))
-        library.print_ln("\nLTBits: return for z2 =%s", return_value2.reveal())
-
-        return_value3 = 1 - sum((R_bits[i] & w3[i]) for i in range(BIT_SIZE))
-        library.print_ln("\nLTBits: return for z3=%s", return_value3.reveal())
-
-        return_value4 = 1 - sum((R_bits[i] & w4[i]) for i in range(BIT_SIZE))
-        library.print_ln("\nLTBits: return for z4 =%s", return_value4.reveal())
-
+        return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
         library.print_ln("!!!!! end LTBits")
-        return return_value1
+        return return_value
 
         # z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
         # w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
@@ -5270,7 +5222,8 @@ class custom_sfix(sfix):
 
         library.print_ln("[DEBUG CARMEN]: w3 comparing in cleartext %s < %s", masked_b, M - R)
         library.print_ln("[DEBUG CARMEN]: masked_b - (M - R)= %s", (masked_b - (M - R)))
-        w[3] = cint(masked_b < (M - R))
+        aux = masked_b - (M - R)
+        w[3] = cint(aux < 0)
         library.print_ln("[DEBUG CARMEN]: result of comparison w3 = %s", w[3])
         #w3_bits = cbits.bit_decompose_clear(w[3], 64)
 
