@@ -5167,20 +5167,20 @@ class custom_sfix(sfix):
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", w4[i].reveal())
 
-        return_value = 1 - sum((R_bits[i] & w1[i]) for i in range(BIT_SIZE))
-        library.print_ln("\nLTBits: return for z1=%s", return_value.reveal())
+        return_value1 = 1 - sum((R_bits[i] & w1[i]) for i in range(BIT_SIZE))
+        library.print_ln("\nLTBits: return for z1=%s", return_value1.reveal())
 
-        return_value = 1 - sum((R_bits[i] & w2[i]) for i in range(BIT_SIZE))
-        library.print_ln("\nLTBits: return for z2 =%s", return_value.reveal())
+        return_value2 = 1 - sum((R_bits[i] & w2[i]) for i in range(BIT_SIZE))
+        library.print_ln("\nLTBits: return for z2 =%s", return_value2.reveal())
 
-        return_value = 1 - sum((R_bits[i] & w3 [i]) for i in range(BIT_SIZE))
-        library.print_ln("\nLTBits: return for z3=%s", return_value.reveal())
+        return_value3 = 1 - sum((R_bits[i] & w3[i]) for i in range(BIT_SIZE))
+        library.print_ln("\nLTBits: return for z3=%s", return_value3.reveal())
 
-        return_value = 1 - sum((R_bits[i] & w4[i]) for i in range(BIT_SIZE))
-        library.print_ln("\nLTBits: return for z4 =%s", return_value.reveal())
+        return_value4 = 1 - sum((R_bits[i] & w4[i]) for i in range(BIT_SIZE))
+        library.print_ln("\nLTBits: return for z4 =%s", return_value4.reveal())
 
         library.print_ln("!!!!! end LTBits")
-        return return_value
+        return return_value1
 
         # z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
         # w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
