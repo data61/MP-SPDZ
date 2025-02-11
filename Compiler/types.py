@@ -5226,6 +5226,10 @@ class custom_sfix(sfix):
         w_aux = cint(masked_b < 0)
         masked_b += (w_aux * M) # for modular arithmetic
 
+        library.print_ln("[DEBUG CARMEN]: w_aux %s", w_aux)
+        library.print_ln("[DEBUG CARMEN]: w3 comparing in cleartext %s < %s", masked_b, M - R)
+        library.print_ln("[DEBUG CARMEN]: masked_b - (M - R)= %s", (masked_b - (M - R)))
+
         w[3] = cint(masked_b < (M - R))
         library.print_ln("[DEBUG CARMEN]: result of comparison w3 = %s", w[3])
         #w3_bits = cbits.bit_decompose_clear(w[3], 64)
