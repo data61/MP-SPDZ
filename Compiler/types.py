@@ -5223,8 +5223,8 @@ class custom_sfix(sfix):
         library.print_ln("[DEBUG CARMEN]: w3 comparing in cleartext %s < %s", masked_b, M - R)
         library.print_ln("[DEBUG CARMEN]: masked_b - (M - R)= %s", (masked_b - (M - R)))
 
-        if (cint(masked_b < 0)):
-            masked_b += M # for modular arithmetic
+        w_aux = cint(masked_b < 0)
+        masked_b += (w_aux * M) # for modular arithmetic
 
         w[3] = cint(masked_b < (M - R))
         library.print_ln("[DEBUG CARMEN]: result of comparison w3 = %s", w[3])
