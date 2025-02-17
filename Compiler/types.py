@@ -5198,6 +5198,11 @@ class custom_sfix(sfix):
         return result
 
 
+    def __abs__(self):
+        """ Absolute value. """
+        return (self < custom_sfix(0)).if_else(-self, self)
+
+
 sfix.unreduced_type = unreduced_sfix
 
 sfix.set_precision(16, 31)
