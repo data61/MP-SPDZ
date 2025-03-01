@@ -5111,6 +5111,7 @@ class unreduced_sfix(_single):
 class custom_sfix(sfix):
 
     # R: clear-text; x: edabit in binary format
+    @vectorize
     def LTBits(self, R, x, BIT_SIZE):
         R_bits = cint.bit_decompose(R, BIT_SIZE)
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
@@ -5120,6 +5121,7 @@ class custom_sfix(sfix):
         return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
         return return_value
 
+    @vectorize
     def rabbitLTZ(self, x, BIT_SIZE = 64):
         """
         s = (c ?< a)
@@ -5143,11 +5145,11 @@ class custom_sfix(sfix):
         result = w[1] - w[2] + w[3]
         return sint(1 - result)
 
-
+    @vectorize
     def rabbitLTS_fix(self, a, b):
         return 1 - self.rabbitLTS(b, a)
     
-
+    @vectorize
     def rabbitLTS(self, a, b):
         res = self.rabbitLTZ(a - b)
         return res
@@ -5155,49 +5157,49 @@ class custom_sfix(sfix):
 
     # These are based on the implementation
     # self.rabbitLTS(a, b) = rabbitLTC(a-b, 0)
-
+    @vectorize
     def __lt__(self, other):
         a = self.v
         b = other.v
         result = self.rabbitLTS_fix(a, b)
         return result
 
-
+    @vectorize
     def __le__(self, other):
         a = self.v
         b = other.v
         result = 1 - self.rabbitLTS_fix(b, a)
         return result
 
-
+    @vectorize
     def __gt__(self, other):
         a = self.v
         b = other.v
         result = self.rabbitLTS_fix(b, a)
         return result
     
-
+    @vectorize
     def __ge__(self, other):
         a = self.v
         b = other.v
         result = 1 - self.rabbitLTS_fix(a, b)
         return result
     
-
+    @vectorize
     def __eq__(self, other):
         a = self.v
         b = other.v
         result = (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
         return result
     
-
+    @vectorize
     def __ne__(self, other):
         a = self.v
         b = other.v
         result = 1 - (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
         return result
 
-
+    @vectorize
     def __abs__(self):
         """ Absolute value. """
         return (self < custom_sfix(0)).if_else(-self, self)
