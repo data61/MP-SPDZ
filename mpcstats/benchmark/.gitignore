@@ -1,0 +1,9 @@
+Player-Data/
+Programs/
+logs/
+!Programs/Circuits/
+!Programs/Source/
+computation_defs/*
+!computation_defs/templates/
+*.csv
+HOSTS
