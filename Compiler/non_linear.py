@@ -46,6 +46,11 @@ class NonLinear:
         return self._trunc(a, k, m, signed)
 
     def ltz(self, a, k):
+        prog = program.Program.prog
+        if prog.options.comparison_rabbit:
+            return -10
+        
+        # else, use truncation
         return -self.trunc(a, k, k - 1, True)
 
 class Masking(NonLinear):
@@ -126,6 +131,10 @@ class KnownPrime(NonLinear):
         return 1 - types.sintbit.conv(KORL(self.bit_dec(a, k, k, True)))
 
     def ltz(self, a, k):
+        prog = program.Program.prog
+        if prog.options.comparison_rabbit:
+            return -20
+        
         if k + 1 < self.prime.bit_length():
             # https://dl.acm.org/doi/10.1145/3474123.3486757
             # "negative" values wrap around when doubling, thus becoming odd
