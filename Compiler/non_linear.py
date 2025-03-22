@@ -47,10 +47,11 @@ class NonLinear:
 
     def ltz(self, a, k):
         prog = program.Program.prog
-        library.print_ln("!!! rabbit flag=%s", prog.options.comparison_rabbit)
 
         if prog.options.comparison_rabbit:
-            return -10
+            raise CompilerError('comparison rabbit true')
+        else:
+            raise CompilerError('comparison rabbit false')
         
         # else, use truncation
         return -self.trunc(a, k, k - 1, True)
