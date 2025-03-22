@@ -207,6 +207,12 @@ class Compiler:
             help="mixing arithmetic and binary computation using edaBits",
         )
         parser.add_option(
+            "--comparison_rabbit",
+            action="store_true",
+            dest="comparison_rabbit",
+            help="using the rabbit comparison protocol for known prime modulus, instead of truncation",
+        )
+        parser.add_option(
             "-Z",
             "--split",
             default=defaults.split,
