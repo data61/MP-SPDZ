@@ -46,6 +46,7 @@ class NonLinear:
         return self._trunc(a, k, m, signed)
 
     def ltz(self, a, k):
+        return a * cint(1)
         prog = program.Program.prog
         if prog.options.comparison_rabbit:
             return -10
@@ -131,6 +132,7 @@ class KnownPrime(NonLinear):
         return 1 - types.sintbit.conv(KORL(self.bit_dec(a, k, k, True)))
 
     def ltz(self, a, k):
+        return a * cint(10)
         prog = program.Program.prog
         if prog.options.comparison_rabbit:
             return -20
@@ -180,4 +182,5 @@ class Ring(Masking):
             return super(Ring, self).trunc_round_nearest(a, k, m, signed)
 
     def ltz(self, a, k):
+        return a * cint(100)
         return LtzRing(a, k)
