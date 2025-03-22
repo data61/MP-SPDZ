@@ -44,14 +44,41 @@ class NonLinear:
         if m == 0:
             return a
         return self._trunc(a, k, m, signed)
+    
+    def LTBits(self, R, x, BIT_SIZE):
+        R_bits = cint.bit_decompose(R, BIT_SIZE)
+        y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
+        z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
+
+        return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
+        return return_value
+
+    def rabbitLTZ(self, x, BIT_SIZE = 64):
+        """
+        s = (x <? 0)
+        BIT_SIZE: bit length of x
+        """
+        length_eda = BIT_SIZE
+
+        M = P_VALUES[64] # TODO: get program.prime
+        R = 0
+
+        r, r_bits = sint.get_edabit(length_eda, True)
+        masked_a = (x + r).reveal()
+        masked_b = (x + r + M - R).reveal()
+        w = [None, None, None, None]
+        w[1] = self.LTBits(masked_a, r_bits, BIT_SIZE)
+        w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
+        w[3] = cint(masked_b < 0)
+
+        result = w[1] - w[2] + w[3]
+        return sint(1 - result)
 
     def ltz(self, a, k):
         prog = program.Program.prog
-
         if prog.options.comparison_rabbit:
-            raise CompilerError('comparison rabbit true')
-        else:
-            raise CompilerError('comparison rabbit false')
+            return self.rabbitLTZ(a, k)
         
         # else, use truncation
         return -self.trunc(a, k, k - 1, True)
