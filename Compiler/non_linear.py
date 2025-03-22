@@ -56,7 +56,7 @@ class NonLinear:
         for i in range(BIT_SIZE):
             bit_sum += R_bits[i] & w[i]
 
-        return_value = types.sintbit(1) - bit_sum
+        return_value = types.sintbit(1) - types.sintbit(bit_sum)
         return return_value
 
     def rabbitLTZ(self, x, BIT_SIZE = 64):
