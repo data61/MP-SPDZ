@@ -51,7 +51,12 @@ class NonLinear:
         z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
         w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
 
-        return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
+        #return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
+        bit_sum = 0
+        for i in range(BIT_SIZE):
+            bit_sum += R_bits[i] & w[i]
+
+        return_value = 1 - bit_sum
         return return_value
 
     def rabbitLTZ(self, x, BIT_SIZE = 64):
