@@ -46,6 +46,7 @@ class NonLinear:
         return self._trunc(a, k, m, signed)
     
     def LTBits(self, R, x, BIT_SIZE):
+        library.print_ln("in LTBits")
         R_bits = cint.bit_decompose(R, BIT_SIZE)
         y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
         z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
@@ -67,14 +68,23 @@ class NonLinear:
         masked_a = (x + r).reveal()
         masked_b = (x + r + M - R).reveal()
         w = [None, None, None, None]
+
+        library.print_ln("w1, comparing: masked_a=%s edabit=%s", masked_a, r.reveal())
         w[1] = self.LTBits(masked_a, r_bits, BIT_SIZE)
+
+        library.print_ln("w2, comparing: masked_b=%s edabit=%s", masked_b, r.reveal())
         w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
+
+        library.print_ln("w3, comparing: masked_b=%s with zero", masked_a)
         w[3] = cint(masked_b < 0)
 
         result = w[1] - w[2] + w[3]
+
+        library.print_ln("w1=%s w2=%s w3=%s result=%s", w[1].reveal(), w[2].reveal(), w[3], result.reveal())
         return sint(1 - result)
 
     def ltz(self, a, k):
+        library.print_ln("a=%s k=%s", a.reveal(), k)
         prog = program.Program.prog
         if prog.options.comparison_rabbit:
             return self.rabbitLTZ(a, k)

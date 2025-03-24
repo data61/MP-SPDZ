@@ -205,16 +205,13 @@ class Program(object):
             gc.reveal,
         ]
         
-        """ Setting whether to use special probabilistic truncation. """
         self.use_trunc_pr = False
+        """ Setting whether to use special probabilistic truncation. """
 
-        """ Setting whether to use daBits for non-linear functionality. """
         self.use_dabit = options.mixed
+        """ Setting whether to use daBits for non-linear functionality. """
 
-        """ Setting whether to use edaBits for non-linear functionality. """
         self._edabit = options.edabit
-
-        """ Setting whether to use the Rabbit protocol for comparison. """
         self._comparison_rabbit = options.comparison_rabbit
 
         """ Whether to use the low-level INVPERM instruction (only implemented with the assumption of a semi-honest two-party environment)"""
