@@ -59,9 +59,9 @@ class NonLinear:
         s = (x <? 0)
         BIT_SIZE: bit length of x
         """
-        length_eda = BIT_SIZE
+        length_eda = 64 # BIT_SIZE
 
-        M = P_VALUES[32] # TODO: get program.prime
+        M = P_VALUES[64] # TODO: get program.prime
         R = 0
 
         r, r_bits = sint.get_edabit(length_eda, True)

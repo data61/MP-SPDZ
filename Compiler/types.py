@@ -5130,6 +5130,7 @@ class custom_sfix(sfix):
         """
         from .GC.types import cbits
         length_eda = BIT_SIZE
+        library.print_ln("custom sfix: bitsize = %s", BIT_SIZE)
 
         M = P_VALUES[64]
         R = 0
@@ -5138,11 +5139,19 @@ class custom_sfix(sfix):
         masked_a = (x + r).reveal()
         masked_b = (x + r + M - R).reveal()
         w = [None, None, None, None]
+
         w[1] = self.LTBits(masked_a, r_bits, BIT_SIZE)
+        library.print_ln("w1, comparing: masked_a=%s edabit=%s w1=%s", masked_a, r.reveal(), w[1].reveal())
+        
         w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
+        library.print_ln("w2, comparing: masked_b=%s edabit=%s w2=%s", masked_b, r.reveal(), w[2].reveal())
+
         w[3] = cint(masked_b < 0)
+        library.print_ln("w3, comparing: masked_b=%s with zero, w3=%s", masked_b, w[3].reveal())
 
         result = w[1] - w[2] + w[3]
+
+        library.print_ln("final result = %s (returning negation of)", result.reveal())
         return sint(1 - result)
 
     @vectorize
