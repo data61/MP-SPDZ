@@ -5127,12 +5127,14 @@ class custom_sfix(sfix):
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", y[i].reveal())
 
-        z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        #z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        z = floatingpoint.PreOpL(floatingpoint.or_op, y)
         library.print_ln("\nLTBits: z= ")
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", z[i].reveal())
 
-        w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
+        z = [0] + z
+        w = [z[i] - z[i - 1] for i in range(BIT_SIZE, 0, -1)]
         library.print_ln("\nLTBits: w= ")
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", w[i].reveal())
