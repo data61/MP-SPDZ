@@ -5146,8 +5146,8 @@ class custom_sfix(sfix):
         w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
         library.print_ln("w2, comparing: masked_b=%s edabit=%s w2=%s", masked_b, r.reveal(), w[2].reveal())
 
-        w[3] = cint(masked_b < 0)
-        library.print_ln("w3, comparing: masked_b=%s with zero, w3=%s", masked_b, w[3].reveal())
+        w[3] = cint(masked_b < (M - R))
+        library.print_ln("w3, comparing: masked_b=%s with %s, w3=%s", masked_b, M - R, w[3].reveal())
 
         result = w[1] - w[2] + w[3]
 
