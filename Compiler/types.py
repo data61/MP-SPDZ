@@ -5114,10 +5114,31 @@ class custom_sfix(sfix):
     @vectorize
     def LTBits(self, R, x, BIT_SIZE):
         R_bits = cint.bit_decompose(R, BIT_SIZE)
-        y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
-        z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
-        w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
+        library.print_ln("\nLTBits: R_bits= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", R_bits[i])
 
+        library.print_ln("\nLTBits: edabit= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", x[i].reveal())
+
+        y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
+        library.print_ln("\nLTBits: y= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", y[i].reveal())
+
+        z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        library.print_ln("\nLTBits: z= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", z[i].reveal())
+
+        w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
+        library.print_ln("\nLTBits: w= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", w[i].reveal())
+
+        s = sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
+        library.print_ln("Sum=%s", s.reveal())
         return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
         return return_value
 
@@ -5128,7 +5149,6 @@ class custom_sfix(sfix):
 
         BIT_SIZE: bit length of a
         """
-        from .GC.types import cbits
         length_eda = BIT_SIZE
         library.print_ln("custom sfix: bitsize = %s", BIT_SIZE)
 
@@ -5151,7 +5171,7 @@ class custom_sfix(sfix):
 
         result = w[1] - w[2] + w[3]
 
-        library.print_ln("final result = %s (returning negation of)", result.reveal())
+        library.print_ln("final result = %s and 1- result=%s", result.reveal(), (1-result).reveal())
         return sint(1 - result)
 
     @vectorize
