@@ -5135,6 +5135,7 @@ class custom_sfix(sfix):
 
         z = [0] + z
         w = [z[i] - z[i - 1] for i in range(BIT_SIZE, 0, -1)]
+        w = w[::-1]
         library.print_ln("\nLTBits: w= ")
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", w[i].reveal())
