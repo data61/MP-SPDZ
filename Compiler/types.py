@@ -5112,13 +5112,18 @@ class custom_sfix(sfix):
 
     # R: clear-text; x: edabit in binary format
     @vectorize
-    def LTBits(self, R, x, BIT_SIZE):
+    def LTBits(self, R, x, r, BIT_SIZE):
         R_bits = cint.bit_decompose(R, BIT_SIZE)
         library.print_ln("\nLTBits: R_bits= ")
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", R_bits[i])
 
+        edabit = cint.bit_decompose(r.reveal(), BIT_SIZE)
         library.print_ln("\nLTBits: edabit= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", edabit[i].reveal())
+
+        library.print_ln("\nLTBits from bits: x = ")
         for i in range(BIT_SIZE):
             library.print_without_ln("%s", x[i].reveal())
 
@@ -5141,7 +5146,7 @@ class custom_sfix(sfix):
             library.print_without_ln("%s", w[i].reveal())
 
         s = sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
-        library.print_ln("Sum=%s", s.reveal())
+        library.print_ln("\nSum=%s", s.reveal())
         return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
         return return_value
 
@@ -5163,10 +5168,10 @@ class custom_sfix(sfix):
         masked_b = (x + r + M - R).reveal() # masked_a
         w = [None, None, None, None]
 
-        w[1] = self.LTBits(masked_a, r_bits, BIT_SIZE)
+        w[1] = self.LTBits(masked_a, r_bits, r, BIT_SIZE)
         library.print_ln("w1, comparing: masked_a=%s edabit=%s w1=%s", masked_a, r.reveal(), w[1].reveal())
         
-        w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
+        w[2] = self.LTBits(masked_b, r_bits, r, BIT_SIZE)
         library.print_ln("w2, comparing: masked_b=%s edabit=%s w2=%s", masked_b, r.reveal(), w[2].reveal())
 
         w[3] = cint(masked_b < 0)
