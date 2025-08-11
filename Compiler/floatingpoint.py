@@ -84,7 +84,7 @@ def bits(a,m):
     return res
 
 def carry(b, a, compute_p=True):
-    """ Carry propogation:
+    """ Carry propagation:
         (p,g) = (p_2, g_2)o(p_1, g_1) -> (p_1 & p_2, g_2 | (p_2 & g_1))
     """
     if compute_p:
@@ -761,3 +761,4 @@ def BitDecFull(a, n_bits=None, maybe_mixed=False):
         return abits
     else:
         return [sint.conv(bit) for bit in abits]
+

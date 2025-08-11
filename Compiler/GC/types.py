@@ -26,7 +26,7 @@ class _binary:
         return self ^ other ^ (self & other)
     def reveal_to(self, *args, **kwargs):
         raise CompilerError(
-            '%s does not support revealing to indivual players' % type(self))
+            '%s does not support revealing to individual players' % type(self))
 
 class bits(Tape.Register, _structure, _bit, _binary):
     n = 40
@@ -449,7 +449,7 @@ class sbits(bits):
         AND: 1
         NOT: -4
 
-    Instances can be also be initalized from :py:obj:`~Compiler.types.regint`
+    Instances can be also be initialized from :py:obj:`~Compiler.types.regint`
     and :py:obj:`~Compiler.types.sint`.
     """
     max_length = 64
