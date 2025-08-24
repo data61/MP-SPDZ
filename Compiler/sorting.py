@@ -74,3 +74,4 @@ def radix_sort_from_matrix(bs, D):
         @library.else_
         def _():
             reveal_sort(h, D, reverse=True)
+    return h
