@@ -49,8 +49,52 @@ class NonLinear:
         if m == 0:
             return a
         return self._trunc(a, k, m, signed)
+    
+    def LTBits(self, R, x, BIT_SIZE):
+        library.print_ln("in LTBits")
+        R_bits = cint.bit_decompose(R, BIT_SIZE)
+        y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
+        z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        w = [z[i] - z[i + 1] for i in range(BIT_SIZE)]
+
+        return types.sintbit(1) - types.sintbit(sum((R_bits[i] & w[i]) for i in range(BIT_SIZE)))
+
+    def rabbitLTZ(self, x, BIT_SIZE = 64):
+        """
+        s = (x <? 0)
+        BIT_SIZE: bit length of x
+        """
+        length_eda = 64 # BIT_SIZE
+
+        M = P_VALUES[64] # TODO: get program.prime
+        R = 0
+
+        r, r_bits = sint.get_edabit(length_eda, True)
+        masked_a = (x + r).reveal()
+        masked_b = (x + r + M - R).reveal()
+        w = [None, None, None, None]
+
+        library.print_ln("w1, comparing: masked_a=%s edabit=%s", masked_a, r.reveal())
+        w[1] = self.LTBits(masked_a, r_bits, BIT_SIZE)
+
+        library.print_ln("w2, comparing: masked_b=%s edabit=%s", masked_b, r.reveal())
+        w[2] = self.LTBits(masked_b, r_bits, BIT_SIZE)
+
+        library.print_ln("w3, comparing: masked_b=%s with zero", masked_a)
+        w[3] = cint(masked_b < 0)
+
+        result = w[1] - w[2] + w[3]
+
+        library.print_ln("w1=%s w2=%s w3=%s result=%s", w[1].reveal(), w[2].reveal(), w[3], result.reveal())
+        return sint(1 - result)
 
     def ltz(self, a, k):
+        library.print_ln("a=%s k=%s", a.reveal(), k)
+        prog = program.Program.prog
+        if prog.options.comparison_rabbit:
+            return self.rabbitLTZ(a, k)
+        
+        # else, use truncation
         return -self.trunc(a, k, k - 1, True)
 
 class Masking(NonLinear):
@@ -139,6 +183,10 @@ class KnownPrime(NonLinear):
             self.bit_dec(a, k, k, prog.use_edabit())))
 
     def ltz(self, a, k):
+        prog = program.Program.prog
+        if prog.options.comparison_rabbit:
+            return -20
+        
         if k + 1 < self.prime.bit_length():
             # https://dl.acm.org/doi/10.1145/3474123.3486757
             # "negative" values wrap around when doubling, thus becoming odd
