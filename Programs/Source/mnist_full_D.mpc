@@ -79,18 +79,18 @@ dropout = 'dropout' in program.args
 
 if '1dense' in program.args:
     if dropout:
-        layers += [ml.Dropout(N, n_inner)]
+        layers += [ml.Dropout([N, n_inner])]
     layers += [ml.Dense(N, n_inner, 10),]
 elif '2dense' in program.args:
     if dropout:
-        layers += [ml.Dropout(N, n_inner)]
+        layers += [ml.Dropout([N, n_inner])]
     layers += [
         ml.Dense(N, n_inner, 100),
         ml.Relu([N, 100]),
         ml.Dense(N, 100, 10),
     ]
     if dropout or 'dropout1' in program.args:
-        layers.insert(-1, ml.Dropout(N, 100))
+        layers.insert(-1, ml.Dropout([N, 100]))
 else:
     raise Exception('need to specify number of dense layers')
 

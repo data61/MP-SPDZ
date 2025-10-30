@@ -77,16 +77,16 @@ if 'batchnorm' in program.args:
 
 if 'dropout' in program.args:
     for i in range(len(layers) - 1, 0, -1):
-        layers.insert(i, ml.Dropout(N, n_inner))
+        layers.insert(i, ml.Dropout([N, n_inner]))
 
 if 'dropout-late' in program.args:
-    layers.insert(-1, ml.Dropout(N, n_inner))
+    layers.insert(-1, ml.Dropout([N, n_inner]))
 
 if 'dropout-early' in program.args:
-    layers.insert(0, ml.Dropout(n_examples, n_features))
+    layers.insert(0, ml.Dropout([n_examples, n_features]))
 
 if 'dropout-early.25' in program.args:
-    layers.insert(0, ml.Dropout(n_examples, n_features, alpha=.25))
+    layers.insert(0, ml.Dropout([n_examples, n_features], alpha=.25))
 
 layers += [ml.MultiOutput.from_args(program, n_examples, 10)]
 

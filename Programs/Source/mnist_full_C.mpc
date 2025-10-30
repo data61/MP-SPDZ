@@ -73,16 +73,16 @@ if 'batchnorm' in program.args:
     layers.insert(1, ml.BatchNorm([N, 24, 24, 20], args=program.args))
 
 if 'dropout' in program.args or 'dropout2' in program.args:
-    layers.insert(8, ml.Dropout(N, 500))
+    layers.insert(8, ml.Dropout([N, 500]))
 elif 'dropout.25' in program.args:
-    layers.insert(8, ml.Dropout(N, 500, alpha=0.25))
+    layers.insert(8, ml.Dropout([N, 500], alpha=0.25))
 elif 'dropout.125' in program.args:
-    layers.insert(8, ml.Dropout(N, 500, alpha=0.125))
+    layers.insert(8, ml.Dropout([N, 500], alpha=0.125))
 
 if 'dropout2' in program.args:
-    layers.insert(6, ml.Dropout(N, 800, alpha=0.125))
+    layers.insert(6, ml.Dropout([N, 800], alpha=0.125))
 elif 'dropout1' in program.args:
-    layers.insert(6, ml.Dropout(N, 800, alpha=0.5))
+    layers.insert(6, ml.Dropout([N, 800], alpha=0.5))
 
 if 'no_relu' in program.args:
     for x in layers:
