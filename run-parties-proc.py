@@ -12,7 +12,7 @@ def main():
         sys.exit(1)
 
     input_dir = Path(sys.argv[1])
-    protocol = sys.argv[2] if len(sys.argv) > 2 else "mascot"
+    protocol = sys.argv[2] if len(sys.argv) > 2 else "shamir" # change to shamir
     program = sys.argv[3] if len(sys.argv) > 3 else "matsat"
 
     # --port (default 5001)
@@ -28,6 +28,7 @@ def main():
 
     spdz_root = Path(__file__).parent.resolve()
     party_exe = spdz_root / f"{protocol}-party.x"
+    print("running with protocol: ", protocol)
 
     procs = []
     for i, file in enumerate(files):

@@ -282,9 +282,9 @@ def matsat():
         # Reveal results
         # print_ln("Thresholded binary vector u:")
 
-        # @for_range(n)
-        # def _(i):
-        #     print_ln("u[%s] = %s", i, u[i][0].reveal())
+        @for_range(n)
+        def _(i):
+            print_ln("u[%s] = %s", i, u[i][0].reveal())
     print_ln("is_solved = %s", is_solved.reveal())
 
 
