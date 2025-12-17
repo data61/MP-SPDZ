@@ -70,6 +70,7 @@ class defaults:
     stop = False
     insecure = False
     keep_cisc = False
+    comparison_rabbit = False
 
 
 class Program(object):
@@ -211,11 +212,16 @@ class Program(object):
             gc.inputbvec,
             gc.reveal,
         ]
+        
         self.use_trunc_pr = False
         """ Setting whether to use special probabilistic truncation. """
+
         self.use_dabit = options.mixed
         """ Setting whether to use daBits for non-linear functionality. """
+
         self._edabit = options.edabit
+        self._comparison_rabbit = options.comparison_rabbit
+
         """ Whether to use the low-level INVPERM instruction (only implemented with the assumption of a semi-honest two-party environment)"""
         self._invperm = options.invperm
         self._split = False
@@ -700,6 +706,19 @@ class Program(object):
         else:
             self._edabit = change
 
+    def use_comparison_rabbit(self, change=None):
+        """Setting whether to use the rabbit comparison protocol (default: false).
+
+        :param change: change setting if not :py:obj:`None`
+        :returns: setting if :py:obj:`change` is :py:obj:`None`
+        """
+        if change is None:
+            if not self._comparison_rabbit:
+                self.relevant_opts.add("comparison_rabbit")
+            return self._comparison_rabbit
+        else:
+            self._comparison_rabbit = change
+
     def use_invperm(self, change=None):
         """ Set whether to use the low-level INVPERM instruction to inverse a permutation (see sint.inverse_permutation). The INVPERM instruction assumes a semi-honest two-party environment. If false, a general protocol implemented in the high-level language is used.
 
@@ -788,6 +807,8 @@ class Program(object):
             self.always_raw(True)
         if "edabit" in self.args:
             self.use_edabit(True)
+        if "comparison_rabbit" in self.args:
+            self.use_comparison_rabbit(True)
         if "invperm" in self.args:
             self.use_invperm(True)
         if "linear_rounds" in self.args:

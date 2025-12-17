@@ -139,6 +139,25 @@ def print_ln(s='', *args, **kwargs):
     """
     print_str(str(s) + '\n', *args, **kwargs)
 
+
+def print_without_ln(s='', *args, **kwargs):
+    """ Print line, with optional args for adding variables/registers
+    with ``%s``. By default only player 0 outputs, but the ``-I``
+    command-line option changes that.
+
+    :param s: Python string with same number of ``%s`` as length of :py:obj:`args`
+    :param args: list of public values (regint/cint/int/cfix/cfloat/localint)
+    :param print_secrets: whether to output secret shares
+
+    Example:
+
+    .. code::
+
+        print_ln('a is %s.', a.reveal())
+    """
+    print_str(str(s), *args, **kwargs)
+
+
 def print_both(s, end='\n'):
     """ Print line during compilation and execution. """
     print(s, end=end)

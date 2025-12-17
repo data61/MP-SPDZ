@@ -5211,6 +5211,141 @@ class unreduced_sfix(_single):
         assert self.m == other.m
         self.v.update(other.v)
 
+
+class custom_sfix(sfix):
+
+    # R: clear-text; x: edabit in binary format
+    @vectorize
+    def LTBits(self, R, x, r, BIT_SIZE):
+        R_bits = cint.bit_decompose(R, BIT_SIZE)
+        library.print_ln("\nLTBits: R_bits= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", R_bits[i])
+
+        edabit = cint.bit_decompose(r.reveal(), BIT_SIZE)
+        library.print_ln("\nLTBits: edabit= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", edabit[i].reveal())
+
+        library.print_ln("\nLTBits from bits: x = ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", x[i].reveal())
+
+        y = [x[i].bit_xor(R_bits[i]) for i in range(BIT_SIZE)]
+        library.print_ln("\nLTBits: y= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", y[i].reveal())
+
+        #z = floatingpoint.PreOpL(floatingpoint.or_op, y[::-1])[::-1] + [0]
+        z = floatingpoint.PreOpL(floatingpoint.or_op, y)
+        library.print_ln("\nLTBits: z= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", z[i].reveal())
+
+        z = [0] + z
+        w = [z[i] - z[i - 1] for i in range(BIT_SIZE, 0, -1)]
+        w = w[::-1]
+        library.print_ln("\nLTBits: w= ")
+        for i in range(BIT_SIZE):
+            library.print_without_ln("%s", w[i].reveal())
+
+        s = sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
+        library.print_ln("\nSum=%s", s.reveal())
+        return_value = 1 - sum((R_bits[i] & w[i]) for i in range(BIT_SIZE))
+        return return_value
+
+    @vectorize
+    def rabbitLTZ(self, x, BIT_SIZE = 64):
+        """
+        s = (c ?< a)
+
+        BIT_SIZE: bit length of a
+        """
+        length_eda = BIT_SIZE
+        library.print_ln("custom sfix: bitsize = %s", BIT_SIZE)
+
+        M = P_VALUES[64]
+        R = (M - 1) // 2  # for field; use 0 for ring
+
+        r, r_bits = sint.get_edabit(length_eda, True)
+        masked_a = (x + r).reveal()
+        masked_b = (x + r + M - R).reveal() # masked_a
+        w = [None, None, None, None]
+
+        w[1] = self.LTBits(masked_a, r_bits, r, BIT_SIZE)
+        library.print_ln("w1, comparing: masked_a=%s edabit=%s w1=%s", masked_a, r.reveal(), w[1].reveal())
+        
+        w[2] = self.LTBits(masked_b, r_bits, r, BIT_SIZE)
+        library.print_ln("w2, comparing: masked_b=%s edabit=%s w2=%s", masked_b, r.reveal(), w[2].reveal())
+
+        w[3] = cint(masked_b < 0)
+        library.print_ln("w3, comparing: masked_b=%s with %s, w3=%s", masked_b, M - R, w[3].reveal())
+
+        result = w[1] - w[2] + w[3]
+
+        library.print_ln("final result = %s and 1- result=%s", result.reveal(), (1-result).reveal())
+        return sint(1 - result)
+
+    @vectorize
+    def rabbitLTS_fix(self, a, b):
+        return 1 - self.rabbitLTS(b, a)
+    
+    @vectorize
+    def rabbitLTS(self, a, b):
+        res = self.rabbitLTZ(a - b)
+        return res
+
+
+    # These are based on the implementation
+    # self.rabbitLTS(a, b) = rabbitLTC(a-b, 0)
+    @vectorize
+    def __lt__(self, other):
+        a = self.v
+        b = other.v
+        result = self.rabbitLTS_fix(a, b)
+        return result
+
+    @vectorize
+    def __le__(self, other):
+        a = self.v
+        b = other.v
+        result = 1 - self.rabbitLTS_fix(b, a)
+        return result
+
+    @vectorize
+    def __gt__(self, other):
+        a = self.v
+        b = other.v
+        result = self.rabbitLTS_fix(b, a)
+        return result
+    
+    @vectorize
+    def __ge__(self, other):
+        a = self.v
+        b = other.v
+        result = 1 - self.rabbitLTS_fix(a, b)
+        return result
+    
+    @vectorize
+    def __eq__(self, other):
+        a = self.v
+        b = other.v
+        result = (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
+        return result
+    
+    @vectorize
+    def __ne__(self, other):
+        a = self.v
+        b = other.v
+        result = 1 - (1 - self.rabbitLTS_fix(a, b)) * (1 - self.rabbitLTS_fix(b, a))
+        return result
+
+    @vectorize
+    def __abs__(self):
+        """ Absolute value. """
+        return (self < custom_sfix(0)).if_else(-self, self)
+
+
 sfix.unreduced_type = unreduced_sfix
 
 sfix.set_precision(16, 31)
