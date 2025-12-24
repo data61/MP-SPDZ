@@ -145,7 +145,7 @@ The following table lists all protocols that are fully supported.
 | Malicious, dishonest majority | [MASCOT / LowGear / HighGear](#secret-sharing) | [SPDZ2k](#secret-sharing) | [Tiny / Tinier](#secret-sharing) | [BMR](#bmr) |
 | Covert, dishonest majority | [CowGear / ChaiGear](#secret-sharing) | N/A | N/A | N/A |
 | Semi-honest, dishonest majority | [Semi / Hemi / Temi / Soho](#secret-sharing) | [Semi2k](#secret-sharing) | [SemiBin](#secret-sharing) | [Yao's GC](#yaos-garbled-circuits) / [BMR](#bmr) |
-| Malicious, honest majority | [Shamir / Rep3 / PS / SY](#honest-majority) | [Brain / Rep3 / PS / SY](#honest-majority) | [Rep3 / CCD / PS](#honest-majority) | [BMR](#bmr) |
+| Malicious, honest majority | [Shamir / Rep3 / PS / SY / Rep4](#honest-majority) | [Brain / Rep3 / PS / SY / Rep4](#honest-majority) | [Rep3 / CCD / PS / Rep4](#honest-majority) | [BMR](#bmr) |
 | Semi-honest, honest majority | [Shamir / ATLAS / Rep3](#honest-majority) | [Rep3](#honest-majority) / [Astra / Trio](#protocols-with-function-dependent-preprocessing) | [Rep3 / CCD](#honest-majority) | [BMR](#bmr) |
 | Malicious, honest supermajority | [Rep4](#honest-majority) | [Rep4](#honest-majority) | [Rep4](#honest-majority) | N/A |
 | Semi-honest, dealer | [Dealer](#dealer-model) | [Dealer](#dealer-model) | [Dealer](#dealer-model) | N/A |
@@ -296,13 +296,14 @@ compute the preprocessing time for a particular computation.
    Ubuntu.
  - libsodium library, tested against 1.0.18
  - OpenSSL, tested against 3.0.2
- - Boost.Asio with SSL support (`libboost-dev` on Ubuntu), tested against 1.81
- - Boost.Thread for BMR (`libboost-thread-dev` on Ubuntu), tested against 1.81
+ - Boost.Asio with SSL support (`libboost-dev` on Ubuntu), tested against 1.83
+ - Boost.Thread for BMR (`libboost-thread-dev` on Ubuntu), tested against 1.83
  - x86 or ARM 64-bit CPU (the latter tested with AWS Gravitron and
    Apple Silicon)
  - Python 3.5 or later
  - NTL library for homomorphic encryption (optional; tested with NTL 11.5.1)
- - If using macOS, Sierra or later
+ - If using macOS, Sierra or later. Only the default Xcode version of
+   clang is used for testing.
  - Windows/VirtualBox: see [this
    issue](https://github.com/data61/MP-SPDZ/issues/557) for a discussion
 
@@ -465,12 +466,12 @@ used if supported. By default, they support bit lengths 64, 72, and
 The integer length can be any number up to a maximum depending on the
 protocol. All protocols support at least 64-bit integers.
 
-Fixed-point numbers (`sfix`) always use 16/16-bit precision by default in
+Fixed-point numbers (`sfix`) always use 15/16-bit precision by default in
 binary circuits. This can be changed with `sfix.set_precision`. See
 [the tutorial](Programs/Source/tutorial.mpc).
 
 If you would like to use integers of various precisions, you can use
-`sbitint.get_type(n)` to get a type for `n`-bit arithmetic.
+`sbitintvec.get_type(n)` to get a type for `n`-bit arithmetic.
 
 #### Mixed circuits
 
@@ -679,8 +680,12 @@ This runs the compiled bytecode in cleartext computation, that is,
 
 ## Dishonest majority
 
-Some full implementations require oblivious transfer, which is
-implemented as OT extension based on
+All implementations require oblivious transfer at least for binary computation.
+The default is to use [SoftSpokenOT](https://eprint.iacr.org/2022/192),
+an OT extension. It features a parameter `k` determining the trade-off
+between computation and communication. The default choice 2, but
+you can use `-o softspoken=<k>` to change it. The OT extension is
+implemented based on
 https://github.com/mkskeller/SimpleOT or
 https://github.com/mkskeller/SimplestOT_C, depending on whether AVX is
 available.
@@ -828,7 +833,7 @@ The following table shows all programs for honest-majority computation:
 | `ps-rep-ring-party.x` | Replicated | Mod 2^k | Y | 3 | `ps-rep-ring.sh` |
 | `malicious-rep-ring-party.x` | Replicated | Mod 2^k | Y | 3 | `mal-rep-ring.sh` |
 | `sy-rep-ring-party.x` | SPDZ-wise replicated | Mod 2^k | Y | 3 | `sy-rep-ring.sh` |
-| `rep4-ring-party.x` | Replicated | Mod 2^k | Y | 4 | `rep4-ring.sh` |
+| `rep4-ring-party.x` | Replicated | Mod 2^k | Y/N | 4 | `rep4-ring.sh` |
 | `replicated-bin-party.x` | Replicated | Binary | N | 3 | `replicated.sh` |
 | `malicious-rep-bin-party.x` | Replicated | Binary | Y | 3 | `mal-rep-bin.sh` |
 | `ps-rep-bin-party.x` | Replicated | Binary | Y | 3 | `ps-rep-bin.sh` |
@@ -872,6 +877,8 @@ secret value and information-theoretic tag similar to SPDZ but not
 with additive secret sharing, hence the name.
 Rep4 refers to the four-party protocol by [Dalskov et
 al.](https://eprint.iacr.org/2020/1330)
+You can use it with the option `--semi-honest` to skip the checks needed
+for malicious security.
 `malicious-rep-bin-party.x` is based on cut-and-choose triple
 generation by [Furukawa et al.](https://eprint.iacr.org/2016/944) but
 using Beaver multiplication instead of their post-sacrifice
@@ -1213,6 +1220,9 @@ Finally, run the parties as follows:
 
 The options for the network setup are the same as for the complete
 computation above.
+
+After running the offline phase, you can use the online phase using
+the `-F` option as [above](#online-only-benchmarking).
 
 If you run the preprocessing on different hosts, make sure to use the
 same player number in the preprocessing and the online phase.

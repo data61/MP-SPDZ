@@ -52,6 +52,12 @@ const typename T::clear::FD& HemiPrep<T>::get_FTD()
     return pairwise_machine->setup<FD>().FieldD;
 }
 
+template<class T>
+bool HemiPrep<T>::bits_from_dabits()
+{
+    return SemiPrep<T>::bits_from_dabits();
+}
+
 
 template<class T>
 HemiPrep<T>::~HemiPrep()
@@ -82,6 +88,7 @@ vector<Multiplier<typename T::clear::FD>*>& HemiPrep<T>::get_multipliers()
         pairwise_machine->setup<FD>().covert_key_generation(P,
                 *pairwise_machine, 1);
         pairwise_machine->enc_alphas.resize(1, pairwise_machine->pk);
+        BaseMachine::add_one_off(P.total_comm());
     }
     lock.unlock();
 
@@ -144,8 +151,7 @@ void HemiPrep<T>::buffer_bits()
     if (this->proc->P.num_players() == 2)
     {
         auto& prep = get_two_party_prep();
-        prep.buffer_size = BaseMachine::batch_size<T>(DATA_BIT,
-                this->buffer_size);
+        prep.buffer_size = this->buffer_size;
         prep.buffer_dabits(0);
         for (auto& x : prep.dabits)
             this->bits.push_back(x.first);

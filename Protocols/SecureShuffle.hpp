@@ -14,6 +14,35 @@
 #include <algorithm>
 
 template<class T>
+class ShuffleTuple
+{
+    typedef typename T::Protocol::Shuffler::shuffle_type shuffle_type;
+
+public:
+    size_t size, dest, source, unit_size;
+    const shuffle_type& shuffle;
+    bool reverse;
+
+    ShuffleTuple(size_t size, size_t dest, size_t source, size_t unit_size,
+            const shuffle_type& shuffle, bool reverse) :
+            size(size), dest(dest), source(source), unit_size(unit_size),
+            shuffle(shuffle), reverse(reverse)
+    {
+    }
+
+    ShuffleTuple(size_t size, size_t dest, size_t source, size_t unit_size,
+            const typename ShuffleStore<shuffle_type>::store_type& stored,
+            bool reverse) :
+            ShuffleTuple(size, dest, source, unit_size, stored.second, reverse)
+    {
+        if (stored.first == 0)
+            throw runtime_error("shuffle has been deleted");
+        if (stored.first != size / unit_size)
+            throw runtime_error("wrong shuffle size");
+    }
+};
+
+template<class T>
 void ShuffleStore<T>::lock()
 {
     store_lock.lock();
@@ -26,17 +55,17 @@ void ShuffleStore<T>::unlock()
 }
 
 template<class T>
-int ShuffleStore<T>::add()
+int ShuffleStore<T>::add(unsigned n_shuffles)
 {
     lock();
     int res = shuffles.size();
-    shuffles.push_back({});
+    shuffles.push_back({n_shuffles, {}});
     unlock();
     return res;
 }
 
 template<class T>
-typename ShuffleStore<T>::shuffle_type& ShuffleStore<T>::get(int handle)
+typename ShuffleStore<T>::store_type& ShuffleStore<T>::get(int handle)
 {
     lock();
     auto& res = shuffles.at(handle);
@@ -59,42 +88,10 @@ SecureShuffle<T>::SecureShuffle(SubProcessor<T>& proc) :
 }
 
 template<class T>
-SecureShuffle<T>::SecureShuffle(StackedVector<T>& a, size_t n, int unit_size,
-        size_t output_base, size_t input_base, SubProcessor<T>& proc) :
-        proc(proc)
+void SecureShuffle<T>::apply_multiple(StackedVector<T> &a,
+        vector<ShuffleTuple<T>>& shuffles)
 {
-    store_type store;
-    int handle = generate(n / unit_size, store);
-
-    vector<size_t> sizes{n};
-    vector<size_t> unit_sizes{static_cast<size_t>(unit_size)};
-    vector<size_t> destinations{output_base};
-    vector<size_t> sources{input_base};
-    vector<shuffle_type> shuffles{store.get(handle)};
-    vector<bool> reverses{true};
-    this->apply_multiple(a, sizes, destinations, sources, unit_sizes, shuffles, reverses);
-}
-
-template<class T>
-void SecureShuffle<T>::apply_multiple(StackedVector<T>& a, vector<size_t>& sizes, vector<size_t>& destinations, vector<size_t>& sources,
-                                    vector<size_t>& unit_sizes, vector<size_t>& handles, vector<bool>& reverse, store_type& store) {
-    vector<shuffle_type> shuffles;
-    for (size_t &handle : handles)
-        shuffles.push_back(store.get(handle));
-
-    this->apply_multiple(a, sizes, destinations, sources, unit_sizes, shuffles, reverse);
-}
-
-template<class T>
-void SecureShuffle<T>::apply_multiple(StackedVector<T> &a, vector<size_t> &sizes, vector<size_t> &destinations,
-    vector<size_t> &sources, vector<size_t> &unit_sizes, vector<shuffle_type> &shuffles, vector<bool> &reverse) {
     CODE_LOCATION
-    const auto n_shuffles = sizes.size();
-    assert(sources.size() == n_shuffles);
-    assert(destinations.size() == n_shuffles);
-    assert(unit_sizes.size() == n_shuffles);
-    assert(shuffles.size() == n_shuffles);
-    assert(reverse.size() == n_shuffles);
 
     // SecureShuffle works by making t players create and "secret-share" a permutation.
     // Then each permutation is applied in a pass. As long as one of these permutations was created by an honest party,
@@ -102,21 +99,21 @@ void SecureShuffle<T>::apply_multiple(StackedVector<T> &a, vector<size_t> &sizes
     const auto n_passes = proc.protocol.get_relevant_players().size();
 
     // Initialize the shuffles.
-    vector is_exact(n_shuffles, false);
+    vector is_exact(shuffles.size(), false);
     vector<vector<T>> to_shuffle;
-    int max_depth = prep_multiple(a, sizes, sources, unit_sizes, to_shuffle, is_exact);
+    int max_depth = prep_multiple(a, shuffles, to_shuffle, is_exact);
 
     // Apply the shuffles.
     for (size_t pass = 0; pass < n_passes; pass++)
     {
         for (int depth = 0; depth < max_depth; depth++)
-            parallel_waksman_round(pass, depth, true, to_shuffle, unit_sizes, reverse, shuffles);
+            parallel_waksman_round(pass, depth, true, to_shuffle, shuffles);
         for (int depth = max_depth - 1; depth >= 0; depth--)
-            parallel_waksman_round(pass, depth, false, to_shuffle, unit_sizes, reverse, shuffles);
+            parallel_waksman_round(pass, depth, false, to_shuffle, shuffles);
     }
 
     // Write the shuffled results into memory.
-    finalize_multiple(a, sizes, unit_sizes, destinations, is_exact, to_shuffle);
+    finalize_multiple(a, shuffles, to_shuffle, is_exact);
 }
 
 
@@ -137,34 +134,33 @@ void SecureShuffle<T>::inverse_permutation(StackedVector<T> &stack, size_t n, si
     if (T::malicious)
         throw runtime_error("inverse permutation only implemented for semi-honest protocols");
 
-    vector<size_t> sizes { n };
-    vector<size_t> unit_sizes { 1 }; // We are dealing directly with permutations, so the unit_size will always be 1.
-    vector<size_t> destinations { output_base };
-    vector<size_t> sources { input_base };
-    vector<bool> reverse { true };
     vector<vector<T>> to_shuffle;
     vector<bool> is_exact(1, false);
 
-    prep_multiple(stack, sizes, sources, unit_sizes, to_shuffle, is_exact);
+    // We are dealing directly with permutations, so the unit_size will always be 1.
+    shuffle_type shuffle;
+    vector<ShuffleTuple<T>> shuffles({{n, output_base, input_base, 1, shuffle, true}});
 
-    size_t shuffle_size = to_shuffle[0].size() / unit_sizes[0];
+    prep_multiple(stack, shuffles, to_shuffle, is_exact);
+
+    size_t shuffle_size = to_shuffle.at(0).size() / shuffles.at(0).unit_size;
     // Alice generates stack local permutation and shares the waksman configuration bits secretly to Bob.
     vector<int> perm_alice(shuffle_size);
     if (P.my_num() == alice) {
         perm_alice = generate_random_permutation(n);
     }
     auto config = configure(alice, &perm_alice, n);
-    vector<shuffle_type> shuffles {{ config, config }};
+    shuffle = { config, config };
 
     // Apply perm_alice to perm_alice to get perm_bob,
     // stack permutation that we can reveal to Bob without Bob learning anything about perm_alice (since it is masked by perm_a)
     for (int depth = 0; depth < log2(shuffle_size); depth++)
-        parallel_waksman_round(0, depth, true, to_shuffle, unit_sizes, reverse, shuffles);
+        parallel_waksman_round(0, depth, true, to_shuffle, shuffles);
     for (int depth = log2(shuffle_size); depth >= 0; depth--)
-        parallel_waksman_round(0, depth, false, to_shuffle, unit_sizes, reverse, shuffles);
+        parallel_waksman_round(0, depth, false, to_shuffle, shuffles);
 
     // Store perm_bob at stack[output_base]
-    finalize_multiple(stack, sizes, unit_sizes, destinations, is_exact, to_shuffle);
+    finalize_multiple(stack, shuffles, to_shuffle, is_exact);
 
     // Reveal permutation perm_bob = perm_a * perm_alice
     // Since this permutation is masked by perm_a, Bob learns nothing about perm
@@ -203,35 +199,40 @@ void SecureShuffle<T>::inverse_permutation(StackedVector<T> &stack, size_t n, si
 
     // The two parties now jointly compute perm_a * perm_bob_inv to obtain perm_inv
     to_shuffle.clear();
-    prep_multiple(stack, sizes, destinations, unit_sizes, to_shuffle, is_exact);
+    shuffles.at(0).source = shuffles.at(0).dest;
+    prep_multiple(stack, shuffles, to_shuffle, is_exact);
 
     config = configure(bob, &perm_bob_inv, n);
-    shuffles[0] = { config, config };
+    shuffle = { config, config };
 
     for (int i = 0; i < log2(shuffle_size); i++)
-        parallel_waksman_round(0, i, true, to_shuffle, unit_sizes, reverse, shuffles);
+        parallel_waksman_round(0, i, true, to_shuffle, shuffles);
     for (int i = log2(shuffle_size) - 2; i >= 0; i--)
-        parallel_waksman_round(0, i, false, to_shuffle, unit_sizes, reverse, shuffles);
+        parallel_waksman_round(0, i, false, to_shuffle, shuffles);
 
     // Store perm_bob at stack[output_base]
-    finalize_multiple(stack, sizes, unit_sizes, destinations, is_exact, to_shuffle);
+    finalize_multiple(stack, shuffles, to_shuffle, is_exact);
 }
 
 template<class T>
-int SecureShuffle<T>::prep_multiple(StackedVector<T> &a, vector<size_t> &sizes,
-    vector<size_t> &sources, vector<size_t> &unit_sizes, vector<vector<T>> &to_shuffle, vector<bool> &is_exact) {
+int SecureShuffle<T>::prep_multiple(StackedVector<T> &a,
+        vector<ShuffleTuple<T>> &shuffles, vector<vector<T>> &to_shuffle,
+        vector<bool> &is_exact)
+{
     int max_depth = 0;
-    const size_t n_shuffles = sizes.size();
+    const size_t n_shuffles = shuffles.size();
 
     for (size_t currentShuffle = 0; currentShuffle < n_shuffles; currentShuffle++) {
-        const size_t input_base = sources[currentShuffle];
-        const size_t n = sizes[currentShuffle];
-        const size_t unit_size = unit_sizes[currentShuffle];
+        auto& shuffle = shuffles[currentShuffle];
+        const size_t input_base = shuffle.source;
+        const size_t n = shuffle.size;
+        const size_t unit_size = shuffle.unit_size;
 
         assert(n % unit_size == 0);
 
         const size_t n_shuffle = n / unit_size;
-        const size_t n_shuffle_pow2 = (1u << int(ceil(log2(n_shuffle))));
+        const int shuffle_depth = ceil(log2(n_shuffle));
+        const size_t n_shuffle_pow2 = 1u << shuffle_depth;
         const bool exact = (n_shuffle_pow2 == n_shuffle) or not T::malicious;
 
         vector<T> tmp;
@@ -255,13 +256,12 @@ int SecureShuffle<T>::prep_multiple(StackedVector<T> &a, vector<size_t> &sizes,
             }
             for (size_t i = n_shuffle * shuffle_unit_size; i < tmp.size(); i++)
                 tmp[i] = T::constant(0, proc.P.my_num(), proc.MC.get_alphai());
-            unit_sizes[currentShuffle] = shuffle_unit_size;
+            shuffle.unit_size = shuffle_unit_size;
         }
 
         to_shuffle.push_back(tmp);
         is_exact[currentShuffle] = exact;
 
-        const int shuffle_depth = tmp.size() / unit_size;
         if (shuffle_depth > max_depth)
             max_depth = shuffle_depth;
     }
@@ -270,13 +270,16 @@ int SecureShuffle<T>::prep_multiple(StackedVector<T> &a, vector<size_t> &sizes,
 }
 
 template<class T>
-void SecureShuffle<T>::finalize_multiple(StackedVector<T> &a, vector<size_t> &sizes, vector<size_t> &unit_sizes,
-    vector<size_t> &destinations, vector<bool> &isExact, vector<vector<T>> &to_shuffle) {
-    const size_t n_shuffles = sizes.size();
+void SecureShuffle<T>::finalize_multiple(StackedVector<T> &a,
+        vector<ShuffleTuple<T>> &shuffles, vector<vector<T>> &to_shuffle,
+        vector<bool> &isExact)
+{
+    const size_t n_shuffles = shuffles.size();
     for (size_t currentShuffle = 0; currentShuffle < n_shuffles; currentShuffle++) {
-        const size_t n = sizes[currentShuffle];
-        const size_t shuffled_unit_size = unit_sizes[currentShuffle];
-        const size_t output_base = destinations[currentShuffle];
+        auto& shuffle = shuffles[currentShuffle];
+        const size_t n = shuffle.size;
+        const size_t shuffled_unit_size = shuffle.unit_size;
+        const size_t output_base = shuffle.dest;
 
         const vector<T>& shuffledData = to_shuffle[currentShuffle];
 
@@ -334,11 +337,8 @@ vector<int> SecureShuffle<T>::generate_random_permutation(int n) {
 }
 
 template<class T>
-int SecureShuffle<T>::generate(int n_shuffle, store_type& store)
+void SecureShuffle<T>::generate(int n_shuffle, shuffle_type& shuffle)
 {
-    int res = store.add();
-    auto& shuffle = store.get(res);
-
     for (auto i: proc.protocol.get_relevant_players()) {
         vector<int> perm;
         if (proc.input.is_me(i))
@@ -346,8 +346,6 @@ int SecureShuffle<T>::generate(int n_shuffle, store_type& store)
         auto config = configure(i, &perm, n_shuffle);
         shuffle.push_back(config);
     }
-
-    return res;
 }
 
 template<class T>
@@ -418,8 +416,9 @@ vector<vector<T>> SecureShuffle<T>::configure(int config_player, vector<int> *pe
 }
 
 template<class T>
-void SecureShuffle<T>::parallel_waksman_round(size_t pass, int depth, bool inwards, vector<vector<T>> &toShuffle,
-    vector<size_t> &unit_sizes, vector<bool> &reverse, vector<shuffle_type> &shuffles)
+void SecureShuffle<T>::parallel_waksman_round(size_t pass, int depth,
+        bool inwards, vector<vector<T>> &toShuffle,
+        vector<ShuffleTuple<T>> &shuffles)
 {
     const auto n_passes = proc.protocol.get_relevant_players().size();
     const auto n_shuffles = shuffles.size();
@@ -427,23 +426,26 @@ void SecureShuffle<T>::parallel_waksman_round(size_t pass, int depth, bool inwar
     vector<vector<array<int, 5>>> allIndices;
     proc.protocol.init_mul();
 
-    for (size_t current_shuffle = 0; current_shuffle < n_shuffles; current_shuffle++) {
-        int n = toShuffle[current_shuffle].size() / unit_sizes[current_shuffle];
+    for (size_t current_shuffle = 0; current_shuffle < n_shuffles;
+            current_shuffle++)
+    {
+        auto& shuffle = shuffles[current_shuffle];
+        int n = toShuffle[current_shuffle].size() / shuffle.unit_size;
         if (depth >= log2(n) - !inwards) {
             allIndices.push_back({});
             continue;
         }
 
-        const auto isReverse = reverse[current_shuffle];
+        const auto isReverse = shuffle.reverse;
         size_t configIdx = pass;
         if (isReverse)
             configIdx = n_passes - pass - 1;
 
-        auto& config = shuffles[current_shuffle][configIdx];
+        auto& config = shuffle.shuffle[configIdx];
 
         vector<array<int, 5>> indices = waksman_round_init(
             toShuffle[current_shuffle],
-            unit_sizes[current_shuffle],
+            shuffle.unit_size,
             depth,
             config,
             inwards,
@@ -453,16 +455,21 @@ void SecureShuffle<T>::parallel_waksman_round(size_t pass, int depth, bool inwar
     }
     proc.protocol.exchange();
     for (size_t current_shuffle = 0; current_shuffle < n_shuffles; current_shuffle++) {
-        int n = toShuffle[current_shuffle].size() / unit_sizes[current_shuffle];
+        auto& shuffle = shuffles[current_shuffle];
+        int n = toShuffle[current_shuffle].size() / shuffle.unit_size;
         if (depth >= log2(n) - !inwards) {
             continue;
         }
-        waksman_round_finish(toShuffle[current_shuffle], unit_sizes[current_shuffle], allIndices[current_shuffle]);
+        waksman_round_finish(toShuffle[current_shuffle], shuffle.unit_size, allIndices[current_shuffle]);
     }
 }
 
 template<class T>
-vector<array<int, 5>> SecureShuffle<T>::waksman_round_init(vector<T> &toShuffle, size_t shuffle_unit_size, int depth, vector<vector<T>> &iter_waksman_config, bool inwards, bool reverse) {
+vector<array<int, 5>> SecureShuffle<T>::waksman_round_init(vector<T> &toShuffle,
+        size_t shuffle_unit_size, int depth,
+        const vector<vector<T>> &iter_waksman_config, bool inwards,
+        bool reverse)
+{
     int n = toShuffle.size() / shuffle_unit_size;
     assert((int) iter_waksman_config.at(depth).size() == n);
     int n_blocks = 1 << depth;

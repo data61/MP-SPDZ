@@ -82,10 +82,10 @@ As an example, the following output of ``hexdump -C`` describes SPDZ
 modulo the default 128-bit prime
 (170141183460469231731687303715885907969)::
 
-  00000000  2d 00 00 00 00 00 00 00  53 50 44 5a 20 67 66 70  |-.......SPDZ gfp|
+  00000000  31 00 00 00 00 00 00 00  53 50 44 5a 20 67 66 70  |1.......SPDZ gfp|
   00000010  00 10 00 00 00 80 00 00  00 00 00 00 00 00 00 00  |................|
-  00000020  00 00 1b 80 01 3a ed c2  28 c0 3d 5e 24 8f 2c a5  |.....:..(.=^$.,.|
-  00000030  9b d6 2d 83 12
+  00000020  00 00 1b 80 01 01 00 00  00 78 03 11 c6 61 5a 68  |.........x...aZh|
+  00000030  5a
 
 The last 128 bits denote the MAC and will differ from instance to
 instance. The MAC is stored to avoid errors that are hard to track

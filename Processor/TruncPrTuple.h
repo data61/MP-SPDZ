@@ -11,6 +11,7 @@
 using namespace std;
 
 #include "OnlineOptions.h"
+#include "BaseMachine.h"
 #include "GC/ArgTuples.h"
 
 template<class T> class StackedVector;
@@ -106,9 +107,12 @@ public:
     TruncPrTupleWithGap(vector<int>::const_iterator it) :
             TruncPrTuple<T>(it)
     {
-        big_gap_ = this->k <= T::n_bits() - OnlineOptions::singleton.trunc_error;
+        int min_size = this->k + OnlineOptions::singleton.trunc_error;
+        big_gap_ = min_size <= T::n_bits();
         if (T::prime_field and small_gap())
             throw runtime_error("domain too small for chosen truncation error");
+        if (small_gap() and BaseMachine::has_singleton())
+            BaseMachine::s().gap_warning(min_size);
     }
 
     T upper(T mask)

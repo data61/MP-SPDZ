@@ -12,13 +12,17 @@ using namespace std;
 #include "Tools/Lock.h"
 
 template<class T> class SubProcessor;
+template<class T> class ShuffleTuple;
 
 template<class T>
 class ShuffleStore
 {
+public:
     typedef T shuffle_type;
+    typedef pair<unsigned, shuffle_type> store_type;
 
-    deque<shuffle_type> shuffles;
+private:
+    deque<store_type> shuffles;
 
     Lock store_lock;
 
@@ -26,8 +30,8 @@ class ShuffleStore
     void unlock();
 
 public:
-    int add();
-    shuffle_type& get(int handle);
+    int add(unsigned n_shuffles);
+    store_type& get(int handle);
     void del(int handle);
 };
 
@@ -63,27 +67,31 @@ private:
      */
     vector<vector<T>> configure(int config_player, vector<int>* perm, int n);
 
-    int prep_multiple(StackedVector<T>& a, vector<size_t> &sizes, vector<size_t> &sources, vector<size_t> &unit_sizes, vector<vector<T>>& to_shuffle, vector<bool> &exact);
-    void finalize_multiple(StackedVector<T>& a, vector<size_t>& sizes, vector<size_t>& unit_sizes, vector<size_t>& destinations, vector<bool>& isExact, vector<vector<T>>& to_shuffle);
+    int prep_multiple(StackedVector<T> &a,
+            vector<ShuffleTuple<T>> &shuffles,
+            vector<vector<T>> &to_shuffle, vector<bool>& is_exact);
+    void finalize_multiple(StackedVector<T> &a,
+            vector<ShuffleTuple<T>> &shuffles,
+            vector<vector<T>> &to_shuffle, vector<bool>& isExact);
 
-    void parallel_waksman_round(size_t pass, int depth, bool inwards, vector<vector<T>>& toShuffle, vector<size_t>& unit_sizes, vector<bool>& reverse, vector<shuffle_type>& shuffles);
-    vector<array<int, 5>> waksman_round_init(vector<T>& toShuffle, size_t shuffle_unit_size, int depth, vector<vector<T>>& iter_waksman_config, bool inwards, bool reverse);
+    void parallel_waksman_round(size_t pass, int depth, bool inwards,
+            vector<vector<T>>& toShuffle,
+            vector<ShuffleTuple<T>>& shuffles);
+
+    vector<array<int, 5>> waksman_round_init(vector<T> &toShuffle,
+            size_t shuffle_unit_size, int depth,
+            const vector<vector<T>> &iter_waksman_config, bool inwards,
+            bool reverse);
     void waksman_round_finish(vector<T>& toShuffle, size_t unit_size, vector<array<int, 5>> indices);
 
 public:
     map<long, long> stats;
 
-    SecureShuffle(StackedVector<T>& a, size_t n, int unit_size,
-            size_t output_base, size_t input_base, SubProcessor<T>& proc);
-
     SecureShuffle(SubProcessor<T>& proc);
 
-    int generate(int n_shuffle, store_type& store);
+    void generate(int n_shuffle, shuffle_type& shuffle);
 
-    void apply_multiple(StackedVector<T>& a, vector<size_t>& sizes, vector<size_t>& destinations, vector<size_t>& sources,
-                       vector<size_t>& unit_sizes, vector<size_t>& handles, vector<bool>& reverse, store_type& store);
-    void apply_multiple(StackedVector<T>& a, vector<size_t>& sizes, vector<size_t>& destinations, vector<size_t>& sources,
-                       vector<size_t>& unit_sizes, vector<shuffle_type>& shuffles, vector<bool>& reverse);
+    void apply_multiple(StackedVector<T> &a, vector<ShuffleTuple<T>> &shuffles);
 
     /**
      * Calculate the secret inverse permutation of stack given secret permutation.

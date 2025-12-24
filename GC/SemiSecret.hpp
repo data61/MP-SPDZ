@@ -16,9 +16,6 @@
 namespace GC
 {
 
-template<class T, class V>
-const int SemiSecretBase<T, V>::default_length;
-
 inline
 SemiSecret::MC* SemiSecret::new_mc(
         typename super::mac_key_type)

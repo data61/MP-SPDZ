@@ -56,6 +56,9 @@ public:
     void unpack(octetStream&) {}
 
     void check(Player&) const {}
+
+    // computational security doesn't matter in global proofs
+    int comp_sec() { return 0; }
 };
 
 class MultiplicativeMachineParams : public MachineBase

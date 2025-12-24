@@ -101,6 +101,17 @@ The implementation of both daBits and edaBits are explained in this paper_.
    and `Araki et al. <https://eprint.iacr.org/2018/762>`_ It only
    works with additive secret sharing modulo a power of two.
 
+You can also tell the compiler which protocol you intend to run the
+computation with:
+
+.. cmdoption:: -E <protocol>
+	       --execute <protocol>
+
+   Enable all suitable optimizations and restrictions for a particular
+   protocol. This is the same as in ``compile-run.py``. It will also
+   let the compiler estimate the total communication cost for many
+   arithmetic protocols.
+
 The following options change less fundamental aspects of the
 computation:
 

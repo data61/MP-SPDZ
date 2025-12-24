@@ -38,7 +38,10 @@ int main(int argc, const char** argv)
     if (online_opts.prime_limbs() == 2)
         return run<2, 1>(machine);
 
-    cerr << "Not compiled for choice of parameters" << endl;
-    cerr << "Try using '-lgp 128'" << endl;
+    if (online_opts.prime_limbs() > 2)
+        cerr << "Use MASCOT with large primes" << endl;
+    else
+        cerr << "Not compiled for choice of parameters" << endl;
+
     exit(1);
 }

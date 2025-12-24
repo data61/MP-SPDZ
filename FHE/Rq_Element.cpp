@@ -140,7 +140,7 @@ vector<bigint> Rq_Element::to_vec_bigint() const
 // result mod p0 = a[0]; result mod p1 = a[1]
 void Rq_Element::to_vec_bigint(vector<bigint>& v) const
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   a[0].to_vec_bigint(v);
   if (n_mults() == 0) {
@@ -208,7 +208,7 @@ void Rq_Element::Scale(const bigint& p)
 {
   if (lev==0) { return; }
 
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   if (n_mults() == 0) {
 	  //for some reason we scale but we have just one level
@@ -312,7 +312,17 @@ void Rq_Element::pack(octetStream& o, int) const
 void Rq_Element::unpack(octetStream& o, int)
 {
   unsigned int ll;  o.get(ll); lev=ll;
-  check_level();
+
+  try
+  {
+      check_level();
+  }
+  catch (...)
+  {
+      lev = 0;
+      throw;
+  }
+
   for (int i = 0; i <= lev; ++i)
 	  a[i].unpack(o);
 }

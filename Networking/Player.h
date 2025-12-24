@@ -160,9 +160,10 @@ public:
       name(name), stats(stats) {}
 
   Timer& add_length_only(size_t length);
-  Timer& add(const octetStream& os);
-  Timer& add(size_t length);
-  void add(const octetStream& os, const TimeScope& scope) { add(os) += scope; }
+  Timer& add(const octetStream& os, int player = -1);
+  Timer& add(size_t length, int player = -1);
+  void add(const octetStream& os, const TimeScope& scope, int player = -1)
+  { add(os, player) += scope; }
 };
 
 class NamedCommStats : public map<string, CommStats>
@@ -272,7 +273,7 @@ public:
   /**
    * Send to a specific player
    */
-  void send_to(int player,const octetStream& o) const;
+  virtual void send_to(int player,const octetStream& o) const;
   virtual void send_to_no_stats(int player,const octetStream& o) const = 0;
   /**
    * Receive from all other players.
@@ -282,7 +283,7 @@ public:
   /**
    * Receive from a specific player
    */
-  void receive_player(int i,octetStream& o) const;
+  virtual void receive_player(int i,octetStream& o) const;
   virtual void receive_player_no_stats(int i,octetStream& o) const = 0;
   virtual void receive_player(int i,FlexBuffer& buffer) const;
 
@@ -546,6 +547,8 @@ public:
 
   size_t send(const PlayerBuffer& buffer, bool block) const;
   size_t recv(const PlayerBuffer& buffer, bool block) const;
+
+  NamedCommStats get_comm_stats() const { return comm_stats; }
 };
 
 class RealTwoPartyPlayer : public VirtualTwoPartyPlayer

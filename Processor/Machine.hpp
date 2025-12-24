@@ -55,6 +55,7 @@ template<class sint, class sgf2n>
 Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
     const OnlineOptions opts)
   : my_number(playerNames.my_num()), N(playerNames),
+    max_trunc_size(0),
     use_encryption(use_encryption), live_prep(opts.live_prep), opts(opts),
     external_clients(my_number)
 {
@@ -607,6 +608,12 @@ void Machine<sint, sgf2n>::run(const string& progname)
       if (multithread)
         cerr << " (overall core time)";
       cerr << endl;
+      auto& P = *this->P;
+      auto one_off = TreeSum<Z2<64>>().run(
+          this->one_off_comm.sent, P).get_limb(0);
+      if (one_off)
+        cerr << "One-off global communication: " << one_off * 1e-6 << " MB"
+            << endl;
     }
 
   print_timers();
@@ -685,12 +692,17 @@ void Machine<sint, sgf2n>::run(const string& progname)
             << "have you considered using " << alt << " instead?" << endl;
     }
 
-  if (nan_warning and sint::real_shares(*P))
+  if ((nan_warning or mini_warning) and sint::real_shares(*P))
     {
-      cerr << "Outputs of 'NaN' might be related to exceeding the sfix range. See ";
-      cerr << "https://mp-spdz.readthedocs.io/en/latest/Compiler.html#Compiler.types.sfix";
+      if (nan_warning)
+        cerr << "Outputs of 'NaN' might be related to exceeding the sfix range. ";
+      if (mini_warning)
+        cerr << pow(2, mini_warning) << " is the smallest non-zero number "
+            << "in a used fixed-point representation. ";
+      cerr << "See https://mp-spdz.readthedocs.io/en/latest/Compiler.html#Compiler.types.sfix";
       cerr << " for details" << endl;
       nan_warning = false;
+      mini_warning = 0;
     }
 
 #ifdef VERBOSE
@@ -743,6 +755,10 @@ void Machine<sint, sgf2n>::suggest_optimizations()
     cerr << "This program might benefit from some protocol options." << endl
         << "Consider adding the following at the beginning of your code:"
         << endl << optimizations;
+  if (sint::clear::n_bits() < max_trunc_size)
+    cerr << "The computation domain is too small "
+        << "for low-round truncation; it would need to have at least "
+        << max_trunc_size << " bits." << endl;
 #ifndef __clang__
   cerr << "This virtual machine was compiled with GCC. Recompile with "
       "'CXX = clang++' in 'CONFIG.mine' for optimal performance." << endl;
@@ -766,6 +782,17 @@ void Machine<sint, sgf2n>::check_program()
   {
     throw runtime_error("program differs between parties");
   }
+}
+
+template<class sint, class sgf2n>
+void Machine<sint, sgf2n>::gap_warning(int k)
+{
+  if (k > max_trunc_size)
+    {
+      warn_lock.lock();
+      max_trunc_size = max(k, max_trunc_size);
+      warn_lock.unlock();
+    }
 }
 
 #endif

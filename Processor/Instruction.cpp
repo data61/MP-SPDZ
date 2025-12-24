@@ -11,6 +11,7 @@
 #include "GC/instructions.h"
 
 #include "Memory.hpp"
+#include "Instruction.hpp"
 
 #include <iomanip>
 

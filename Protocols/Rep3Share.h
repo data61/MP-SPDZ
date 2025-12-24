@@ -160,7 +160,9 @@ public:
     static Rep3Share constant(T value, int my_num,
             typename super::mac_key_type = {})
     {
-        return Rep3Share(value, my_num);
+        This res;
+        Replicated<Rep3Share>::assign(res, value, my_num);
+        return res;
     }
 
     Rep3Share()
@@ -170,12 +172,6 @@ public:
     Rep3Share(const U& other) :
             super(other)
     {
-    }
-
-    Rep3Share(T value, int my_num, const T& alphai = {})
-    {
-        (void) alphai;
-        Replicated<Rep3Share>::assign(*this, value, my_num);
     }
 
     void assign(const char* buffer)

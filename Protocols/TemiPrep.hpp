@@ -67,6 +67,7 @@ void TemiPrep<T>::buffer_triples()
     {
         PlainPlayer P(this->proc->P.N, "Temi" + T::type_string());
         basic_setup(P);
+        BaseMachine::add_one_off(P.total_comm());
     }
     lock.unlock();
 

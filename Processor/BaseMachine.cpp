@@ -13,6 +13,7 @@
 
 #include <iostream>
 #include <sodium.h>
+#include <regex>
 using namespace std;
 
 BaseMachine* BaseMachine::singleton = 0;
@@ -66,15 +67,20 @@ int BaseMachine::triple_bucket_size(DataFieldType type)
 int BaseMachine::bucket_size(size_t usage)
 {
   int res = OnlineOptions::singleton.bucket_size;
+  int min = res;
 
   if (usage)
     {
-      for (int B = res; B <= 5; B++)
-        if (ShuffleSacrifice(B).minimum_n_outputs() < usage * .9)
+      res = 5;
+      for (int B = res; B >= min; B--)
+        if (ShuffleSacrifice(B).minimum_n_outputs() > usage * 1.1)
           break;
         else
           res = B;
     }
+
+  if (OnlineOptions::singleton.has_option("debug_batch_size"))
+    fprintf(stderr, "bucket_size=%d usage=%zu\n", res, usage);
 
   return res;
 }
@@ -103,8 +109,13 @@ int BaseMachine::matrix_requirement(int n_rows, int n_inner, int n_cols)
     return -1;
 }
 
+bool BaseMachine::allow_mulm()
+{
+  return singleton and singleton->relevant_opts.find("no_mulm") != string::npos;
+}
+
 BaseMachine::BaseMachine() :
-    nthreads(0), multithread(false), nan_warning(0)
+    nthreads(0), multithread(false), nan_warning(0), mini_warning(0)
 {
   if (sodium_init() == -1)
     throw runtime_error("couldn't initialize libsodium");
@@ -182,6 +193,7 @@ void BaseMachine::load_schedule(const string& progname, bool load_bytecode)
   getline(inpf, relevant_opts);
   getline(inpf, security);
   getline(inpf, gf2n);
+  getline(inpf, expected_communication);
   inpf.close();
 }
 
@@ -320,17 +332,47 @@ void BaseMachine::print_global_comm(Player& P, const NamedCommStats& stats)
   Bundle<octetStream> bundle(P);
   bundle.mine.store(stats.sent);
   P.Broadcast_Receive_no_stats(bundle);
-  size_t global = 0;
+  long long global = 0;
   for (auto& os : bundle)
     global += os.get_int(8);
   cerr << "Global data sent = " << global / 1e6 << " MB (all parties)" << endl;
+
+  smatch what;
+  regex comm_regexp("online:([0-9]*) offline:([0-9]*) n_parties:([0-9]*)");
+  if (regex_search(expected_communication, what, comm_regexp))
+    {
+      long long expected = stoll(what[1]) + stoll(what[2]);
+      int n_parties = stoi(what[3]);
+      if (expected and n_parties != P.num_players())
+        {
+          cerr << "Wrong number of parties in compiler's expectation: "
+              << n_parties << endl;
+        }
+      else if (expected)
+        {
+          double over = round(100. * (global - expected) / expected);
+          if (over >= 5)
+            cerr
+                << "Actual communication exceeds the compiler's expectation by "
+                << over << " percent." << endl;
+          if (over < 0)
+            {
+              if (OnlineOptions::singleton.has_option("overestimate"))
+                cerr << "Actual communication is below the compiler's "
+                "expectation by " << -over << " percent." << endl;
+              else
+                cerr << "The compiler overestimated the communication." << endl;
+            }
+        }
+    }
 }
 
 void BaseMachine::print_comm(Player& P, const NamedCommStats& comm_stats)
 {
   size_t rounds = 0;
   for (auto& x : comm_stats)
-    rounds += x.second.rounds;
+    if (x.first.find("transmission") == string::npos)
+      rounds += x.second.rounds;
   cerr << "Data sent = " << comm_stats.sent / 1e6 << " MB in ~" << rounds
       << " rounds (party " << P.my_num() << " only";
   if (multithread)
@@ -340,4 +382,10 @@ void BaseMachine::print_comm(Player& P, const NamedCommStats& comm_stats)
   cerr << ")" << endl;
 
   print_global_comm(P, comm_stats);
+}
+
+void BaseMachine::add_one_off(const NamedCommStats& comm)
+{
+  if (has_singleton())
+    s().one_off_comm += comm;
 }

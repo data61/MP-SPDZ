@@ -19,7 +19,8 @@ template<class T>
 class FakeShuffle
 {
 public:
-    typedef ShuffleStore<int> store_type;
+    typedef vector<vector<int>> shuffle_type;
+    typedef ShuffleStore<shuffle_type> store_type;
 
     map<long, long> stats;
 
@@ -33,9 +34,9 @@ public:
         apply(a, n, unit_size, output_base, input_base, 0, 0);
     }
 
-    size_t generate(size_t, store_type& store)
+    void generate(size_t, shuffle_type& shuffle)
     {
-        return store.add();
+        shuffle.push_back(vector<int>(1l));
     }
 
     void apply(StackedVector<T>& a, size_t n, size_t unit_size, size_t output_base,
@@ -59,20 +60,11 @@ public:
         throw runtime_error("inverse permutation not implemented");
     };
 
-    void apply_multiple(StackedVector<T> &a, vector<size_t> &sizes, vector<size_t> &destinations,
-                                    vector<size_t> &sources,
-                                    vector<size_t> &unit_sizes, vector<size_t> &handles, vector<bool> &reverses,
-                                    store_type&) {
-        const auto n_shuffles = sizes.size();
-        assert(sources.size() == n_shuffles);
-        assert(destinations.size() == n_shuffles);
-        assert(unit_sizes.size() == n_shuffles);
-        assert(handles.size() == n_shuffles);
-        assert(reverses.size() == n_shuffles);
-
-        for (size_t i = 0; i < n_shuffles; i++) {
-            this->apply(a, sizes[i], unit_sizes[i], destinations[i], sources[i], handles[i], reverses[i]);
-        }
+    void apply_multiple(StackedVector<T> &a, vector<ShuffleTuple<T>>& shuffles)
+    {
+        for (auto &shuffle : shuffles)
+            this->apply(a, shuffle.size, shuffle.unit_size, shuffle.dest,
+                    shuffle.source, 0, shuffle.reverse);
     }
 };
 

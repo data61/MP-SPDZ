@@ -33,10 +33,6 @@ public:
     PostSacriRepFieldShare()
     {
     }
-    PostSacriRepFieldShare(const clear& other, int my_num, clear alphai = {}) :
-            super(other, my_num, alphai)
-    {
-    }
     template<class U>
     PostSacriRepFieldShare(const U& other) : super(other)
     {

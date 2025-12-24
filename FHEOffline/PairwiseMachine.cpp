@@ -38,7 +38,7 @@ void RealPairwiseMachine::init()
         gfp::init_field(p);
         ofstream outf;
         if (output)
-            write_online_setup(get_prep_dir<FFT_Data>(P), p);
+            gfp::write_setup(get_prep_dir<FFT_Data>(P));
     }
 
     for (int i = 0; i < nthreads; i++)
@@ -139,6 +139,11 @@ void PairwiseMachine::check(Player& P) const
     }
 
     bundle.compare(P);
+}
+
+int PairwiseMachine::comp_sec()
+{
+    return NonInteractiveProof::comp_sec(sec);
 }
 
 template void RealPairwiseMachine::setup_keys<FFT_Data>();

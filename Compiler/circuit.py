@@ -61,14 +61,15 @@ class Circuit:
         return self.run(*inputs)
 
     def run(self, *inputs):
-        n = inputs[0][0].n, get_tape()
+        inputs = [sbitvec.from_vec(x) for x in inputs]
+        n = inputs[0].v[0].n, get_tape()
         if n not in self.functions:
             if get_program().force_cisc_tape:
                 f = function_call_tape
             else:
                 f = function_block
             self.functions[n] = f(lambda *args: self.compile(*args))
-            self.functions[n].name = '%s(%d)' % (self.name, inputs[0][0].n)
+            self.functions[n].name = '%s(%d)' % (self.name, inputs[0].v[0].n)
         flat_res = self.functions[n](*itertools.chain(*(
             sbitvec.from_vec(x).v for x in inputs)))
         res = []
@@ -208,7 +209,7 @@ def sha3_256(x):
             for x in range(5):
                 for i in range(w):
                     j = (5 * y + x) * w + i // 8 * 8 + 7 - i % 8
-                    res[x][y][i] = S_flat[1600 - 1 -j]
+                    res[x][y][i] = S_flat.v[1600 - 1 -j]
         return res
 
     w = 64
@@ -313,7 +314,7 @@ class ieee_float:
 
         for i in range(2):
             for j in range(10):
-                values.append(sbitint.get_type(64).get_input_from(i))
+                values.append(sbitintvec.get_type(64).get_input_from(i))
 
         fvalues = [ieee_float(x) for x in values]
 

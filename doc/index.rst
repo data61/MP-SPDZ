@@ -23,6 +23,7 @@ If you're new to MP-SPDZ, consider the following:
    :caption: Contents:
 
    readme
+   reading
    compilation
    runtime-options
    Compiler

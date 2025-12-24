@@ -13,14 +13,15 @@ void generate_online_setup(string dirname, bigint& p, int lgp)
 {
     int idx, m;
     SPDZ_Data_Setup_Primes(p, lgp, idx, m);
-    write_online_setup(dirname, p);
     T::init_field(p);
+    T::write_setup(dirname);
 }
 
 template<class T = gfp>
 void read_setup(const string& dir_prefix, int lgp = -1)
 {
     bigint p;
+    bool montgomery = true;
 
     string filename = dir_prefix + "Params-Data";
 
@@ -32,6 +33,8 @@ void read_setup(const string& dir_prefix, int lgp = -1)
 #endif
     ifstream inpf(filename.c_str());
     inpf >> p;
+    inpf >> montgomery;
+
     if (inpf.fail())
     {
         if (lgp > 0)
@@ -45,9 +48,12 @@ void read_setup(const string& dir_prefix, int lgp = -1)
             throw file_error(filename.c_str());
     }
     else
-        T::init_field(p);
+        T::init_field(p, montgomery);
 
     inpf.close();
+
+    if (OnlineOptions::singleton.verbose)
+        cerr << "Using prime modulus " << T::pr() << endl;
 }
 
 #endif /* MATH_SETUP_HPP_ */

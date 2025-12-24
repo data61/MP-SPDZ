@@ -618,6 +618,10 @@ class reveal(BinaryVectorInstruction, base.VarArgsInstruction, base.Mergeable):
     code = opcodes['REVEAL']
     arg_format = tools.cycle(['int','cbw','sb'])
 
+    def add_usage(self, req_node):
+        req_node.increment(('bit', 'open'), sum(
+            int(math.ceil(x / 64)) * 8 for x in self.args[0::3]))
+
 class inputb(base.DoNotEliminateInstruction, base.VarArgsInstruction):
     """ Copy private input to secret bit register vectors. The input is
     read as floating-point number, multiplied by a power of two, and then

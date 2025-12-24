@@ -103,7 +103,7 @@ public:
   void randomize(PRNG& G);
   void almost_randomize(PRNG& G) { randomize(G); }
 
-  void output(ostream& s,bool human) const;
+  void output(ostream& s, bool human, bool signed_ = true) const;
   void input(istream& s,bool human);
 
   void pack(octetStream& os) const { os.store_int(a, sizeof(a)); }

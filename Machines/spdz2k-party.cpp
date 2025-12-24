@@ -55,7 +55,7 @@ int main(int argc, const char** argv)
     {
         if (s == SPDZ2K_DEFAULT_SECURITY)
         {
-            ring_domain_error(k);
+            ring_domain_error(k, 72);
         }
         else
         {

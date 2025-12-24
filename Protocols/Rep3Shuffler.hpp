@@ -9,28 +9,12 @@
 #include "Rep3Shuffler.h"
 
 template<class T>
-Rep3Shuffler<T>::Rep3Shuffler(StackedVector<T> &a, size_t n, int unit_size,
-                              size_t output_base, size_t input_base, SubProcessor<T> &proc) : proc(proc) {
-    store_type store;
-    int handle = generate(n / unit_size, store);
-
-    vector<size_t> sizes{n};
-    vector<size_t> unit_sizes{static_cast<size_t>(unit_size)};
-    vector<size_t> destinations{output_base};
-    vector<size_t> sources{input_base};
-    vector<shuffle_type> shuffles{store.get(handle)};
-    vector<bool> reverses{true};
-    this->apply_multiple(a, sizes, destinations, sources, unit_sizes, shuffles, reverses);
-}
-
-template<class T>
 Rep3Shuffler<T>::Rep3Shuffler(SubProcessor<T> &proc) : proc(proc) {
 }
 
 template<class T>
-int Rep3Shuffler<T>::generate(int n_shuffle, store_type &store) {
-    int res = store.add();
-    auto &shuffle = store.get(res);
+void Rep3Shuffler<T>::generate(int n_shuffle, shuffle_type& shuffle)
+{
     for (int i = 0; i < 2; i++) {
         auto &perm = shuffle[i];
         for (int j = 0; j < n_shuffle; j++)
@@ -40,34 +24,14 @@ int Rep3Shuffler<T>::generate(int n_shuffle, store_type &store) {
             swap(perm[j], perm[k + j]);
         }
     }
-    return res;
 }
 
 template<class T>
-void Rep3Shuffler<T>::apply_multiple(StackedVector<T> &a, vector<size_t> &sizes, vector<size_t> &destinations,
-                                    vector<size_t> &sources,
-                                    vector<size_t> &unit_sizes, vector<size_t> &handles, vector<bool> &reverses,
-                                    store_type &store) {
-    vector<shuffle_type> shuffles;
-    for (size_t &handle: handles) {
-        shuffle_type &shuffle = store.get(handle);
-        shuffles.push_back(shuffle);
-    }
-
-    apply_multiple(a, sizes, destinations, sources, unit_sizes, shuffles, reverses);
-}
-
-template<class T>
-void Rep3Shuffler<T>::apply_multiple(StackedVector<T> &a, vector<size_t> &sizes, vector<size_t> &destinations,
-                                    vector<size_t> &sources, vector<size_t> &unit_sizes, vector<shuffle_type> &shuffles,
-                                    vector<bool> &reverses) {
+void Rep3Shuffler<T>::apply_multiple(StackedVector<T> &a,
+        vector<ShuffleTuple<T>> &shuffles)
+{
     CODE_LOCATION
-    const auto n_shuffles = sizes.size();
-    assert(sources.size() == n_shuffles);
-    assert(destinations.size() == n_shuffles);
-    assert(unit_sizes.size() == n_shuffles);
-    assert(shuffles.size() == n_shuffles);
-    assert(reverses.size() == n_shuffles);
+    const auto n_shuffles = shuffles.size();
 
     assert(proc.P.num_players() == 3);
     assert(not T::malicious);
@@ -79,17 +43,17 @@ void Rep3Shuffler<T>::apply_multiple(StackedVector<T> &a, vector<size_t> &sizes,
 
     vector<vector<T> > to_shuffle;
     for (size_t current_shuffle = 0; current_shuffle < n_shuffles; current_shuffle++) {
-        assert(sizes[current_shuffle] % unit_sizes[current_shuffle] == 0);
+        auto& shuffle = shuffles[current_shuffle];
+        assert(shuffle.size % shuffle.unit_size == 0);
         vector<T> x;
-        for (size_t j = 0; j < sizes[current_shuffle]; j++)
-            x.push_back(a[sources[current_shuffle] + j]);
+        for (size_t j = 0; j < shuffle.size; j++)
+            x.push_back(a[shuffle.source + j]);
         to_shuffle.push_back(x);
 
-        const auto &shuffle = shuffles[current_shuffle];
-        if (shuffle.empty())
+        if (shuffle.shuffle[0].empty())
             throw runtime_error("shuffle has been deleted");
 
-        stats[sizes[current_shuffle] / unit_sizes[current_shuffle]] += unit_sizes[current_shuffle];
+        stats[shuffle.size / shuffle.unit_size] += shuffle.unit_size;
     }
 
     typename T::Input input(proc);
@@ -98,10 +62,11 @@ void Rep3Shuffler<T>::apply_multiple(StackedVector<T> &a, vector<size_t> &sizes,
         input.reset_all(proc.P);
 
         for (size_t current_shuffle = 0; current_shuffle < n_shuffles; current_shuffle++) {
-            const auto n = sizes[current_shuffle];
-            const auto unit_size = unit_sizes[current_shuffle];
-            const auto &shuffle = shuffles[current_shuffle];
-            const auto reverse = reverses[current_shuffle];
+            auto& shuffle_tuple = shuffles[current_shuffle];
+            const size_t n = shuffle_tuple.size;
+            const size_t unit_size = shuffle_tuple.unit_size;
+            const auto reverse = shuffle_tuple.reverse;
+            auto& shuffle = shuffle_tuple.shuffle;
             const auto current_to_shuffle = to_shuffle[current_shuffle];
 
             vector<typename T::clear> to_share(n);
@@ -140,8 +105,9 @@ void Rep3Shuffler<T>::apply_multiple(StackedVector<T> &a, vector<size_t> &sizes,
         to_shuffle.clear();
 
         for (size_t current_shuffle = 0; current_shuffle < n_shuffles; current_shuffle++) {
-            const auto n = sizes[current_shuffle];
-            const auto reverse = reverses[current_shuffle];
+            auto& shuffle = shuffles[current_shuffle];
+            const auto n = shuffle.size;
+            const auto reverse = shuffle.reverse;
 
             int i;
             if (reverse)
@@ -159,10 +125,11 @@ void Rep3Shuffler<T>::apply_multiple(StackedVector<T> &a, vector<size_t> &sizes,
     }
 
     for (size_t current_shuffle = 0; current_shuffle < n_shuffles; current_shuffle++) {
-        const auto n = sizes[current_shuffle];
+        auto& shuffle = shuffles[current_shuffle];
+        const auto n = shuffle.size;
 
         for (size_t i = 0; i < n; i++)
-            a[destinations[current_shuffle] + i] = to_shuffle[current_shuffle][i];
+            a[shuffle.dest + i] = to_shuffle[current_shuffle][i];
     }
 }
 

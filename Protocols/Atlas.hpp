@@ -7,6 +7,7 @@
 #define PROTOCOLS_ATLAS_HPP_
 
 #include "Atlas.h"
+#include "BufferScope.h"
 
 template<class T>
 Atlas<T>::~Atlas()
@@ -24,6 +25,8 @@ array<T, 2> Atlas<T>::get_double_sharing()
     {
         SeededPRNG G;
         PRNG G2 = G;
+        BufferScope scope(shamir, this->buffer_size);
+        BufferScope scope2(shamir2, this->buffer_size);
         auto random = shamir.get_randoms(G, 0);
         auto random2 = shamir2.get_randoms(G2, 0);
         assert(random.size() == random2.size());
@@ -44,6 +47,8 @@ void Atlas<T>::init_mul()
     oss2.reset();
     masks.clear();
     base_king = next_king;
+    this->buffer_size = BaseMachine::batch_size<T>(DATA_TRIPLE,
+            this->buffer_size);
 }
 
 template<class T>
@@ -132,6 +137,7 @@ T Atlas<T>::finalize_dotprod(int)
 template<class T>
 T Atlas<T>::get_random()
 {
+    BufferScope scope(shamir, this->buffer_size);
     return shamir.get_random();
 }
 

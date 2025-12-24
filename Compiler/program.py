@@ -25,6 +25,7 @@ from Compiler.instructions_base import RegType
 from . import allocator as al
 from . import util
 from .papers import *
+from .cost import expected_communication
 
 data_types = dict(
     triple=0,
@@ -131,7 +132,8 @@ class Program(object):
                         assert self.rabbit_gap()
                         print(", for example, %d." % self.prime)
                         self.prime = bad_prime
-                    except ImportError:
+                    except (ImportError, AssertionError):
+                        self.prime = bad_prime
                         print(".")
                 if options.execute:
                     print("Use '-- --prime <prime>' to specify the prime for "
@@ -251,6 +253,15 @@ class Program(object):
             else:
                 print("Use '--execute <protocol>' to see recommended reading "
                       "on the basic protocol.")
+        if self.options.garbled:
+            if not self.options.binary:
+                raise CompilerError(
+                    "You have to specify a default bit length using '--binary' "
+                    "for garbled circuits.")
+            self.optimize_for_gc()
+        self.allow_tight_parameters = True
+        self.warned_about_tightness = False
+        self.warned_about_a2b = False
 
         Program.prog = self
         from . import comparison, instructions, instructions_base, types
@@ -439,6 +450,9 @@ class Program(object):
         else:
             self.req_num += tape.req_num
 
+    def required_bit_length(self, t):
+        return max(x.req_bit_length[t] for x in self.tapes)
+
     def write_bytes(self):
 
         """Write all non-empty threads and schedule to files."""
@@ -455,7 +469,7 @@ class Program(object):
         sch_file.write("1 0\n")
         sch_file.write("0\n")
         sch_file.write(" ".join(sys.argv) + "\n")
-        req = max(x.req_bit_length["p"] for x in self.tapes)
+        req = self.required_bit_length("p")
         if self.options.ring:
             sch_file.write("R:%s" % self.options.ring)
         elif self.options.prime:
@@ -470,6 +484,14 @@ class Program(object):
         assert len(req2) <= 2
         if req2:
             sch_file.write("lg2:%s" % max(req2))
+        sch_file.write("\n")
+        exp = self.expected_communication()
+        if exp:
+            sch_file.write(
+                "online:%d offline:%d n_parties:%d\n" % (
+                    exp.sanitize() + (exp.n_parties,)))
+        else:
+            sch_file.write('no expections\n')
         sch_file.close()
         h = hashlib.sha256()
         for tape in self.tapes:
@@ -589,6 +611,10 @@ class Program(object):
 
         # communicate protocol compability
         Compiler.instructions.active(self._always_active)
+
+        # communicate mulm usage to VM
+        if self.use_mulm != 1:
+            self.relevant_opts.add("no_mulm")
 
         self.write_bytes()
 
@@ -743,6 +769,15 @@ class Program(object):
     def used_splits(self):
         return self._split
 
+    def have_a2b(self):
+        if self.use_split() or self.use_edabit() or self.use_dabit:
+            return True
+        if not self.warned_about_a2b:
+            print(
+                'WARNING: No option selected for A2B conversion, defaulting '
+                'to edaBits. Use -X/-Y/-Z to get rid of this warning.')
+            self.warned_about_a2b = True
+
     def use_square(self, change=None):
         """Setting whether to use preprocessed square tuples
         (default: false).
@@ -869,14 +904,29 @@ class Program(object):
                 bl = inst.args[0]
                 return (abs(bl.i) + 63) // 64 * 8
 
-    def reading(self, concept, reference):
-        key = concept, reference
+    def reading(self, concept, reference, part=None):
+        key = concept, reference, part
         if self.options.papers and key not in self.recommended:
             if isinstance(reference, tuple):
+                assert part is None
                 reference = ', '.join(papers.get(x) or x for x in reference)
-            print('Recommended reading on %s: %s' % (
-                concept, papers.get(reference) or reference))
+            suffix = ' (%s)' % part or ''
+            print('Recommended reading on %s: %s%s' % (
+                concept, papers.get(reference) or reference, suffix))
             self.recommended.add(key)
+
+    def expected_communication(self):
+        if self.options.ring:
+            bit_length = int(self.options.ring)
+        elif self.options.prime:
+            bit_length = self.prime.bit_length()
+        else:
+            # check against OnlineOptions.cpp
+            bit_length = max(self.required_bit_length("p"), 128)
+            bit_length = int(math.ceil(bit_length / 64) * 64)
+        length = int(math.ceil(bit_length / 8))
+        return expected_communication(
+            self.options.execute, self.req_num or Tape.ReqNum(), length)
 
 class Tape:
     """A tape contains a list of basic blocks, onto which instructions are added."""
@@ -1452,6 +1502,12 @@ class Tape:
 
         __rmul__ = __mul__
 
+        def __neg__(self):
+            res = Tape.ReqNum()
+            for i, count in list(self.items()):
+                res[i] = -count
+            return res
+
         def set_all(self, value):
             if Program.prog.options.verbose and \
                value == float("inf") and self["all", "inv"] > 0:
@@ -1644,6 +1700,19 @@ class Tape:
 
         __float__ = __int__
 
+        def __eq__(self, other):
+            raise CompilerError("equality testing not implemented")
+
+        __ne__ = __eq__
+
+    class _no_secret_truth(_no_truth):
+        def __bool__(self):
+            raise CompilerError(
+                "Cannot branch on secret values like %s. "
+                "See https://mp-spdz.readthedocs.io/en/latest/troubleshooting.html#cannot-branch-on-secret-values. " % \
+                type(self).__name__
+            )
+
     class Register(_no_truth):
         """
         Class for creating new registers. The register's index is automatically assigned
@@ -1755,6 +1824,17 @@ class Tape:
             return self.vector or [self]
 
         def __getitem__(self, index):
+            try:
+                if isinstance(index, slice):
+                    for x in index.start, index.stop, index.step:
+                        if x is not None:
+                            int(x)
+                else:
+                    int(index)
+            except:
+                raise CompilerError(
+                    'cannot address vectors with run-time indices, '
+                    'use (Multi)Array instead')
             if self.size == 1 and index == 0:
                 return self
             if not self.vector:

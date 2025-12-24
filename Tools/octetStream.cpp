@@ -175,21 +175,27 @@ void octetStream::get(int& l)
 }
 
 
-void octetStream::store(const bigint& x)
+void octetStream::store(const bigint& x, long num)
 {
-  size_t num=numBytes(x);
   *append(1) = x < 0;
-  encode_length(append(4), num, 4);
+
+  if (num <= 0)
+    {
+      num = numBytes(x);
+      encode_length(append(4), num, 4);
+    }
+
   bytesFromBigint(append(num), x, num);
 }
 
 
-void octetStream::get(bigint& ans)
+void octetStream::get(bigint& ans, long length)
 {
   int sign = *consume(1);
   if (sign!=0 && sign!=1) { throw bad_value(); }
 
-  long length = get_int(4);
+  if (length <= 0)
+    length = get_int(4);
 
   if (length!=0)
     {

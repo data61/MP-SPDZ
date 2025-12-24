@@ -115,6 +115,7 @@ void ThreadMaster<T>::run_with_error()
     for (auto thread : threads)
     {
         stats += thread->P->total_comm();
+        stats += thread->extra_comm();
         exe_stats += thread->processor.stats;
         delete thread;
     }

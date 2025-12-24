@@ -56,6 +56,7 @@ class FFT_Data
 
   const Zp_Data& get_prD() const        { return prData; }
   const bigint&  get_prime() const      { return prData.pr; }
+
   int phi_m() const                     { return R.phi_m(); }
   int m()     const                     { return R.m();   }
   int num_slots() const                 { return R.phi_m(); }
@@ -70,6 +71,8 @@ class FFT_Data
   const vector<modp>& get_roots() const { return roots; }
 
   const Ring& get_R() const      { return R; }
+
+  void write_setup(const string& dir) const { prData.write_setup(dir); }
 
   bool operator==(const FFT_Data& other) const { return not (*this != other); }
   bool operator!=(const FFT_Data& other) const;

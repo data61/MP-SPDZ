@@ -121,3 +121,8 @@ void YaoGarbler::process_receiver_inputs()
 		receiver_input_keys.pop_front();
 	}
 }
+
+NamedCommStats YaoGarbler::extra_comm()
+{
+	return player.get_comm_stats();
+}

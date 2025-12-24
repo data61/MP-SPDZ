@@ -85,15 +85,17 @@ void generate_prime(bigint& p, int lgp, int m, bool force_degree)
       p = OnlineOptions::singleton.prime;
       if (!probPrime(p))
         {
-          cerr << p << " is not a prime" << endl;
-          exit(1);
+          throw runtime_error(to_string(p) + " is not a prime");
         }
       else if (m != 1 and p % m != 1)
         {
-          cerr << p
-              << " is not compatible with our encryption scheme, must be 1 modulo "
-              << m << endl;
-          exit(1);
+          throw runtime_error(
+              to_string(p)
+                  + " is not compatible with our encryption scheme, must be "
+                  "1 modulo " + to_string(m) + ". This is because "
+				  "the implementation relies on number theoretic transform. "
+				  "See https://eprint.iacr.org/2024/585.pdf for details, "
+				  "in particular Theorem 13.");
         }
       else
           return;
@@ -125,8 +127,10 @@ void generate_prime(bigint& p, int lgp, int m, bool force_degree)
 }
 
 
-void write_online_setup(string dirname, const bigint& p)
+void Zp_Data::write_setup(const string& dirname) const
 {
+  auto& p = pr;
+
   if (p == 0)
     throw runtime_error("prime cannot be 0");
 
@@ -145,19 +149,23 @@ void write_online_setup(string dirname, const bigint& p)
   ofstream outf;
   outf.open(ss.str().c_str());
   outf << p << endl;
+  outf << montgomery << endl;
   if (!outf.good())
     throw file_error("cannot write to " + ss.str());
 }
 
-void check_setup(string dir, bigint pr)
+void Zp_Data::check_setup(const string& dir)
 {
   bigint p;
+  bool mont = true;
   string filename = dir + "Params-Data";
-  ifstream(filename) >> p;
+  ifstream(filename) >> p >> mont;
   if (p == 0)
     throw setup_error("no modulus in " + filename);
   if (p != pr)
     throw setup_error("wrong modulus in " + filename);
+  if (mont != montgomery)
+    throw setup_error("Montgomery different in " + filename);
 }
 
 string get_prep_sub_dir(const string& prep_dir, int nparties, int log2mod,

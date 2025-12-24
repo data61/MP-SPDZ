@@ -332,7 +332,7 @@ void modp_<L>::output(ostream& s, const Zp_Data& ZpD, bool human, bool signed_) 
   if (human)
     { bigint te;
       to_bigint(te, ZpD);
-      if (te < ZpD.pr / 2 or not signed_)
+      if (te <= ZpD.pr_half or not signed_)
           s << te;
       else
           s << (te - ZpD.pr);

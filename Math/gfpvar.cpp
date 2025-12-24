@@ -33,7 +33,7 @@ char gfpvar_<X, L>::type_char()
 template<int X, int L>
 void gfpvar_<X, L>::specification(octetStream& os)
 {
-    os.store(pr());
+    ZpD.pack(os);
 }
 
 template<int X, int L>
@@ -101,13 +101,13 @@ const bigint& gfpvar_<X, L>::pr()
 template<int X, int L>
 void gfpvar_<X, L>::check_setup(string dir)
 {
-    ::check_setup(dir, pr());
+    ZpD.check_setup(dir);
 }
 
 template<int X, int L>
 void gfpvar_<X, L>::write_setup(string dir)
 {
-    write_online_setup(dir, pr());
+    ZpD.write_setup(dir);
 }
 
 template<int X, int L>

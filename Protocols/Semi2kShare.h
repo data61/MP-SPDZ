@@ -45,11 +45,6 @@ public:
     Semi2kShare(const U& other) : SemiShare<SignedZ2<K>>(other)
     {
     }
-    Semi2kShare(const T& other, int my_num, const T& alphai = {})
-    {
-        (void) alphai;
-        assign(other, my_num);
-    }
 
     template<class U>
     static void split(StackedVector<U>& dest, const vector<int>& regs, int n_bits,

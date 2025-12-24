@@ -1501,8 +1501,6 @@ void Program::execute_with_errors(Processor<sint, sgf2n>& Proc) const
   auto& processor = Proc.Procb;
   auto& Ci = Proc.get_Ci();
 
-  BaseMachine::program = this;
-
   while (Proc.PC<size)
     {
       Proc.last_PC = Proc.PC;
@@ -1559,7 +1557,9 @@ void Program::execute_with_errors(Processor<sint, sgf2n>& Proc) const
 template<class T>
 void Program::mulm_check() const
 {
-  if (T::function_dependent and not OnlineOptions::singleton.has_option("allow_mulm"))
+  if (T::function_dependent
+      and not (BaseMachine::allow_mulm()
+          or OnlineOptions::singleton.has_option("allow_mulm")))
     throw runtime_error("Mixed multiplication not implemented for function-dependent preprocessing. "
         "Use '-E <protocol>' during compilation or state "
             "'program.use_mulm = False' at the beginning of your high-level program.");

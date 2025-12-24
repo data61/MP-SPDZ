@@ -29,6 +29,15 @@ void SpdzWisePrep<T>::buffer_triples()
 }
 
 template<class T>
+void SpdzWisePrep<T>::buffer_squares()
+{
+    assert(this->protocol != 0);
+    generate_squares(this->squares,
+            BaseMachine::batch_size<T>(DATA_SQUARE, this->buffer_size),
+            this->protocol);
+}
+
+template<class T>
 void SpdzWisePrep<T>::buffer_bits(false_type, true_type, false_type)
 {
     MaliciousRingPrep<T>::buffer_bits();

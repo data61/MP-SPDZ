@@ -168,6 +168,8 @@ public:
     virtual void set_fast_mode(bool) {}
 
     double randomness_time() { return 0; }
+
+    TimerWithComm prep_time() { return {}; }
 };
 
 /**

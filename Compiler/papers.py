@@ -7,7 +7,7 @@ papers = {
     'AN17': 'https://eprint.iacr.org/2017/816',
     'AS19': 'https://eprint.iacr.org/2019/354',
     'AHIK+22': 'https://eprint.iacr.org/2022/1595',
-    'CdH10': 'https://www.researchgate.net/publication/225092133_Improved_Primitives_for_Secure_Multiparty_Integer_Computation, https://doi.org/10.1007/978-3-642-15317-4_13 (paywall)',
+    'CdH10': 'https://www.researchgate.net/publication/225092133, https://doi.org/10.1007/978-3-642-15317-4_13 (paywall)',
     'CdH10-fixed': 'https://www.ifca.ai/pub/fc10/31_47.pdf',
     'CCD88': 'https://doi.org/10.1145/62212.62214',
     'DDNNT15': 'https://eprint.iacr.org/2015/1006',

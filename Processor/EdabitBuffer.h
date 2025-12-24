@@ -34,7 +34,9 @@ public:
                                 + ", have you generated edaBits, "
                                         "for example by running "
                                         "'./Fake-Offline.x -e "
-                                + to_string(n_bits) + " ...'?");
+                                + to_string(n_bits)
+                                + T::template proto_fake_opts<typename T::clear>()
+                                + " ...'?");
         }
 
         assert(BufferBase::file);

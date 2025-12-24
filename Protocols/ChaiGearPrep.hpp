@@ -105,6 +105,7 @@ typename ChaiGearPrep<T>::Generator& ChaiGearPrep<T>::get_generator()
         if (machine == 0)
             basic_setup(P);
         key_setup(P, proc->MC.get_alphai());
+        BaseMachine::add_one_off(P.total_comm());
     }
     lock.unlock();
     if (generator == 0)

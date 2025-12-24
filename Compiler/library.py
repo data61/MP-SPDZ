@@ -109,7 +109,7 @@ def print_str(s, *args, print_secrets=False):
                 if print_secrets:
                     val.output()
                 else:
-                    secret_error()
+                    secret_error(args[i])
             elif isinstance(val, cfloat):
                 val.print_float_plain()
             elif isinstance(val, (list, tuple)):
@@ -831,7 +831,7 @@ def loopy_chunkier_odd_even_merge_sort(a, n=None, max_chunk_size=512, n_threads=
 
 def loopy_odd_even_merge_sort(a, sorted_length=1, n_parallel=32,
                               n_threads=None, key_indices=None):
-    get_program().reading('sorting', 'KSS13')
+    get_program().reading('sorting', 'KSS13', 'Section 6.1')
     a_in = a
     if isinstance(a_in, list):
         a = Array.create_from(a)
@@ -1592,8 +1592,13 @@ def _run_and_link(function, g=None, lock_lists=True, allow_return=False):
     pre = copy.copy(g)
     res = function()
     if res is not None and not allow_return:
+        if get_program().options.flow_optimization:
+            suffix = ' and avoid -l/--flow-optimization to keep ' \
+                'compile-time branching'
+        else:
+            suffix = ''
         raise CompilerError('Conditional blocks cannot return values. '
-                            'Use if_else instead: https://mp-spdz.readthedocs.io/en/latest/Compiler.html#Compiler.types.regint.if_else')
+                            'Use if_else instead: https://mp-spdz.readthedocs.io/en/latest/Compiler.html#Compiler.types.regint.if_else' + suffix)
     _link(pre, g)
     return res
 
@@ -2052,7 +2057,8 @@ def FPDiv(a, b, k, f, simplex_flag=False, nearest=False):
     """
         Goldschmidt method as presented in Catrina10,
     """
-    get_program().reading('fixed-point division', 'CdH10-fixed')
+    get_program().reading('fixed-point division', 'CdH10-fixed',
+                          'Protocol 3.3')
     prime = get_program().prime
     if 2 * k == int(get_program().options.ring) or \
        (prime and 2 * k <= (prime.bit_length() - 1)):

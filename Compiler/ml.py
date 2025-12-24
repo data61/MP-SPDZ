@@ -63,7 +63,7 @@ import re
 
 from Compiler import mpc_math, util
 from Compiler.types import *
-from Compiler.types import _unreduced_squant
+from Compiler.types import _unreduced_squant, _single
 from Compiler.library import *
 from Compiler.util import is_zero, tree_reduce
 from Compiler.comparison import CarryOutRawLE
@@ -927,6 +927,11 @@ class Dense(DenseBase):
         progress('f input')
 
     def _forward(self, batch=None):
+        if not issubclass(self.W.value_type, _single) \
+           or not issubclass(self.X.value_type, _single):
+            raise CompilerError(
+                'dense inputs have to be sfix in arithmetic circuits')
+
         if batch is None:
             batch = regint.Array(self.N)
             batch.assign(regint.inc(self.N))
@@ -2160,6 +2165,11 @@ class Conv2d(ConvBase):
         return weights_h * weights_w * n_channels_in
 
     def _forward(self, batch):
+        if not issubclass(self.weights.value_type, _single) \
+           or not issubclass(self.X.value_type, _single):
+            raise CompilerError(
+                'convolution inputs have to be sfix in arithmetic circuits')
+
         if self.tf_weight_format:
             assert(self.weight_shape[3] == self.output_shape[-1])
             weights_h, weights_w, _, _ = self.weight_shape
@@ -4058,7 +4068,8 @@ class SGD(Optimizer):
                 # divide by len(batch) by truncation
                 # increased rate if len(batch) is not a power of two
                 diff = red_old - nabla_vector
-                pre_trunc = diff.v * rate.v
+                # assuming rate is already synchronized
+                pre_trunc = diff.v.mul(rate.v, sync=False)
                 momentum_value.assign_vector(diff, base)
                 k = max(nabla_vector.k, rate.k) + rate.f
                 m = rate.f + int(log_batch_size)

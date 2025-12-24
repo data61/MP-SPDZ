@@ -64,10 +64,6 @@ public:
     MaliciousRep3Share()
     {
     }
-    MaliciousRep3Share(const T& other, int my_num, T alphai = {}) :
-            super(other, my_num, alphai)
-    {
-    }
     template<class U>
     MaliciousRep3Share(const U& other) : super(other)
     {

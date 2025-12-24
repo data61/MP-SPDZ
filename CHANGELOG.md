@@ -1,5 +1,14 @@
 The changelog explains changes pulled through from the private development repository. Bug fixes and small enhancements are committed between releases and not documented here.
 
+## 0.4.2 (Dec 24, 2025)
+
+- Expected communication cost in compiler
+- Semi-honest option of Rep4
+- Reduced communication for preprocessing in Dealer protocol
+- Option of choosing SoftSpoken parameter at run-time
+- BERT functionality (@hiddely)
+- Recommended reading list in documentation
+
 ## 0.4.1 (May 30, 2025)
 
 - Add protocols with function-dependent preprocessing (https://eprint.iacr.org/2025/919)

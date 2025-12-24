@@ -31,6 +31,9 @@ mpf_class bigint::get_float(T v, T p, T z, T s)
     Integer exp = Integer(p, 31).get();
     bigint tmp;
     tmp.from_signed(v);
+    if (abs(tmp) == 1)
+        BaseMachine::s().mini_warning = min(BaseMachine::s().mini_warning,
+                int(exp.get()));
     mpf_class res = tmp;
     if (exp > 0)
         mpf_mul_2exp(res.get_mpf_t(), res.get_mpf_t(), exp.get());

@@ -60,6 +60,8 @@ public:
 
     static const int default_length = 1;
 
+    static const bool semi_honest_option = false;
+
     static string type_short() { throw runtime_error("shorthand undefined"); }
 
     static string alt() { return ""; }

@@ -98,7 +98,7 @@ class HeapQ(object):
         self.size = MemValue(int_type(0))
         self.int_type = int_type
         self.basic_type = basic_type
-        prog.reading('heap queue', 'KS14')
+        prog.reading('heap queue', 'KS14', 'Section 5.1')
         print('heap: %d levels, depth %d, size %d, index size %d' % \
             (self.levels, self.depth, self.heap.oram.size, self.value_index.size))
     def update(self, value, prio, for_real=True):
@@ -243,7 +243,7 @@ def dijkstra(source, edges, e_index, oram_type, n_loops=None, int_type=None,
     :param int_type: secret integer type (default: sint)
 
     """
-    prog.reading("Dijkstra's algorithm", "KS14")
+    prog.reading("Dijkstra's algorithm", "KS14", "Section 5.2")
     vert_loops = n_loops * e_index.size // edges.size \
         if n_loops else -1
     dist = oram_type(e_index.size, entry_size=(32,log2(e_index.size)), \

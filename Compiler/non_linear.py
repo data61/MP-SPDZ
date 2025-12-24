@@ -26,7 +26,7 @@ class NonLinear:
         if prog.use_trunc_pr and m and (
                 not prog.options.ring or \
                 prog.use_trunc_pr <= (int(prog.options.ring) - k)):
-            prog.reading('probabilistic truncation', 'DEK20')
+            prog.reading('probabilistic truncation', 'DEK20', 'Section 3.2.2')
             if prog.options.ring:
                 comparison.require_ring_size(k, 'truncation')
             else:
@@ -92,8 +92,9 @@ class Prime(Masking):
     def kor(self, d):
         return KOR(d)
 
-    def require_bit_length(self, bit_length, op):
+    def require_bit_length(self, bit_length, op, slack=0):
         prog = program.Program.prog
+        bit_length += slack * (not prog.allow_tight_parameters)
         if bit_length > 32:
             prog.curr_tape.require_bit_length(bit_length - 1, reason=op)
 
@@ -146,7 +147,7 @@ class KnownPrime(NonLinear):
         else:
             return super(KnownPrime, self).ltz(a, k)
 
-    def require_bit_length(self, bit_length, op):
+    def require_bit_length(self, *args, **kwargs):
         pass
 
 class Ring(Masking):
@@ -189,5 +190,5 @@ class Ring(Masking):
     def ltz(self, a, k):
         return LtzRing(a, k)
 
-    def require_bit_length(self, bit_length, op):
-        comparison.require_ring_size(bit_length, op)
+    def require_bit_length(self, *args, **kwargs):
+        comparison.require_ring_size(*args, **kwargs)

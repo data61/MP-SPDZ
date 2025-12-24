@@ -367,10 +367,7 @@ long MultiPlayer<T>::receive_long(int i) const
 
 void Player::send_to(int player,const octetStream& o) const
 {
-#ifdef VERBOSE_COMM
-  cerr << "sending to " << player << endl;
-#endif
-  TimeScope ts(comm_stats["Sending directly"].add(o));
+  TimeScope ts(comm_stats["Sending directly"].add(o, player));
   send_to_no_stats(player, o);
   sent += o.get_length();
 }
@@ -405,12 +402,9 @@ void Player::receive_all(vector<octetStream>& os) const
 
 void Player::receive_player(int i,octetStream& o) const
 {
-#ifdef VERBOSE_COMM
-  cerr << "receiving from " << i << endl;
-#endif
   TimeScope ts(timer);
   receive_player_no_stats(i, o);
-  comm_stats["Receiving directly"].add(o, ts);
+  comm_stats["Receiving directly"].add(o, ts, i);
 }
 
 template<class T>
@@ -484,10 +478,7 @@ void MultiPlayer<T>::exchange_no_stats(int other, const octetStream& o, octetStr
 
 void Player::exchange(int other, const octetStream& o, octetStream& to_receive) const
 {
-#ifdef VERBOSE_COMM
-  cerr << "Exchanging with " << other << endl;
-#endif
-  TimeScope ts(comm_stats["Exchanging"].add(o));
+  TimeScope ts(comm_stats["Exchanging"].add(o, other));
   exchange_no_stats(other, o, to_receive);
   sent += o.get_length();
 }
@@ -603,9 +594,8 @@ void Player::send_receive_all(const vector<vector<bool>>& channels,
     if (i != my_num() and channels.at(my_num()).at(i))
       {
         data += to_send.at(i).get_length();
-#ifdef VERBOSE_COMM
-        cerr << "Send " << to_send.at(i).get_length() << " to " << i << endl;
-#endif
+        if (OnlineOptions::singleton.has_option("detailed_verbose_comm"))
+          cerr << "Send " << to_send.at(i).get_length() << " bytes to " << i << endl;
       }
   TimeScope ts(comm_stats["Sending/receiving"].add(data));
   sent += data;
@@ -879,15 +869,22 @@ Timer& CommStatsWithName::add_length_only(size_t length)
   return stats.add_length_only(length);
 }
 
-Timer& CommStatsWithName::add(const octetStream& os)
+Timer& CommStatsWithName::add(const octetStream& os, int player)
 {
-  return add(os.get_length());
+  return add(os.get_length(), player);
 }
 
-Timer& CommStatsWithName::add(size_t length)
+Timer& CommStatsWithName::add(size_t length, int player)
 {
   if (OnlineOptions::singleton.has_option("verbose_comm"))
-    fprintf(stderr, "%s %zu bytes\n", name.c_str(), length);
+    {
+      if (player < 0)
+        fprintf(stderr, "%s %zu bytes\n", name.c_str(), length);
+      else
+        fprintf(stderr, "%s %zu bytes with party %d\n", name.c_str(), length,
+            player);
+    }
+
   return stats.add(length);
 }
 

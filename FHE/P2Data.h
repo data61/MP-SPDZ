@@ -32,6 +32,7 @@ class P2Data
   void backward(vector<gf2n_short>& ans,const vector<poly_type>& a) const;
 
   int get_prime() const { return 2; }
+  void write_setup(const string&) const {}
 
   bool operator!=(const P2Data& other) const;
 
@@ -46,6 +47,7 @@ class P2Data
   void store(const Ring& Rg) const;
 
   void load_or_generate(const Ring& Rg);
+
 
   friend void init(P2Data& P2D,const Ring& Rg);
 };

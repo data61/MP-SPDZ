@@ -712,7 +712,8 @@ class Merger:
             elif isinstance(instr, StackInstruction):
                 keep_order(instr, n, StackInstruction)
             elif isinstance(instr, applyshuffle):
-                shuffles[instr.args[3]].add(n)
+                for handle in instr.handles():
+                    shuffles[handle].add(n)
             elif isinstance(instr, delshuffle):
                 for i_inst in shuffles[instr.args[0]]:
                     add_edge(i_inst, n)

@@ -31,6 +31,11 @@ void TimerWithComm::stop(const NamedCommStats& stats)
     total_stats += stats - last_stats;
 }
 
+size_t TimerWithComm::bytes_sent() const
+{
+    return total_stats.sent;
+}
+
 double TimerWithComm::mb_sent() const
 {
     return total_stats.sent * 1e-6;

@@ -45,6 +45,7 @@ void SohoPrep<T>::buffer_triples()
     {
         PlainPlayer P(proc->P.N, "Soho" + T::type_string());
         basic_setup(P);
+        BaseMachine::add_one_off(P.total_comm());
     }
     lock.unlock();
 
@@ -87,6 +88,7 @@ void SohoPrep<T>::buffer_squares()
     {
         PlainPlayer P(proc->P.N, "Soho" + T::type_string());
         basic_setup(P);
+        BaseMachine::add_one_off(P.total_comm());
     }
     lock.unlock();
 

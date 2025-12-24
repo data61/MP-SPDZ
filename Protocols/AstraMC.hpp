@@ -19,7 +19,7 @@ typename T::open_type AstraMC<T>::prepare_summand(const T& secret, int my_num)
 template<class T>
 void AstraMC<T>::exchange(const Player& P)
 {
-    SemiMC<SemiShare<typename T::open_type>> opener;
+    DirectSemiMC<SemiShare<typename T::open_type>> opener;
     opener.init_open(P, this->secrets.size());
     int my_num = P.my_num() + 1;
 

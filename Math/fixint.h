@@ -15,6 +15,7 @@ class fixint : public SignedZ2<64 * (L + 1)>
 
 public:
     typedef SignedZ2<64 * (L + 1)> super;
+    typedef typename conditional<L == 0, super, SignedZ2<64 * L>>::type pack_type;
 
     fixint()
     {
@@ -54,6 +55,19 @@ public:
     {
         G.randomBnd(bigint::tmp, bound, positive);
         *this = bigint::tmp;
+    }
+
+    void pack(octetStream& os) const
+    {
+        pack_type tmp = *this;
+        tmp.pack(os);
+    }
+
+    void unpack(octetStream& os)
+    {
+        pack_type tmp;
+        tmp.unpack(os);
+        *this = tmp;
     }
 
     int get_min_alloc() const

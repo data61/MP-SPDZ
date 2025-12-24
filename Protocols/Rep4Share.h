@@ -42,6 +42,7 @@ public:
 
     static const bool malicious = true;
     static const bool variable_players = false;
+    static const bool semi_honest_option = true;
 
     static string type_short()
     {

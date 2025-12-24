@@ -147,6 +147,9 @@ public:
     }
 };
 
+template<class T, class V>
+const int SemiSecretBase<T, V>::default_length;
+
 } /* namespace GC */
 
 #endif /* GC_SEMISECRET_H_ */

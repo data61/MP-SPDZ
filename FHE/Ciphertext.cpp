@@ -60,7 +60,7 @@ void sub(Ciphertext& ans,const Ciphertext& c0,const Ciphertext& c1)
 void mul(Ciphertext& ans,const Ciphertext& c0,const Ciphertext& c1,
          const FHE_PK& pk)
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   if (c0.params!=c1.params)  { throw params_mismatch(); }
   if (ans.params!=c1.params) { throw params_mismatch(); }

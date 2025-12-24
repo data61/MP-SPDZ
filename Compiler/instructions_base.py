@@ -1112,6 +1112,8 @@ class Instruction(object):
                     new_args.append(arg.copy())
                     subs[arg] = new_args[-1]
                 else:
+                    if isinstance(arg, program.curr_tape.Register) and arg.caller:
+                        print(util.format_trace(arg.caller), file=sys.stderr)
                     new_args.append(arg)
         return new_args
 

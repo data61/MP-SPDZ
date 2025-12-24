@@ -53,10 +53,6 @@ public:
     {
         FixedVec<T, 2>::operator=(other);
     }
-    template<class U>
-    BrainShare(const U& other, int my_num, T alphai = {}) : super(other, my_num, alphai)
-    {
-    }
 };
 
 #endif /* PROTOCOLS_BRAINSHARE_H_ */

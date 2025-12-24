@@ -16,6 +16,8 @@ class TimeScope;
 
 class Timer
 {
+  friend class TimeScope;
+
   public:
   Timer(clockid_t clock_id = CLOCK_MONOTONIC) : running(false), elapsed_time(0), clock_id(clock_id)
       { clock_gettime(clock_id, &startv); }
@@ -55,7 +57,7 @@ class TimeScope
 
 public:
   TimeScope(Timer& timer) : timer(timer) { timer.start(); }
-  ~TimeScope() { timer.stop(); }
+  ~TimeScope();
 };
 
 class DoubleTimer

@@ -310,6 +310,8 @@ class Processor : public ArithmeticProcessor
 
   void call_tape(int tape_number, int arg, const vector<int>& results);
 
+  TimerWithComm prep_time();
+
   private:
 
   template<class T> friend class SPDZ;

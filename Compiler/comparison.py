@@ -67,16 +67,21 @@ def ld2i(c, n):
 def maybe_mulm(res, x, y):
     # overwrite instruction for function-dependent preprocessing protocols
     from Compiler import types
-    res.link(x * y)
+    program.curr_block.replace_last_reg(res, x * y)
 
-def require_ring_size(k, op, suffix=''):
+def require_ring_size(k, op, suffix='', slack=0):
     if not program.options.ring:
         return
+    diff = slack * (not program.allow_tight_parameters)
+    k += diff
     if int(program.options.ring) < k:
         msg = 'ring size too small for %s, compile ' \
             'with \'-R %d\' or more' % (op, k)
         if k > 64 and k < 128:
             msg += ' (maybe \'-R 128\' as it is supported by default)'
+        if int(program.options.ring) >= k - diff:
+            msg += ", alternatively set " \
+                "'program.allow_tight_parameters=True' in the program"
         raise CompilerError(msg + suffix)
     program.curr_tape.require_bit_length(k)
 
@@ -97,13 +102,13 @@ def LtzRingRaw(a, k):
     from .types import sint, _bitint
     from .GC.types import sbitvec
     if program.use_split():
-        program.reading('comparison', 'ABY3')
+        program.reading('comparison', 'Keller25', 'Section 6')
         summands = a.split_to_two_summands(k)
         carry = CarryOutRawLE(*reversed(list(x[:-1] for x in summands)))
         msb = carry ^ summands[0][-1] ^ summands[1][-1]
         return msb
     else:
-        program.reading('comparison', 'DEK20-pre')
+        program.reading('comparison', 'DEK20-pre', 'Paragraph III.D.8')
         from . import floatingpoint
         require_ring_size(k, 'comparison')
         m = k - 1
@@ -195,7 +200,7 @@ def TruncLeakyInRing(a, k, m, signed):
     if k == m:
         return 0
     assert k > m
-    program.reading('truncation', 'DEK20-pre')
+    program.reading('truncation', 'DEK20-pre', 'Paragraph III.D.4')
     require_ring_size(k, 'leaky truncation')
     from .types import sint, intbitint, cint, cgf2n
     n_bits = k - m
@@ -239,7 +244,7 @@ def Mod2m(a_prime, a, k, m, signed):
     movs(a_prime, program.non_linear.mod2m(a, k, m, signed))
 
 def Mod2mRing(a_prime, a, k, m, signed):
-    program.reading('modulo', 'DEK20-pre')
+    program.reading('modulo', 'DEK20-pre', 'Paragraph III.D.3')
     require_ring_size(k, 'modulo power of two')
     from Compiler.types import sint, intbitint, cint
     shift = int(program.options.ring) - m
@@ -254,7 +259,7 @@ def Mod2mRing(a_prime, a, k, m, signed):
     return res
 
 def Mod2mField(a_prime, a, k, m, signed):
-    program.reading('modulo', 'CdH10')
+    program.reading('modulo', 'CdH10', 'Protocol 3.2')
     from .types import sint
     r_dprime = program.curr_block.new_reg('s')
     r_prime = program.curr_block.new_reg('s')
@@ -349,6 +354,8 @@ def BitLTC1(u, a, b):
     a: array of clear bits
     b: array of secret bits (same length as a)
     """
+    program.reading('constant-round bit-wise public-private comparison',
+                    'CdH10', 'Protocol 4.5')
     k = len(b)
     p = [program.curr_block.new_reg('s') for i in range(k)]
     from . import floatingpoint
@@ -489,6 +496,8 @@ def BitLTL(res, a, b):
     a: clear integer register
     b: array of secret bits (same length as a)
     """
+    program.reading('logarithmic-round bit-wise public-private comparison',
+                    'CdH10', 'Protocol 4.1')
     k = len(b)
     a_bits = b[0].bit_decompose_clear(a, k)
     from .types import sint
@@ -655,7 +664,7 @@ def Mod2(a_0, a, k, signed):
     if k <= 1:
         movs(a_0, a)
         return
-    program.reading('modulo', 'CdH10')
+    program.reading('modulo', 'CdH10', 'Protocol 3.4')
     r_dprime = program.curr_block.new_reg('s')
     r_prime = program.curr_block.new_reg('s')
     r_0 = program.curr_block.new_reg('s')

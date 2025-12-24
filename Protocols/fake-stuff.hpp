@@ -6,6 +6,7 @@
 #include "Tools/benchmarking.h"
 #include "Math/Setup.h"
 #include "GC/CcdSecret.h"
+#include "GC/square64.h"
 #include "FHE/tools.h"
 
 #include "Protocols/ShamirInput.hpp"
@@ -373,6 +374,7 @@ KeySetup<U> read_global_mac_key(const string& directory, int nparties)
   auto& key = res.key;
   key.assign_zero();
 
+  cout << U::type_string() << "keys :" << endl;
   for (int i= 0; i < nparties; i++)
     {
       typename U::mac_key_type pp;
@@ -383,7 +385,7 @@ KeySetup<U> read_global_mac_key(const string& directory, int nparties)
     }
 
   cout << "--------------\n";
-  cout << "Final Keys : " << key << endl;
+  cout << "Final Key : " << key << endl;
 
   return res;
 }
@@ -459,6 +461,8 @@ void generate_mac_keys(KeySetup<T>& key_setup,
   bool generate = false;
   key_shares.resize(nplayers);
 
+
+  cout << T::type_string() << " keys:" << endl;
   for (int i = 0; i < nplayers; i++)
     {
       auto& pp = key_shares[i];
@@ -483,7 +487,10 @@ void generate_mac_keys(KeySetup<T>& key_setup,
               break;
             }
         }
-      cout << " Key " << i << ": " << pp << endl;
+      cout << " Key " << i << ": " << pp << ", ";
+      octetStream os;
+      pp.pack(os);
+      pprint_bytes("raw", (unsigned char*) os.get_data(), os.get_length());
     }
 
   key = reconstruct(key_shares);
@@ -584,10 +591,20 @@ void plain_edabits(vector<T>& as,
       if (not zero)
         value.randomize_part(G, length);
       as[j] = value;
-      for (int k = 0; k < length; k++)
-        bs[k] ^= BitVec(value.get_bit(k)) << j;
+      if (max_size > 64 or length > 64)
+        for (int k = 0; k < length; k++)
+          bs[k] ^= BitVec(value.get_bit(k)) << j;
     }
 
+  if (max_size <= 64 and length <= 64)
+    {
+      square64 square;
+      for (int j = 0; j < max_size; j++)
+        square.rows[j] = Z2<64>(as[j]).get_limb(0);
+      square.transpose(max_size, length);
+      for (int k = 0; k < length; k++)
+        bs[k] = square.rows[k];
+    }
 }
 
 #endif

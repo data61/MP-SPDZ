@@ -43,6 +43,8 @@ public:
     static const FHE_PK& get_pk();
     static const FD& get_FTD();
 
+    static bool bits_from_dabits();
+
     HemiPrep(SubProcessor<T>* proc, DataPositions& usage) :
             BufferPrep<T>(usage),
             BitPrep<T>(proc, usage), RingPrep<T>(proc, usage),

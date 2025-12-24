@@ -36,8 +36,8 @@ template<class T> void generate_prime_setup(string, int, int);
 #define GFP_MOD_SZ 2
 #endif
 
-#if GFP_MOD_SZ > MAX_MOD_SZ
-#error GFP_MOD_SZ must be at most MAX_MOD_SZ
+#if 2 * GFP_MOD_SZ > MAX_MOD_SZ
+#error 2 * GFP_MOD_SZ must be at most MAX_MOD_SZ
 #endif
 
 /**
@@ -105,9 +105,9 @@ class gfp_ : public ValueInterface
   static void write_setup(int nplayers)
     { write_setup(get_prep_sub_dir<T>(nplayers)); }
   static void write_setup(string dir)
-    { write_online_setup(dir, pr()); }
+    { ZpD.write_setup(dir); }
   static void check_setup(string dir);
-  static string fake_opts() { return " -P " + to_string(pr()); }
+  static string fake_opts() { return ZpD.fake_opts(); }
 
   /**
    * Get the prime modulus

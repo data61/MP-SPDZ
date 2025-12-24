@@ -411,7 +411,7 @@ template<class T>
 ReplicatedInput<T>& Replicated<T>::get_helper_input(size_t i)
 {
     while (i >= helper_inputs.size())
-        helper_inputs.push_back(new ReplicatedInput<T>(P));
+        helper_inputs.push_back(new ReplicatedInput<T>(0, *this));
     return *helper_inputs.at(i);
 }
 

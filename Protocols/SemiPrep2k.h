@@ -37,6 +37,11 @@ public:
         throw runtime_error("no need for sacrifice");
     }
 
+    static bool dabits_from_bits()
+    {
+        return not SemiPrep<T>::bits_from_dabits();
+    }
+
     SemiPrep2k(SubProcessor<T>* proc, DataPositions& usage) :
             BufferPrep<T>(usage), BitPrep<T>(proc, usage),
             OTPrep<T>(proc, usage),

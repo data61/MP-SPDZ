@@ -43,6 +43,7 @@ public:
             shamir(P), shamir2(P, 2 * ShamirMachine::s().threshold), oss(P),
             oss2(P), next_king(0), base_king(0), resharing(0, P), P(P)
     {
+        this->buffer_size = 0;
     }
 
     ~Atlas();

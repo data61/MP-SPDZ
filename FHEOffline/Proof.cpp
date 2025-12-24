@@ -184,3 +184,11 @@ void Proof::Preimages::check_sizes()
   if (m.size() != r.size())
     throw runtime_error("preimage sizes don't match");
 }
+
+int NonInteractiveProof::comp_sec(int sec)
+{
+  if (sec > 0)
+    return OnlineOptions::singleton.comp_sec();
+  else
+    return 0;
+}

@@ -12,6 +12,7 @@ template<class T>
 void ReplicatedMC<T>::POpen(vector<typename T::open_type>& values,
         const vector<T>& S, const Player& P)
 {
+    CODE_LOCATION
     prepare(S);
     P.pass_around(to_send, o, -1);
     finalize(values, S);
@@ -21,6 +22,7 @@ template<class T>
 void ReplicatedMC<T>::POpen_Begin(vector<typename T::open_type>&,
         const vector<T>& S, const Player& P)
 {
+    CODE_LOCATION
     prepare(S);
     P.send_relative(-1, to_send);
 }

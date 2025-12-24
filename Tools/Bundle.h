@@ -33,6 +33,14 @@ public:
 
     void compare(PlayerBase& P)
     {
+        if (mine.get_length() > 1000)
+        {
+            Bundle<T> bundle(P);
+            bundle.mine = mine.hash();
+            bundle.compare(P);
+            return;
+        }
+
         P.unchecked_broadcast(*this);
         for (auto& os : *this)
             if (os != mine)

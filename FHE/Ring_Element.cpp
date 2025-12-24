@@ -154,7 +154,7 @@ void sub(Ring_Element& ans,const Ring_Element& a,const Ring_Element& b)
 
 void mul(Ring_Element& ans,const Ring_Element& a,const Ring_Element& b)
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   assert(a.FFTD);
   if (a.rep!=b.rep)   { throw rep_mismatch(); }
@@ -299,7 +299,7 @@ Ring_Element& Ring_Element::operator *=(const modp& other)
 
 Ring_Element Ring_Element::mul_by_X_i(int j) const
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   assert(FFTD);
   Ring_Element ans;
@@ -517,7 +517,9 @@ modp Ring_Element::get_constant() const
 void store(octetStream& o,const vector<modp>& v,const Zp_Data& ZpD)
 {
   ZpD.pack(o);
-  o.store(v);
+  o.store((int)v.size());
+  for (auto& x : v)
+    x.pack(o, ZpD);
 }
 
 
@@ -529,7 +531,16 @@ void get(octetStream& o,vector<modp>& v,const Zp_Data& ZpD)
     throw runtime_error(
         "mismatch: " + to_string(check_Zpd.pr_bit_length) + "/"
             + to_string(ZpD.pr_bit_length));
-  o.get(v);
+  unsigned int length;
+  o.get(length);
+  v.clear();
+  v.reserve(length);
+  modp tmp;
+  for (unsigned int i=0; i<length; i++)
+    {
+      tmp.unpack(o,ZpD);
+      v.push_back(tmp);
+    }
 }
 
 

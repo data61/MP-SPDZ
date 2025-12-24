@@ -31,6 +31,8 @@ public:
     void unpack(octetStream& os);
 
     void check(Player& P) const;
+
+    int comp_sec();
 };
 
 class RealPairwiseMachine : public virtual MachineBase, public virtual PairwiseMachine

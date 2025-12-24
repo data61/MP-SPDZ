@@ -18,7 +18,7 @@ int main()
     KeySetup<Share<P256Element::Scalar>> key;
     string prefix = PREP_DIR "ECDSA/";
     mkdir_p(prefix.c_str());
-    write_online_setup(prefix, P256Element::Scalar::pr());
+    P256Element::Scalar::write_setup(prefix);
     PRNG G;
     G.ReSeed();
     generate_mac_keys<Share<P256Element::Scalar>>(key, 2, prefix, G);

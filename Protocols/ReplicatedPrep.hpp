@@ -249,6 +249,7 @@ void BitPrep<T>::buffer_squares()
     auto proc = this->proc;
     auto buffer_size = BaseMachine::batch_size<T>(DATA_SQUARE,
             this->buffer_size);
+    BufferScope scope(*this, buffer_size);
     assert(proc != 0);
     vector<T> a_plus_b(buffer_size), as(buffer_size), cs(buffer_size);
     T b;
@@ -278,6 +279,9 @@ void generate_squares(vector<array<T, 2>>& squares, int n_squares,
     n_squares = BaseMachine::batch_size<T>(DATA_SQUARE, n_squares);
     assert(protocol != 0);
     squares.resize(n_squares);
+    if (OnlineOptions::singleton.has_option("verbose_square"))
+        fprintf(stderr, "generating %d random squares\n", n_squares);
+    BufferScope scope(*protocol, n_squares);
     protocol->init_mul();
     for (size_t i = 0; i < squares.size(); i++)
     {
@@ -714,6 +718,7 @@ void BitPrep<T>::buffer_ring_bits_without_check(vector<T>& bits, PRNG& G,
     buffer_bits_from_players(player_bits, G, *proc, this->base_player,
             buffer_size, 1);
     auto& prot = *protocol;
+    BufferScope scope(prot, buffer_size);
     XOR(bits, player_bits[0], player_bits[1], prot);
     for (int i = 2; i < n_relevant_players; i++)
         XOR(bits, bits, player_bits[i], prot);
@@ -851,9 +856,8 @@ void RingPrep<T>::buffer_dabits_without_check(vector<dabit<T>>& dabits,
         Preprocessing<typename T::bit_type::part_type>&)
 {
     CODE_LOCATION
-#ifdef VERBOSE_DABIT
-    fprintf(stderr, "generate daBits %lu to %lu\n", begin, end);
-#endif
+    if (OnlineOptions::singleton.has_option("verbose_dabit"))
+        fprintf(stderr, "generate daBits %lu to %lu\n", begin, end);
 
     size_t buffer_size = end - begin;
     auto proc = this->proc;

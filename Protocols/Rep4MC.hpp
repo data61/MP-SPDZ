@@ -12,13 +12,20 @@ template<class T>
 void Rep4MC<T>::exchange(const Player& P)
 {
     CODE_LOCATION
+
+    bool malicious = not OnlineOptions::singleton.semi_honest;
+
     octetStream right, tmp;
     for (auto& secret : this->secrets)
     {
         secret[0].pack(right);
-        secret[2].pack(tmp);
+        if (malicious)
+            secret[2].pack(tmp);
     }
-    check_hash.update(tmp);
+
+    if (malicious)
+        check_hash.update(tmp);
+
     P.pass_around(right, 1);
     this->values.resize(this->secrets.size());
     for (size_t i = 0; i < this->secrets.size(); i++)
@@ -27,7 +34,9 @@ void Rep4MC<T>::exchange(const Player& P)
         a.unpack(right);
         this->values[i] = this->secrets[i].sum() + a;
     }
-    receive_hash.update(right);
+
+    if (malicious)
+        receive_hash.update(right);
 
     if (OnlineOptions::singleton.has_option("always_check"))
         Check(P);

@@ -259,7 +259,8 @@ vector<T> Shamir<T>::get_randoms(PRNG& G, int t)
         random_input = new ShamirInput<T>(0, P, threshold);
     auto& input = *random_input;
     input.reset_all(P);
-    auto buffer_size = this->buffer_size;
+    auto buffer_size = BaseMachine::batch_size<T>(DATA_RANDOM, this->buffer_size);
+    assert(buffer_size > 0);
     if (OnlineOptions::singleton.has_option("verbose_random"))
         fprintf(stderr, "generating %d random elements\n", buffer_size);
     for (int i = 0; i < buffer_size; i += hyper.size())
@@ -280,6 +281,9 @@ vector<T> Shamir<T>::get_randoms(PRNG& G, int t)
                 random.back() += hyper[j][k] * inputs[k];
         }
     }
+    if (OnlineOptions::singleton.has_option("verbose_random"))
+        fprintf(stderr, "generated %zu random elements in %zu batches of %zu\n",
+                random.size(), random.size() / hyper.size(), hyper.size());
     return random;
 }
 

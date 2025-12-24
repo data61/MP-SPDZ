@@ -16,29 +16,21 @@ DealerMatrixPrep<T>::DealerMatrixPrep(int n_rows, int n_inner, int n_cols,
 }
 
 template<class T>
-void append_shares(vector<octetStream>& os,
-        ValueMatrix<typename T::clear>& M, PRNG& G)
+void append(vector<T>& values, ValueMatrix<T>& M)
 {
-    size_t n = os.size();
-    for (auto& value : M.entries)
-    {
-        T sum;
-        for (size_t i = 0; i < n - 2; i++)
-        {
-            auto share = G.get<T>();
-            sum += share;
-            share.pack(os[i]);
-        }
-        (value - sum).pack(os[n - 2]);
-    }
+    values.insert(values.end(), M.entries.begin(), M.entries.end());
 }
 
 template<class T>
-ShareMatrix<T> receive_shares(octetStream& o, int n, int m)
+ShareMatrix<T> receive(DealerInput<T>& input, int n, int m, bool random)
 {
     ShareMatrix<T> res(n, m);
-    for (size_t i = 0; i < res.entries.size(); i++)
-        res.entries.v.push_back(o.get<T>());
+    if (random)
+        for (size_t i = 0; i < res.entries.size(); i++)
+            res.entries.v.push_back(input.finalize_random());
+    else
+        for (size_t i = 0; i < res.entries.size(); i++)
+            res.entries.v.push_back(input.finalize_from_dealer());
     return res;
 }
 
@@ -48,44 +40,49 @@ void DealerMatrixPrep<T>::buffer_triples()
     CODE_LOCATION
     assert(this->prep);
     assert(this->prep->proc);
-    auto& P = this->prep->proc->P;
-    vector<bool> senders(P.num_players());
-    senders.back() = true;
-    octetStreams os(P), to_receive(P);
+    auto& input = this->prep->proc->input;
+    input.reset(input.dealer_player());
     int batch_size = BaseMachine::matrix_batch_size(n_rows, n_inner, n_cols);
     assert(batch_size > 0);
-    if (not T::real_shares(P))
+    ValueMatrix<typename T::clear> A(n_rows, n_inner), B(n_inner, n_cols),
+            C(n_rows, n_cols);
+    size_t n_values = batch_size * C.entries.size();
+    if (input.is_dealer())
     {
         SeededPRNG G;
-        ValueMatrix<typename T::clear> A(n_rows, n_inner), B(n_inner, n_cols),
-                C(n_rows, n_cols);
-        for (int i = 0; i < P.num_players() - 1; i++)
-            os[i].reserve(
-                    batch_size * T::size()
-                            * (A.entries.size() + B.entries.size()
-                                    + C.entries.size()));
+        vector<typename T::clear> values;
+        values.reserve(n_values);
         for (int i = 0; i < batch_size; i++)
         {
-            A.randomize(G);
-            B.randomize(G);
+            A.entries.v.clear();
+            B.entries.v.clear();
+            for (size_t j = 0; j < A.entries.size(); j++)
+                A.entries.v.push_back(input.random_for_dealer());
+            for (size_t j = 0; j < B.entries.size(); j++)
+                B.entries.v.push_back(input.random_for_dealer());
             C = A * B;
-            append_shares<T>(os, A, G);
-            append_shares<T>(os, B, G);
-            append_shares<T>(os, C, G);
+            append(values, C);
             this->triples.push_back({{{n_rows, n_inner}, {n_inner, n_cols},
                 {n_rows, n_cols}}});
         }
-        P.send_receive_all(senders, os, to_receive);
+        input.add_from_dealer(values);
     }
     else
     {
-        P.send_receive_all(senders, os, to_receive);
+        input.add_n_from_dealer(n_values);
+        input.add_n_from_dealer(
+                batch_size * (A.entries.size() + B.entries.size()), true);
+    }
+
+    input.exchange();
+
+    if (not input.is_dealer())
+    {
         for (int i = 0; i < batch_size; i++)
         {
-            auto& o = to_receive.back();
-            this->triples.push_back({{receive_shares<T>(o, n_rows, n_inner),
-                receive_shares<T>(o, n_inner, n_cols),
-                receive_shares<T>(o, n_rows, n_cols)}});
+            this->triples.push_back({{receive(input, n_rows, n_inner, true),
+                receive(input, n_inner, n_cols, true),
+                receive(input, n_rows, n_cols, false)}});
         }
     }
 }

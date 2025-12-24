@@ -52,7 +52,7 @@ template <>
 int generate_semi_setup(int plaintext_length, int sec,
     FHE_Params& params, FFT_Data& FTD, bool round_up, int n)
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
   int m = 1024;
   int lgp = plaintext_length;
   bigint p;
@@ -95,7 +95,7 @@ template <>
 int generate_semi_setup(int plaintext_length, int sec,
     FHE_Params& params, P2Data& P2D, bool round_up, int n)
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   if (params.n_mults() > 0)
     throw runtime_error("only implemented for 0-level BGV");
@@ -113,12 +113,13 @@ int generate_semi_setup(int plaintext_length, int sec,
 
 int common_semi_setup(FHE_Params& params, int m, bigint p, int& lgp0, int lgp1, bool round_up)
 {
-#ifdef VERBOSE
-  cout << "Need ciphertext modulus of length " << lgp0;
-  if (params.n_mults() > 0)
-    cout << "+" << lgp1;
-  cout << " and " << phi_N(m) << " slots" << endl;
-#endif
+  if (OnlineOptions::singleton.has_option("verbose_he_setup"))
+    {
+      cout << "Need ciphertext modulus of length " << lgp0;
+      if (params.n_mults() > 0)
+        cout << "+" << lgp1;
+      cout << " and " << phi_N(m) << " slots" << endl;
+    }
 
   int extra_slack = 0;
   if (round_up)
@@ -160,13 +161,16 @@ int finalize_lengths(int& lg2p0, int& lg2p1, int n, int m, int* lg2pi,
 {
   (void) lg2pi, (void) n;
 
-#ifdef VERBOSE
-  if (n >= 2 and n <= 10)
-    cout << "Difference to suggestion for p0: " << lg2p0 - lg2pi[n - 2]
-        << ", for p1: " << lg2p1 - lg2pi[9 + n - 2] << endl;
-  cout << "p0 needs " << int(ceil(1. * lg2p0 / 64)) << " words" << endl;
-  cout << "p1 needs " << int(ceil(1. * lg2p1 / 64)) << " words" << endl;
-#endif
+  bool verbose = OnlineOptions::singleton.has_option("verbose_he_setup");
+
+  if (verbose)
+    {
+        if (n >= 2 and n <= 10)
+            cerr << "Difference to suggestion for p0: " << lg2p0 - lg2pi[n - 2]
+                    << ", for p1: " << lg2p1 - lg2pi[9 + n - 2] << endl;
+        cerr << "p0 needs " << int(ceil(1. * lg2p0 / 64)) << " words" << endl;
+        cerr << "p1 needs " << int(ceil(1. * lg2p1 / 64)) << " words" << endl;
+    }
 
   int extra_slack = 0;
   if (round_up)
@@ -185,15 +189,16 @@ int finalize_lengths(int& lg2p0, int& lg2p1, int n, int m, int* lg2pi,
       extra_slack = 2 * i;
       lg2p0 += i;
       lg2p1 += i;
-#ifdef VERBOSE
-      cout << "Rounding up to " << lg2p0 << "+" << lg2p1
-          << ", giving extra slack of " << extra_slack << " bits" << endl;
-#endif
+
+        if (verbose)
+            cerr << "Rounding up to " << lg2p0 << "+" << lg2p1
+                    << ", giving extra slack of " << extra_slack << " bits"
+                    << endl;
     }
 
-#ifdef VERBOSE
-  cout << "Total length: " << lg2p0 + lg2p1 << endl;
-#endif
+    if (verbose)
+        cerr << "Total length: " << lg2p0 + lg2p1 << " = " << lg2p0 << " + "
+                << lg2p1 << endl;
 
   return extra_slack;
 }
@@ -305,7 +310,7 @@ void generate_modulus(bigint& pr, const int m, const bigint p, const int lg2pr,
 template <>
 void Parameters::SPDZ_Data_Setup(FHE_Params& params, FFT_Data& FTD)
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   bigint p;
   int idx, m;
@@ -678,7 +683,7 @@ void char_2_dimension(int& m, int& lg2)
 template <>
 void Parameters::SPDZ_Data_Setup(FHE_Params& params, P2Data& P2D)
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   int n = n_parties;
   int lg2 = plaintext_length;

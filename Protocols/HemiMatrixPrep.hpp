@@ -105,8 +105,9 @@ void HemiMatrixPrep<T>::buffer_triples()
     auto& FTD = prep->get_FTD();
     auto& pk = prep->get_pk();
     int n_matrices = minimum_batch();
+    bool verbose = OnlineOptions::singleton.has_option("verbose_he");
 
-    if (OnlineOptions::singleton.has_option("verbose_he"))
+    if (verbose)
     {
         fprintf(stderr, "creating %d %dx%d * %dx%d triples\n", n_matrices,
                 n_rows, n_inner, n_inner, n_cols);
@@ -152,6 +153,13 @@ void HemiMatrixPrep<T>::buffer_triples()
 
     if (T::local_mul or OnlineOptions::singleton.direct)
     {
+        if (verbose)
+        {
+            fprintf(stderr, "broadcasting %zu ciphertexts\n",
+                    diag.ciphertexts.size());
+            fflush(stderr);
+        }
+
         Bundle<octetStream> bundle(P);
         bundle.mine.store(diag.ciphertexts);
         P.unchecked_broadcast(bundle);
@@ -163,6 +171,13 @@ void HemiMatrixPrep<T>::buffer_triples()
     }
     else
     {
+        if (verbose)
+        {
+            fprintf(stderr, "summing %zu ciphertexts\n",
+                    diag.ciphertexts.size());
+            fflush(stderr);
+        }
+
         others_ct.push_back(diag.ciphertexts);
         TreeSum<Ciphertext>().run(others_ct[0], P);
     }

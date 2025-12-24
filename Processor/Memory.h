@@ -37,6 +37,16 @@ public:
 #endif
     }
 
+  const T* begin() const
+    {
+      return data();
+    }
+
+  const T* end() const
+    {
+      return data() + size();
+    }
+
   virtual T& operator[](size_t i) = 0;
   virtual const T& operator[](size_t i) const = 0;
 

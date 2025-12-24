@@ -9,6 +9,10 @@
 template <class T>
 void OTVoleBase<T>::evaluate(vector<T>& output, const vector<T>& newReceiverInput) {
     CODE_LOCATION
+    if (OnlineOptions::singleton.has_option("verbose_vole"))
+        fprintf(stderr, "%d-bit VOLE with %zu elements and S=%d\n", T::N_BITS,
+                newReceiverInput.size(), S);
+
     const int N1 = newReceiverInput.size() + 1;
     output.resize(newReceiverInput.size());
     auto& os = oss;

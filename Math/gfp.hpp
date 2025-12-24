@@ -28,7 +28,7 @@ inline void gfp_<X, L>::read_or_generate_setup(string dir,
 template<int X, int L>
 void gfp_<X, L>::check_setup(string dir)
 {
-  ::check_setup(dir, pr());
+  ZpD.check_setup(dir);
 }
 
 template<int X, int L>
@@ -201,7 +201,7 @@ bool gfp_<X, L>::allows(Dtype type)
 template<int X, int L>
 void gfp_<X, L>::specification(octetStream& os)
 {
-    os.store(pr());
+    ZpD.pack(os);
 }
 
 template <int X, int L>

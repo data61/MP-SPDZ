@@ -97,6 +97,18 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
               "-N", // Flag token.
               "--nparties" // Flag token.
         );
+
+    if (T::semi_honest_option)
+        opt.add(
+              "", // Default.
+              0, // Required?
+              0, // Number of args expected.
+              0, // Delimiter if expecting multiple args.
+              "Semi-honest operation (default: malicious security)"
+              // Help description.
+              "-sh", // Flag token.
+              "--semi-honest" // Flag token.
+        );
 }
 
 template<class T>

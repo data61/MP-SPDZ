@@ -153,7 +153,7 @@ void Hemi<T>::matmulsm(SubProcessor<T>& processor, MemoryPart<T>& source,
         if (not T::real_shares(processor.P))
         {
             matrix_multiply(A, B, processor);
-            return;
+            continue;
         }
 
         for (int i = 0; i < resultNumberOfRows; i++) {
@@ -353,6 +353,15 @@ void Conv2dTuple::run_matrix(SubProcessor<T>& processor)
             }
     }
 
+}
+
+template<class T>
+TimerWithComm Hemi<T>::prep_time()
+{
+    TimerWithComm res;
+    for (auto& prep : matrix_preps)
+        res += prep.second->prep_timer;
+    return res;
 }
 
 #endif /* PROTOCOLS_HEMI_HPP_ */

@@ -9,7 +9,7 @@
 
 void P2Data::forward(vector<poly_type>& ans,const vector<gf2n_short>& a) const
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   int n=gf2n_short::degree();
   
@@ -32,7 +32,7 @@ void P2Data::forward(vector<poly_type>& ans,const vector<gf2n_short>& a) const
 
 void P2Data::backward(vector<gf2n_short>& ans,const vector<poly_type>& a) const
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   int n=gf2n_short::degree();
   BitVector bv(a.size());

@@ -11,7 +11,7 @@ DistDecrypt<FD>::DistDecrypt(const Player& P, const FHE_SK& share,
   vv.resize(pk.get_params().phi_m());
   vv1.resize(pk.get_params().phi_m());
   // extra limb for operations
-  bigint limit = pk.get_params().Q() << 64;
+  bigint limit = pk.get_params().p0() << 64;
   vv.allocate_slots(limit);
   vv1.allocate_slots(limit);
   mf.allocate_slots(pk.p() << 64);
@@ -19,6 +19,8 @@ DistDecrypt<FD>::DistDecrypt(const Player& P, const FHE_SK& share,
 
 class ModuloTreeSum : public TreeSum<bigint>
 {
+  typedef TreeSum<bigint> super;
+
   bigint modulo;
 
   void post_add_process(vector<bigint>& values)
@@ -31,6 +33,12 @@ public:
   ModuloTreeSum(bigint modulo) :
       modulo(modulo)
   {
+  }
+
+  void run(vector<bigint>& values, const Player& P)
+  {
+    lengths.resize(values.size(), numBytes(modulo));
+    super::run(values, P);
   }
 };
 
@@ -48,13 +56,15 @@ Plaintext_<FD>& DistDecrypt<FD>::run(const Ciphertext& ctx, bool NewCiphertext)
   if ((int)vv.size() != params.phi_m())
     throw length_error("wrong length of ring element");
 
+  size_t length = numBytes(pk.get_params().p0());
+
   if (OnlineOptions::singleton.direct)
     {
       // Now pack into an octetStream for broadcasting
       vector<octetStream> os(P.num_players());
 
       for (int i=0; i<params.phi_m(); i++)
-        { (os[P.my_num()]).store(vv[i]); }
+        { (os[P.my_num()]).store(vv[i], length); }
 
       // Broadcast and Receive the values
       P.Broadcast_Receive(os);
@@ -67,7 +77,7 @@ Plaintext_<FD>& DistDecrypt<FD>::run(const Ciphertext& ctx, bool NewCiphertext)
             {
               for (int j = 0; j < params.phi_m(); j++)
                 {
-                  os[i].get(vv1[j]);
+                  os[i].get(vv1[j], length);
                 }
               share.dist_decrypt_2(vv, vv1);
             }

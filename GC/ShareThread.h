@@ -67,7 +67,7 @@ inline ShareThread<T>& ShareThread<T>::s()
     if (singleton and T::is_real)
         return *singleton;
     else
-        throw runtime_error("no ShareThread singleton");
+        throw no_singleton("no ShareThread singleton");
 }
 
 } /* namespace GC */

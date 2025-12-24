@@ -54,6 +54,9 @@ class Machine : public BaseMachine
 
   NamedCommStats max_comm;
 
+  int max_trunc_size;
+  Lock warn_lock;
+
   size_t load_program(const string& threadname, const string& filename);
 
   void prepare(const string& progname_str);
@@ -126,6 +129,8 @@ class Machine : public BaseMachine
   Player& get_player() { return *P; }
 
   void check_program();
+
+  void gap_warning(int k);
 };
 
 #endif /* MACHINE_H_ */

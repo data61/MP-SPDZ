@@ -29,6 +29,12 @@ PRNG::PRNG(octetStream& seed) : PRNG()
   SetSeed(seed.consume(SEED_SIZE));
 }
 
+PRNG::PRNG(const string& seed) : PRNG()
+{
+  octetStream os(seed);
+  SetSeed(os.consume(SEED_SIZE));
+}
+
 void PRNG::ReSeed()
 {
   if (OnlineOptions::singleton.has_option("zero_seed"))
@@ -277,4 +283,9 @@ void PRNG::get(bigint& res, int n_bits, bool positive)
 void PRNG::get_octets_call(octet* ans, int len)
 {
   get_octets(ans, len);
+}
+
+bool PRNG::is_initialized()
+{
+  return initialized;
 }

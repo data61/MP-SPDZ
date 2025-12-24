@@ -26,8 +26,6 @@ template<class T>
 void generate_prime_setup(string dir, int lgp);
 template<class T>
 void generate_online_setup(string dirname, bigint& p, int lgp);
-void write_online_setup(string dirname, const bigint& p);
-void check_setup(string dirname, bigint p);
 
 // Setup primes only
 // Chooses a p of at least lgp bits

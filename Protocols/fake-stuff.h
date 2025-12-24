@@ -38,6 +38,8 @@ template <class T>
 typename T::mac_key_type read_generate_write_mac_key(Player& P,
         string directory = "");
 
+void check_files(ofstream* outf, int N);
+
 template<class T>
 class KeySetup
 {
@@ -113,6 +115,7 @@ public:
   }
   ~Files()
   {
+    check_files(outf, N);
     delete[] outf;
   }
 

@@ -21,7 +21,7 @@ using namespace std;
 
 #ifndef MAX_MOD_SZ
    #if defined(GFP_MOD_SZ) and GFP_MOD_SZ > 11
-     #define MAX_MOD_SZ GFP_MOD_SZ
+     #define MAX_MOD_SZ 2 * GFP_MOD_SZ
    #else
      #define MAX_MOD_SZ 11
   #endif
@@ -93,6 +93,11 @@ class Zp_Data
   bool operator==(const Zp_Data& other) const;
 
   void get_shanks_parameters(bigint& y, bigint& q_half, int& r) const;
+
+  void write_setup(const string& directory) const;
+  void check_setup(const string& directory);
+
+  string fake_opts() const;
 
    template<int L> friend void to_modp(modp_<L>& ans,int x,const Zp_Data& ZpD);
    template<int L> friend void to_modp(modp_<L>& ans,const mpz_class& x,const Zp_Data& ZpD);

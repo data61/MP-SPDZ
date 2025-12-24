@@ -132,7 +132,7 @@ void PartSetup<FD>::output(Names& N)
 {
     // Write outputs to file
     string dir = get_prep_sub_dir<Share<typename FD::T>>(N.num_players());
-    write_online_setup(dir, FieldD.get_prime());
+    FieldD.write_setup(dir);
     write_mac_key(dir, N.my_num(), N.num_players(), alphai);
 }
 

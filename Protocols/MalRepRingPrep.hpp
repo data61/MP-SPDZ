@@ -106,7 +106,7 @@ void shuffle_triple_generation(vector<array<T, 3>>& triples, Player& P,
     RunningTimer timer;
     TripleShuffleSacrifice<T> sacrifice;
     vector<array<T, 3>> check_triples;
-    int buffer_size = sacrifice.minimum_n_inputs(OnlineOptions::singleton.batch_size);
+    int buffer_size = sacrifice.minimum_n_inputs(sacrifice.batch_size());
 
     // optimistic triple generation
     Replicated<T> protocol(P);
@@ -126,19 +126,26 @@ void shuffle_triple_generation(vector<array<T, 3>>& triples, Player& P,
 }
 
 template<class T>
-TripleShuffleSacrifice<T>::TripleShuffleSacrifice()
+int TripleShuffleSacrifice<T>::batch_size()
+{
+    // use this to avoid bucket size being too low
+    int trick_max = 10 * ShuffleSacrifice(3).minimum_n_outputs()
+            * T::default_length;
+    int res = BaseMachine::batch_size<T>(DATA_TRIPLE, 0, trick_max);
+    if (res == trick_max)
+        res = BaseMachine::batch_size<T>(DATA_TRIPLE);
+    return DIV_CEIL(res, T::default_length);
+}
+
+template<class T>
+TripleShuffleSacrifice<T>::TripleShuffleSacrifice() :
+        ShuffleSacrifice(BaseMachine::bucket_size(batch_size()))
 {
 }
 
 template<class T>
 TripleShuffleSacrifice<T>::TripleShuffleSacrifice(int B, int C) :
         ShuffleSacrifice(B, C)
-{
-}
-
-template<class T>
-TripleShuffleSacrifice<T>::TripleShuffleSacrifice(DataFieldType type) :
-        ShuffleSacrifice(BaseMachine::bucket_size(type))
 {
 }
 

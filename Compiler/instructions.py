@@ -1348,6 +1348,9 @@ class randoms(base.Instruction):
     arg_format = ['sw','int']
     field_type = 'modp'
 
+    def add_usage(self, req_node):
+        req_node.increment((self.field_type, 'cut random'), self.get_size())
+
 @base.vectorize
 class randomfulls(base.DataInstruction):
     """ Store share(s) of a fresh secret random element in secret
@@ -1365,6 +1368,12 @@ class randomfulls(base.DataInstruction):
         return len(self.args)
 
 class unsplit(base.VectorInstruction, base.Ciscable):
+    """ Bit injection (conversion from binary to arithmetic).
+
+    :param: destination (sint)
+    :param: source (sbits)
+
+    """
     __slots__ = []
     code = base.opcodes['UNSPLIT']
     arg_format = tools.chain(['sb'], itertools.repeat('sw'))
@@ -2568,6 +2577,12 @@ class dotprods(base.VarArgsInstruction, base.DataInstruction,
             for reg in self.args[i + 2:i + self.args[i]]:
                 yield reg
 
+    def add_usage(self, req_num):
+        base.DataInstruction.add_usage(self, req_num)
+        req_num.increment(
+            (self.field_type, 'dot product'),
+            self.get_size() * len(list(self.bases(iter(self.args)))))
+
 class matmul_base(base.DataInstruction):
     data_type = 'triple'
     is_vec = lambda self: True
@@ -2718,6 +2733,10 @@ class trunc_pr(base.VarArgsInstruction):
     code = base.opcodes['TRUNC_PR']
     arg_format = tools.cycle(['sw','s','int','int'])
 
+    def add_usage(self, req_node):
+        req_node.increment(('modp', 'probabilistic truncation'),
+                           self.get_size() * len(self.args) // 4)
+
 class shuffle_base(base.DataInstruction):
     n_relevant_parties = 2
 
@@ -2725,12 +2744,12 @@ class shuffle_base(base.DataInstruction):
         super(shuffle_base, self).__init__(*args, **kwargs)
         prog = base.program
         if re.match('ring|rep-field|sy-rep.*', prog.options.execute or ''):
-            ref = 'AHIK+22'
+            ref = 'AHIK+22', 'Protocol 3.2'
         elif prog.options.execute:
-            ref = 'KS14'
+            ref = 'KS14', 'Section 4.3'
         else:
-            ref = ('AHIK+22', 'KS14')
-        base.program.reading('secure shuffling', ref)
+            ref = ('AHIK+22', 'KS14'), None
+        base.program.reading('secure shuffling', *ref)
 
     @staticmethod
     def logn(n):
@@ -2741,26 +2760,39 @@ class shuffle_base(base.DataInstruction):
         logn = cls.logn(n)
         return logn * 2 ** logn - 2 ** logn + 1
 
-    def add_gen_usage(self, req_node, n):
+    @classmethod
+    def add_gen_usage(self, req_node, n, add_shuffles=True, malicious=True,
+                      n_relevant_parties=None):
         # hack for unknown usage
         req_node.increment(('bit', 'inverse'), float('inf'))
         # minimal usage with two relevant parties
         logn = self.logn(n)
         n_switches = self.n_swaps(n)
-        for i in range(self.n_relevant_parties):
+        n_relevant_parties = n_relevant_parties or self.n_relevant_parties
+        for i in range(n_relevant_parties):
             req_node.increment((self.field_type, 'input', i), n_switches)
-        # multiplications for bit check
-        req_node.increment((self.field_type, 'triple'),
-                           n_switches * self.n_relevant_parties)
+        if malicious:
+            # multiplications for bit check
+            req_node.increment((self.field_type, 'triple'),
+                               n_switches * n_relevant_parties)
+        if add_shuffles:
+            req_node.increment((self.field_type, 'shuffle generation', n))
 
-    def add_apply_usage(self, req_node, n, record_size):
+    @classmethod
+    def add_apply_usage(self, req_node, n, record_size, add_shuffles=True,
+                        malicious=True, n_relevant_parties=None):
         req_node.increment(('bit', 'inverse'), float('inf'))
         logn = self.logn(n)
-        n_switches = self.n_swaps(n) * self.n_relevant_parties
-        if n != 2 ** logn:
+        n_switches = self.n_swaps(n) * \
+            (n_relevant_parties or self.n_relevant_parties)
+        real_record_size = record_size
+        if n != 2 ** logn and malicious:
             record_size += 1
         req_node.increment((self.field_type, 'triple'),
                            n_switches * record_size)
+        if add_shuffles:
+            req_node.increment(
+                (self.field_type, 'shuffle application', n, real_record_size))
 
 @base.gf2n
 class secshuffle(base.VectorInstruction, shuffle_base):
@@ -2824,6 +2856,9 @@ class applyshuffle(shuffle_base, base.Mergeable):
         for i in range(0, len(self.args), 6):
             self.add_apply_usage(req_node, self.args[i], self.args[i + 3])
 
+    def handles(self):
+        return self.args[::4]
+
 class delshuffle(base.Instruction):
     """ Delete secure shuffle.
 
@@ -2874,7 +2909,7 @@ class sqrs(base.CISC):
     arg_format = ['sw', 's']
     
     def expand(self):
-        s = [program.curr_block.new_reg('s') for i in range(6)]
+        s = [type(self.args[0])() for i in range(6)]
         c = [self.args[0].clear_type() for i in range(2)]
         square(s[0], s[1])
         subs(s[2], self.args[1], s[0])

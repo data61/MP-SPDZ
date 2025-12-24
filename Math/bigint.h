@@ -134,8 +134,8 @@ public:
   void generateUniform(PRNG& G, int n_bits, bool positive = false)
   { G.get(*this, n_bits, positive); }
 
-  void pack(octetStream& os, int = -1) const { os.store(*this); }
-  void unpack(octetStream& os, int = -1)     { os.get(*this); };
+  void pack(octetStream& os, int = -1) const;
+  void unpack(octetStream& os, int = -1);
 
   size_t report_size(ReportType type) const;
 };

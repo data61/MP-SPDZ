@@ -1,6 +1,7 @@
 import math
 import operator
 from functools import reduce
+from Compiler.exceptions import *
 
 def format_trace(trace, prefix='  '):
     if trace is None:
@@ -91,8 +92,9 @@ def if_else(cond, a, b):
         else:
             return cond.if_else(a, b)
     except:
-        print(cond, a, b)
-        raise
+        raise CompilerError(
+            'incompatible types for ternary/if-else operator: %s' % '/'.join(
+                type(x).__name__ for x in (cond, a, b)))
 
 def cond_swap(cond, a, b):
     if isinstance(cond, (bool, int)):

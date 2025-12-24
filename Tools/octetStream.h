@@ -202,9 +202,9 @@ class octetStream
   char get_bits(int n_bits);
 
   /// Append big integer
-  void store(const bigint& x);
+  void store(const bigint& x, long n_bytes = -1);
   /// Read big integer
-  void get(bigint& ans);
+  void get(bigint& ans, long n_bytes = -1);
 
   /// Append instance of type implementing ``pack``
   template<class T>

@@ -28,7 +28,7 @@ void NaiveFFT(vector<modp>& ans,vector<modp>& a,int N,const modp& theta,const Zp
 
 void FFT(vector<modp>& a,int N,const modp& theta,const Zp_Data& PrD)
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   if (N==1) { return; }
 
@@ -141,7 +141,7 @@ void FFT_Iter(vector<modp>& ioput, int n, const modp& root, const Zp_Data& PrD,
 void FFT_Iter(vector<modp>& ioput, int n, const vector<modp>& roots,
         const Zp_Data& PrD, bool start_with_one)
 {
-    CODE_LOCATION
+    CODE_LOCATION_NO_SCOPE
 
     assert(roots.size() > size_t(n));
 

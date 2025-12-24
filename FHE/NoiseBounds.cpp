@@ -22,9 +22,9 @@ SemiHomomorphicNoiseBounds::SemiHomomorphicNoiseBounds(const bigint& p,
         sigma *= 1.4;
         params.set_R(params.get_R() * 1.4);
     }
-#ifdef VERBOSE
-    cerr << "Standard deviation: " << this->sigma << endl;
-#endif
+
+    if (OnlineOptions::singleton.has_option("verbose_he_setup"))
+        cerr << "Standard deviation: " << this->sigma << endl;
 
     produce_epsilon_constants();
 
@@ -40,24 +40,27 @@ SemiHomomorphicNoiseBounds::SemiHomomorphicNoiseBounds(const bigint& p,
     B_clean = max(B_clean_not_top_gear, B_clean_top_gear);
     B_scale = (c1 + c2 * V_s) * p * sqrt(phi_m / 12.0);
     int matrix_dim = params.get_matrix_dim();
-#ifdef NOISY
-    cout << "phi(m): " << phi_m << endl;
-    cout << "p * sqrt(phi(m) / 12): " << p * sqrt(phi_m / 12.0) << endl;
-    cout << "V_s: " << V_s << endl;
-    cout << "c1: " << c1 << endl;
-    cout << "c2: " << c2 << endl;
-    cout << "c1 + c2 * V_s: " << c1 + c2 * V_s << endl;
-    cout << "log(slack): " << slack << endl;
-    cout << "B_clean: " << B_clean << endl;
-    cout << "B_scale: " << B_scale << endl;
-    cout << "matrix dimension: " << matrix_dim << endl;
-    cout << "drown sec: " << params.secp() << endl;
-    cout << "sec: " << sec << endl;
-#endif
 
     assert(matrix_dim > 0);
     assert(params.secp() >= 0);
     drown = 1 + (p > 2 ? matrix_dim : 1) * n * (bigint(1) << params.secp());
+
+    if (OnlineOptions::singleton.has_option("verbose_he_setup"))
+    {
+        cerr << "phi(m): " << phi_m << endl;
+        cerr << "p * sqrt(phi(m) / 12): " << p * sqrt(phi_m / 12.0) << endl;
+        cerr << "V_s: " << V_s << endl;
+        cerr << "c1: " << c1 << endl;
+        cerr << "c2: " << c2 << endl;
+        cerr << "c1 + c2 * V_s: " << c1 + c2 * V_s << endl;
+        cerr << "log(slack): " << slack << endl;
+        cerr << "B_clean bits: " << B_clean.numBits() << endl;
+        cerr << "B_scale bits: " << B_scale.numBits() << endl;
+        cerr << "matrix dimension: " << matrix_dim << endl;
+        cerr << "drown sec: " << params.secp() << endl;
+        cerr << "sec: " << sec << endl;
+        cerr << "drown bits: " << drown.numBits() << endl;
+    }
 }
 
 bigint SemiHomomorphicNoiseBounds::min_p0(const bigint& p1)
@@ -118,7 +121,7 @@ void SemiHomomorphicNoiseBounds::produce_epsilon_constants()
 
 NoiseBounds::NoiseBounds(const bigint& p, int phi_m, int n, int sec, int slack,
         const FHE_Params& params) :
-        SemiHomomorphicNoiseBounds(p, phi_m, n, sec, slack, false, params)
+        SemiHomomorphicNoiseBounds(p, phi_m, n, sec, slack, sec, params)
 {
     B_KS = p * c2 * this->sigma * phi_m / sqrt(12);
 #ifdef NOISY

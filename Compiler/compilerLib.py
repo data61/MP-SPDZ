@@ -587,6 +587,12 @@ class Compiler:
             print("Cost:", 0 if self.prog.req_num is None else self.prog.req_num.cost())
             print("Memory size:", dict(self.prog.allocated_mem))
 
+        comm = self.prog.expected_communication()
+        if sum(comm):
+            print(
+                "Expected communication is %g MB online and %g MB offline." % \
+                (comm[0] / 1e6, comm[1] / 1e6))
+
         return self.prog
 
     match = {
@@ -607,6 +613,13 @@ class Compiler:
             return protocol + ".x"
         else:
             return protocol + "-party.x"
+
+    @classmethod
+    def short_protocol_name(cls, protocol):
+        for x in cls.match.items():
+            if protocol == x[1]:
+                return x[0]
+        return re.sub('^malicious-', 'mal-', protocol)
 
     def local_execution(self, args=None):
         if args is None:
@@ -651,6 +664,7 @@ class Compiler:
                 destinations.append('.')
         connections = [Connection(hostname) for hostname in hostnames]
         print("Setting up players...")
+        lockfile = ".transfer.lock"
 
         def run(i):
             dest = destinations[i]
@@ -658,6 +672,16 @@ class Compiler:
             connection.run(
                 "mkdir -p %s/{Player-Data,Programs/{Bytecode,Schedules}} " % \
                 dest)
+            dest_lockfile = "%s/%s" % (dest, lockfile)
+            try:
+                connection.run("test -e %s && exit 1; touch %s" % (
+                    (dest_lockfile,) * 2))
+            except:
+                raise Exception(
+                    "Problem with %s on %s. You cannot use the same directory "
+                    "for several instances (including the control instance). "
+                    "Remove %s on %s if this has been left behind from an "
+                    "aborted exection." % ((dest_lockfile, hostnames[i]) * 2))
             # executable
             connection.put("%s/static/%s" % (self.root, vm), dest)
             # program
@@ -676,10 +700,12 @@ class Compiler:
                                dest + "Player-Data")
             for filename in glob.glob("Player-Data/*.0"):
                 connection.put(filename, dest + "Player-Data")
+            connection.run("rm %s" % dest_lockfile)
 
         def run_with_error(i):
             try:
                 run(i)
+                copied[i] = True
             except IOError:
                 print('IO error when copying files, does %s have enough space?' %
                       hostnames[i])
@@ -693,13 +719,19 @@ class Compiler:
             out = fn(i)
             outputs[i] = out
 
+        open(lockfile, "w")
         threads = []
+        copied = [False] * len(hosts)
         for i in range(len(hosts)):
             threads.append(threading.Thread(target=run_with_error, args=(i,)))
         for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
+        os.remove(lockfile)
+        if False in copied:
+            print("Error in remote copying, see above")
+            sys.exit(1)
 
         # execution
         threads = []

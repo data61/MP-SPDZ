@@ -82,6 +82,8 @@ class PRNG
    PRNG();
    /// Initialize with ``SEED_SIZE`` bytes from buffer.
    PRNG(octetStream& seed);
+   /// Initialize with ``SEED_SIZE`` bytes from buffer.
+   PRNG(const string& seed);
 
    // For debugging
    void print_state() const;
@@ -105,6 +107,8 @@ class PRNG
    void SetSeed(PRNG& G);
    void InitSeed();
    
+   bool is_initialized();
+
    /// Random bit
    bool get_bit();
    /// Random bytes

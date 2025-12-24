@@ -107,6 +107,7 @@ PairwiseGenerator<typename T::clear::FD>& CowGearPrep<T>::get_generator()
             setup(P, proc->MC.get_alphai());
         else
             key_setup(P, proc->MC.get_alphai());
+        BaseMachine::add_one_off(P.total_comm());
     }
     lock.unlock();
     if (pairwise_generator == 0)

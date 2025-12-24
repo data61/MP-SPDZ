@@ -1,6 +1,7 @@
 
 #include "Tools/time-func.h"
 #include "Tools/Exceptions.h"
+#include "Processor/OnlineOptions.h"
 
 #include <assert.h>
 
@@ -105,4 +106,12 @@ Timer Timer::operator +(const Timer& other) const
 bool Timer::operator <(const Timer& other) const
 {
   return elapsed() < other.elapsed();
+}
+
+TimeScope::~TimeScope()
+{
+  if (OnlineOptions::singleton.has_option("verbose_comm_time"))
+    fprintf(stderr, "took %f seconds\n",
+	convert_ns_to_seconds(timer.elapsed_since_last_start()));
+  timer.stop();
 }

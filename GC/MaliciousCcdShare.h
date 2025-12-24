@@ -88,6 +88,9 @@ public:
     }
 };
 
+template<class T>
+const int MaliciousCcdShare<T>::default_length;
+
 } /* namespace GC */
 
 #endif /* GC_MALICIOUSCCDSHARE_H_ */

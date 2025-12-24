@@ -145,6 +145,9 @@ public:
     }
 };
 
+template<class T>
+const int TinierShare<T>::default_length;
+
 } /* namespace GC */
 
 #endif /* GC_TINIERSHARE_H_ */

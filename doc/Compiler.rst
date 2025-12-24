@@ -37,7 +37,7 @@ Compiler.GC.types module
 		     input_tensor_via, dot_product, Matrix, Tensor,
 		     from_sint, read_from_file, receive_from_client,
 		     reveal_to_clients, write_shares_to_socket,
-		     write_to_file
+		     write_to_file, sbitint, sbitfix
 
 Compiler.library module
 -----------------------

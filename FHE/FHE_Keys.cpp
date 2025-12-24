@@ -4,6 +4,7 @@
 #include "P2Data.h"
 #include "FFT_Data.h"
 #include "Tools/CodeLocations.h"
+#include "Processor/OnlineOptions.h"
 
 #include "Math/modp.hpp"
 
@@ -66,7 +67,7 @@ void FHE_PK::KeyGen(Rq_Element& sk, PRNG& G, int noise_boost)
 void FHE_PK::partial_key_gen(const Rq_Element& sk, const Rq_Element& a, PRNG& G,
     int noise_boost)
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   FHE_PK& PK = *this;
 
@@ -154,7 +155,7 @@ void FHE_PK::encrypt(Ciphertext& c,
 void FHE_PK::quasi_encrypt(Ciphertext& c,
                            const Rq_Element& mess,const Random_Coins& rc) const
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   if (&c.get_params()!=params)  { throw params_mismatch(); }
   if (&rc.get_params()!=params) { throw params_mismatch(); }
@@ -216,7 +217,7 @@ void FHE_SK::decrypt(Plaintext<T,FD,S>& mess,const Ciphertext& c) const
 
 Rq_Element FHE_SK::quasi_decrypt(const Ciphertext& c) const
 {
-  CODE_LOCATION
+  CODE_LOCATION_NO_SCOPE
 
   if (&c.get_params()!=params)  { throw params_mismatch(); }
 
@@ -284,6 +285,14 @@ void FHE_SK::dist_decrypt_1(vector<bigint>& vv,const Ciphertext& ctx,int player_
   PRNG G;  G.ReSeed();
   bigint mask;
   bigint two_Bd = 2 * Bd;
+
+  bool verbose = OnlineOptions::singleton.has_option("verbose_dd");
+  int max_bits = 0;
+
+  if (verbose)
+    cerr << "Random bits in distributed decryption: " << two_Bd.numBits()
+        << endl;
+
   for (int i=0; i<(*params).phi_m(); i++)
     {
       G.randomBnd(mask, two_Bd);
@@ -292,7 +301,13 @@ void FHE_SK::dist_decrypt_1(vector<bigint>& vv,const Ciphertext& ctx,int player_
       vv[i] += mask;
       vv[i] %= mod;
       if (vv[i]<0) { vv[i]+=mod; }
+
+      if (verbose)
+        max_bits = max(max_bits, vv[i].numBits());
     }
+
+  if (verbose)
+    cerr << "Maximum bits in distributed decryption: " << max_bits << endl;
 }
 
 

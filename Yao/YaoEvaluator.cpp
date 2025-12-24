@@ -100,3 +100,8 @@ void YaoEvaluator::receive_to_store(Player& P)
 		output_masks_store.push(output_masks);
 	}
 }
+
+NamedCommStats YaoEvaluator::extra_comm()
+{
+	return player.get_comm_stats();
+}

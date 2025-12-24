@@ -24,14 +24,24 @@ public:
         delete N;
     }
 
-    void send_to_no_stats(int player, const octetStream& o) const
+    void send_to(int player, const octetStream& o) const
     {
         P.send_to(player, o);
     }
 
-    void receive_player_no_stats(int i, octetStream& o) const
+    void receive_player(int i, octetStream& o) const
     {
         P.receive_player(i, o);
+    }
+
+    void send_to_no_stats(int, const octetStream&) const
+    {
+        throw not_implemented();
+    }
+
+    void receive_player_no_stats(int, octetStream&) const
+    {
+        throw not_implemented();
     }
 
     void send_receive_all_no_stats(const vector<vector<bool>>& channels,

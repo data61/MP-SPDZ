@@ -42,6 +42,8 @@ class Program
 
   size_t size() const { return p.size(); }
 
+  string get_name() const { return name; }
+
   // Read in a program
   void parse(string filename);
   void parse_with_error(string filename);

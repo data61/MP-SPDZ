@@ -202,7 +202,7 @@
             *dest++ = *op1++ > *op2++) \
     X(EQC, auto dest = &Ci[r[0]]; auto op1 = &Ci[r[1]]; auto op2 = &Ci[r[2]], \
             *dest++ = *op1++ == *op2++) \
-    X(PRINTINT, Proc.out << Proc.read_Ci(r[0]) << flush,) \
+    X(PRINTINT, print(Proc.out, &Proc.get_Ci_ref(r[0])),) \
     X(PRINTFLOATPREC, Proc.out << setprecision(n),) \
     X(PRINTSTR, Proc.out << string((char*)&n,4) << flush,) \
     X(PRINTCHR, Proc.out << string((char*)&n,1) << flush,) \

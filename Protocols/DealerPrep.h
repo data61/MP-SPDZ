@@ -9,10 +9,14 @@
 #include "ReplicatedPrep.h"
 #include "DealerMatrixPrep.h"
 
+template<class T> class DealerInput;
+
 template<class T>
 class DealerPrep : virtual public BitPrep<T>
 {
     friend class DealerMatrixPrep<T>;
+
+    DealerInput<typename T::bit_type>* bit_input_;
 
     template<int = 0>
     void buffer_inverses(true_type);
@@ -24,11 +28,18 @@ class DealerPrep : virtual public BitPrep<T>
     template<int = 0>
     void buffer_edabits(int n_bits, false_type);
 
+    template<size_t N, bool RANDOM = false>
+    void finalize(vector<array<T, N>>& items, size_t n_items);
+
+    DealerInput<typename T::bit_type>& get_bit_input();
+
 public:
     DealerPrep(SubProcessor<T>* proc, DataPositions& usage) :
-            BufferPrep<T>(usage), BitPrep<T>(proc, usage)
+            BufferPrep<T>(usage), BitPrep<T>(proc, usage), bit_input_(0)
     {
     }
+
+    ~DealerPrep();
 
     void buffer_triples();
     void buffer_inverses();

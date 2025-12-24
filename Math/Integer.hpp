@@ -15,7 +15,7 @@ inline void IntBase<T>::specification(octetStream& os)
 }
 
 template<class T>
-void IntBase<T>::output(ostream& s,bool human) const
+void IntBase<T>::output(ostream& s, bool human, bool) const
 {
   if (human)
     s << a;

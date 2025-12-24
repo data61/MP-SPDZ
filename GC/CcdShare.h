@@ -78,6 +78,9 @@ public:
     }
 };
 
+template<class T>
+const int CcdShare<T>::default_length;
+
 }
 
 #endif /* GC_CCDSHARE_H_ */

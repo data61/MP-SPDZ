@@ -230,3 +230,8 @@ void Zp_Data::get_shanks_parameters(bigint& y, bigint& q_half, int& r) const
   q_half = shanks_q_half;
   r = shanks_r;
 }
+
+string Zp_Data::fake_opts() const
+{
+    return "-P " + to_string(pr) + (montgomery ? "" : " -n");
+}

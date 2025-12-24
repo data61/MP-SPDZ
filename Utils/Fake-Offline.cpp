@@ -48,6 +48,7 @@ string prep_data_prefix;
 class FakeParams
 {
   int nplayers, default_num;
+  int n_edabits;
   bool zero;
 
 public:
@@ -97,10 +98,10 @@ public:
   void make_dabits(const KeySetup<T>& key, int N, int ntrip, bool zero, PRNG& G,
       const KeySetup<typename T::bit_type::part_type>& bit_key = { });
   template<class T>
-  void make_edabits(const KeySetup<T>& key, int N, int ntrip, bool zero, PRNG& G, false_type,
+  void make_edabits(const KeySetup<T>& key, int N, PRNG& G, false_type,
       const KeySetup<typename T::bit_type::part_type>& bit_key = {});
   template<class T>
-  void make_edabits(const KeySetup<T>&, int, int, bool, PRNG&, true_type,
+  void make_edabits(const KeySetup<T>&, int, PRNG&, true_type,
       const KeySetup<typename T::bit_type::part_type>& = {})
   {
   }
@@ -206,7 +207,7 @@ void FakeParams::make_dabits(const KeySetup<T>& key, int N, int ntrip, bool zero
 }
 
 template<class T>
-void FakeParams::make_edabits(const KeySetup<T>& key, int N, int ntrip, bool zero, PRNG& G, false_type,
+void FakeParams::make_edabits(const KeySetup<T>& key, int N, PRNG& G, false_type,
     const KeySetup<typename T::bit_type::part_type>& bit_key)
 {
   vector<int> lengths;
@@ -232,7 +233,7 @@ void FakeParams::make_edabits(const KeySetup<T>& key, int N, int ntrip, bool zer
       int n;
 
       if (usage.empty())
-        n = ntrip / max_size;
+        n = DIV_CEIL(n_edabits, max_size);
       else
         n = limit(usage.edabits[{false, length}] +
             usage.edabits[{true, length}]);
@@ -488,7 +489,7 @@ void FakeParams::make_basic(const KeySetup<T>& key, int nplayers,
     make_minimal<T>(key, nplayers, nitems, zero, G);
     make_square_tuples<T>(key, nplayers, nitems, T::type_short(), zero, G);
     make_dabits<T>(key, nplayers, nitems, zero, G, bit_key);
-    make_edabits<T>(key, nplayers, nitems, zero, G, T::clear::characteristic_two,
+    make_edabits<T>(key, nplayers, G, T::clear::characteristic_two,
         bit_key);
     if (not T::clear::characteristic_two)
         make_matrix_triples(key, G);
@@ -624,6 +625,15 @@ int main(int argc, const char** argv)
         "Number of GF(2) x GF(2^n) triples", // Help description.
         "-mixed", // Flag token.
         "--nbitgf2ntriples" // Flag token.
+  );
+  opt.add(
+        "", // Default.
+        0, // Required?
+        1, // Number of args expected.
+        0, // Delimiter if expecting multiple args.
+        "Number of edaBits", // Help description.
+        "-eda", // Flag token.
+        "--nedabits" // Flag token.
   );
   opt.add(
         "", // Default.
@@ -805,7 +815,7 @@ int FakeParams::generate()
 
   opt.get("--default")->getInt(default_num);
   ntrip2 = ntripp = nbits2 = nbitsp = nsqr2 = nsqrp = ninp2 = ninpp = ninv =
-      default_num;
+      n_edabits = default_num;
   
   if (opt.isSet("--ntriples"))
   {
@@ -833,6 +843,8 @@ int FakeParams::generate()
   }
   if (opt.isSet("--ninverses"))
     opt.get("--ninverses")->getInt(ninv);
+  if (opt.isSet("--nedabits"))
+    opt.get("--nedabits")->getInt(n_edabits);
 
   zero = opt.isSet("--zero");
   if (zero)
@@ -867,13 +879,13 @@ int FakeParams::generate()
     string p;
     opt.get("--prime")->getString(p);
     T::clear::init_field(p, not opt.isSet("--nontgomery"));
-    T::clear::template write_setup<T>(nplayers);
   }
   else
   {
-    T::clear::template generate_setup<T>(prep_data_prefix, nplayers, lgp);
     T::clear::init_default(lgp, not opt.isSet("--nontgomery"));
   }
+
+  T::clear::template write_setup<T>(nplayers);
 
   /* Find number players and MAC keys etc*/
   typedef Share<gf2n> sgf2n;
@@ -940,7 +952,7 @@ int FakeParams::generate()
   make_minimal<typename T::bit_type::part_type>(keytt, nplayers, default_num, zero, G);
 
   make_dabits<T>(keyp, nplayers, default_num, zero, G, keytt);
-  make_edabits<T>(keyp, nplayers, default_num, zero, G, false_type(), keytt);
+  make_edabits<T>(keyp, nplayers, G, false_type(), keytt);
 
   if (T::clear::prime_field)
     {

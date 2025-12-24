@@ -83,12 +83,6 @@ There a number of ways to solve this:
      y = check.if_else(1, y)
      print_ln_if(check, 'x is zero')
 
-If the condition is secret, for example, :py:obj:`x` is an
-:py:class:`~Compiler.types.sint` and thus ``x == 0`` is secret too,
-:py:func:`~Compiler.types.sint.if_else` is the only option because
-branching would reveal the secret. For the same reason,
-:py:func:`~Compiler.library.print_ln_if` doesn't work on secret values.
-
 Use ``bit_and`` etc. for more elaborate conditions::
 
   @if_(a.bit_and(b.bit_or(c)))
@@ -99,6 +93,33 @@ The underlying reason for this is that registers are only a
 placeholder during the execution in Python, the actual value of which
 is only defined in the virtual machine at a later time. See
 :ref:`journey` to get an understanding of the overall design.
+
+
+Cannot branch on secret values
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This message appears when you try to use branching on secret data
+types, for example::
+
+  x = sint(0)
+  if x:
+    y = 1
+  else:
+    y = 2
+
+Deciding whether to execute ``y = 1`` or ``y = 2`` would reveal ``x``,
+which contradicts the secrecy guarantee of
+:py:class:`~Compiler.types.sint`. However, you can use the following
+to achieve the desired ``y`` without revealing ``x``::
+
+  y = (x != 0).if_else(1, 2)
+
+If ``x`` is guaranteed to be 0 or 1, you can also use::
+
+  y = x.if_else(1, 2)
+
+If your use case permits revealing ``x``, see the previous section for
+considerations on branching with run-time values.
 
 
 Incorrect results when using :py:class:`~Compiler.types.sfix`

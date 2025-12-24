@@ -59,7 +59,7 @@ def EQZ(a, k):
         v = sbitvec(a, k).v
         bit = util.tree_reduce(operator.and_, (~b for b in v))
         return types.sintbit.conv(bit)
-    prog.reading('equality', 'ABZS13')
+    prog.reading('equality', 'CdH10', 'Protocol 3.7')
     return prog.non_linear.eqz(a, k)
 
 def bits(a,m):
@@ -313,9 +313,10 @@ def BitDecRingRaw(a, k, m):
         return bits[:m]
     else:
         if program.Program.prog.use_edabit():
-            r, r_bits = types.sint.get_edabit(m, strict=False)
+            r, r_bits = types.sint.get_edabit(m, strict=False, size=a.size)
         elif program.Program.prog.use_dabit:
-            r, r_bits = zip(*(types.sint.get_dabit() for i in range(m)))
+            r, r_bits = zip(*(types.sint.get_dabit(size=a.size)
+                              for i in range(m)))
             r = types.sint.bit_compose(r)
         else:
             r_bits = [types.sint.get_random_bit() for i in range(m)]
@@ -334,7 +335,8 @@ def BitDecRing(a, k, m):
     return [types.sintbit.conv(bit) for bit in reversed(bits)][::-1]
 
 def BitDecFieldRaw(a, k, m, bits_to_compute=None):
-    comparison.program.reading('bit decomposition', 'ABZS13')
+    comparison.program.reading('bit decomposition', 'CdH10-fixed',
+                               'Protocol 3.7')
     instructions_base.set_global_vector_size(a.size)
     r_dprime = types.sint()
     r_prime = types.sint()
@@ -362,7 +364,7 @@ def Pow2(a, l):
     return Pow2_from_bits(t)
 
 def Pow2_from_bits(bits):
-    comparison.program.reading('power of two', 'ABZS13')
+    comparison.program.reading('power of two', 'ABZS13', 'Section 3')
     m = len(bits)
     t = list(bits)
     pow2k = [None for i in range(m)]
@@ -419,7 +421,7 @@ def Trunc(a, l, m, compute_modulo=False, signed=False):
         return TruncInRing(a, l, Pow2(m, l))
     else:
         kappa = program.Program.prog.security
-    prog.reading('secret truncation', 'ABZS13')
+    prog.reading('secret truncation', 'ABZS13', 'Section 3')
     r = [types.sint() for i in range(l)]
     r_dprime = types.sint(0)
     r_prime = types.sint(0)
@@ -460,7 +462,7 @@ def Trunc(a, l, m, compute_modulo=False, signed=False):
 
 @instructions_base.ret_cisc
 def TruncInRing(to_shift, l, pow2m):
-    comparison.program.reading('secret truncation', 'DEK20')
+    comparison.program.reading('secret truncation', 'DEK20', 'Section 3.2.3')
     n_shift = int(program.Program.prog.options.ring) - l
     bits = util.bit_decompose(to_shift, l)
     rev = types.sint.bit_compose(reversed(bits))
@@ -564,7 +566,8 @@ def TruncPrRing(a, k, m, signed=True):
             res = sint()
             trunc_pr(res, a, k, m)
         else:
-            prog.reading('probabilistic truncation', 'CdH10-fixed')
+            prog.reading('probabilistic truncation', 'CdH10-fixed',
+                         'Protocol 3.1')
             # extra bit to mask overflow
             prog.curr_tape.require_bit_length(1)
             if prog.use_edabit() or prog.use_split() > 2:
@@ -594,7 +597,7 @@ def TruncPrField(a, k, m):
 
     program.Program.prog.trunc_pr_warning()
     prog = program.Program.prog
-    prog.reading('probabilistic truncation', 'CdH10-fixed')
+    prog.reading('probabilistic truncation', 'CdH10-fixed', 'Protocol 3.1')
     b = two_power(k-1) + a
     r_prime, r_dprime = types.sint(), types.sint()
     comparison.PRandM(r_dprime, r_prime, [types.sint() for i in range(m)],
@@ -632,7 +635,7 @@ def SDiv(a, b, l, round_nearest=False):
         x1 = comparison.TruncZeros(x - x2, 2 * l + 1, l, True)
     y = y * (x1 + two_power(l)) + (y * x2).round(2 * l, l, nearest=round_nearest,
                                                  signed=False)
-    y = y.round(2 * l + 1, l + 1, nearest=round_nearest)
+    y = y.round(2 * l + 1, l + 1, nearest=round_nearest, signed=False)
     return y
 
 def SDiv_mono(a, b, l):
@@ -684,7 +687,7 @@ def BITLT(a, b, bit_length):
 def BitDecFull(a, n_bits=None, maybe_mixed=False):
     from .library import get_program, do_while, if_, break_point
     from .types import sint, regint, longint, cint
-    get_program().reading('full bit decomposition', 'NO07')
+    get_program().reading('full bit decomposition', 'NO07', 'Figure 2')
     p = get_program().prime
     assert p
     bit_length = p.bit_length()
@@ -731,6 +734,7 @@ def BitDecFull(a, n_bits=None, maybe_mixed=False):
                         r = sint.get_edabit(bit_length, True)
                         bs[j].link(r[0])
                         tbits[j].link(sbitvec.from_vec(r[1]))
+                        tbits[j] = tbits[j].v
                     else:
                         for i in range(bit_length):
                             tbits[j][i].link(sint.get_random_bit())

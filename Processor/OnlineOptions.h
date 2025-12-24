@@ -15,6 +15,8 @@ class OnlineOptions
 {
     void finalize_with_error(ez::ezOptionParser& opt);
 
+    bool have_warned_about_comp_sec;
+
 public:
     static OnlineOptions singleton;
 
@@ -44,6 +46,7 @@ public:
     vector<string> options;
     string executable;
     bool code_locations;
+    bool semi_honest;
 
     OnlineOptions();
     OnlineOptions(ez::ezOptionParser& opt, int argc, const char** argv,
@@ -79,6 +82,11 @@ public:
     {
         return find(options.begin(), options.end(), option) != options.end();
     }
+
+    bool has_param(const string& param);
+    int get_param(const string& param);
+
+    int comp_sec();
 };
 
 #endif /* PROCESSOR_ONLINEOPTIONS_H_ */

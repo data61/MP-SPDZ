@@ -71,6 +71,7 @@ void secure_init(T& setup, Player& P, U& machine,
     string filename = PREP_DIR + T::name() + "-"
             + to_string(plaintext_length) + "-" + to_string(sec) + "-"
             + to_string(params.secp()) + "-"
+            + to_string(machine.comp_sec()) + "-"
             + to_string(params.get_matrix_dim()) + "-"
             + OnlineOptions::singleton.prime.get_str() + "-"
             + to_string(CowGearOptions::singleton.top_gear()) + "-P"
@@ -121,7 +122,7 @@ void secure_init(T& setup, Player& P, U& machine,
         os.output(file);
     }
 
-    if (OnlineOptions::singleton.verbose)
+    if (OnlineOptions::singleton.has_option("verbose_he"))
     {
         cerr << "Ciphertext length: " << params.p0().numBits();
         for (size_t i = 1; i < params.FFTD().size(); i++)
@@ -131,6 +132,7 @@ void secure_init(T& setup, Player& P, U& machine,
             cerr << "+" << DIV_CEIL(params.FFTD()[i].get_prime().numBits(), 64);
         cerr << " limbs)";
         cerr << endl;
+        cerr << "Number of slots: " << params.phi_m() << endl;
     }
 }
 

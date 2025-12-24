@@ -205,7 +205,7 @@ class closed_connection : public exception
 class no_singleton : public runtime_error
 {
 public:
-    no_singleton(string msg) :
+    no_singleton(string msg = "no singleton") :
             runtime_error(msg)
     {
     }

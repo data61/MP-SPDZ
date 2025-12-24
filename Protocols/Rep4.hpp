@@ -24,6 +24,8 @@ Rep4<T>::Rep4(Player& P) :
 
     for (int i = 1; i < 3; i++)
         rep_prngs[i].SetSeed(to_receive[P.get_player(i)].get_data());
+
+    malicious = not OnlineOptions::singleton.semi_honest;
 }
 
 template<class T>
@@ -32,6 +34,8 @@ Rep4<T>::Rep4(Player& P, prngs_type& prngs) :
 {
     for (int i = 0; i < 3; i++)
         rep_prngs[i].SetSeed(prngs[i]);
+
+    malicious = not OnlineOptions::singleton.semi_honest;
 }
 
 template<class T>
@@ -51,6 +55,9 @@ Rep4<T>::~Rep4()
 template<class T>
 void Rep4<T>::check()
 {
+    if (not malicious)
+        return;
+
     for (auto& x : channels)
         for (auto y : x)
             if (y)
@@ -122,7 +129,7 @@ void Rep4<T>::prepare_joint_input(int sender, int backup, int receiver,
         }
     }
 
-    if (P.my_num() == backup)
+    if (P.my_num() == backup and malicious)
     {
         send_hashes[sender][receiver].update(inputs, bit_lengths);
     }
@@ -188,8 +195,10 @@ void Rep4<T>::finalize_joint_input(int sender, int backup, int receiver,
         }
 
         os->consume(0);
-        receive_hashes[sender][backup].update(start,
-                os->get_data_ptr() - start);
+
+        if (malicious)
+            receive_hashes[sender][backup].update(start,
+                    os->get_data_ptr() - start);
     }
 }
 
@@ -389,15 +398,22 @@ void Rep4<T>::trunc_pr(const vector<int>& regs, int size,
             for (auto& c : cs)
                 (c[1] + c[0]).pack(c_os);
         P.send_to(2 + P.my_num(), c_os);
-        P.send_to(3 - P.my_num(), c_os.hash());
+
+        if (malicious)
+            P.send_to(3 - P.my_num(), c_os.hash());
     }
     else
     {
         P.receive_player(P.my_num() - 2, c_os);
-        octetStream hash;
-        P.receive_player(3 - P.my_num(), hash);
-        if (hash != c_os.hash())
-            throw runtime_error("hash mismatch in joint message passing");
+
+        if (malicious)
+        {
+            octetStream hash;
+            P.receive_player(3 - P.my_num(), hash);
+            if (hash != c_os.hash())
+                throw runtime_error("hash mismatch in joint message passing");
+        }
+
         PointerVector<open_type> open_cs;
         if (P.my_num() == 2)
             for (auto& c : cs)

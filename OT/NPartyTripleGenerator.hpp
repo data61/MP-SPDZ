@@ -243,16 +243,23 @@ void NPartyTripleGenerator<W>::generateInputs(int player)
     CODE_LOCATION
     typedef typename W::input_type::share_type::open_type T;
 
-    auto nTriplesPerLoop = this->nTriplesPerLoop * 10;
+    auto nTriplesPerLoop = this->nTriplesPerLoop;
     auto& valueBits = this->valueBits;
     auto& share_prg = this->share_prg;
     auto& ot_multipliers = this->ot_multipliers;
     auto& nparties = this->nparties;
     auto& globalPlayer = this->globalPlayer;
 
+    if (this->thread_num >= 0)
+        nTriplesPerLoop *= 10;
+
     // extra value for sacrifice
     int toCheck = nTriplesPerLoop
             + DIV_CEIL(W::mac_key_type::size_in_bits(), T::size_in_bits());
+
+    if (OnlineOptions::singleton.has_option("verbose_input"))
+        fprintf(stderr, "generating %d input tuples\n", toCheck);
+
     valueBits.resize(1);
     this->signal_multipliers({player, toCheck});
     bool mine = player == globalPlayer.my_num();

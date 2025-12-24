@@ -56,6 +56,8 @@ public:
 
     void join_tape();
     void finish();
+
+    virtual NamedCommStats extra_comm() { return {}; }
 };
 
 template<class T>

@@ -39,6 +39,8 @@ class Rep4 : public ProtocolBase<T>
 
     int my_num;
 
+    bool malicious;
+
     array<open_type, 5> get_addshares(const T& x, const T& y);
 
     void reset_joint_input(int n_inputs);

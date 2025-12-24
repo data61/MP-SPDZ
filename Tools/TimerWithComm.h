@@ -21,6 +21,7 @@ public:
     void start(const NamedCommStats& stats = {});
     void stop(const NamedCommStats& stats = {});
 
+    size_t bytes_sent() const;
     double mb_sent() const;
     size_t rounds() const;
 
