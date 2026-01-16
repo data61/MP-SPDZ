@@ -1,6 +1,6 @@
 from Compiler.compilerLib import Compiler
 from Compiler.types import sint, sfix, Array, Matrix
-from Compiler.library import print_ln, for_range
+from Compiler.library import print_ln, for_range_opt, for_range, for_range_multithread
 from argparse import ArgumentParser
 import sys
 from typing import Tuple
@@ -19,6 +19,7 @@ compiler = Compiler(usage=usage)
 compiler.parser.add_option("--num_parties", dest="num_parties", type=int)
 compiler.parser.add_option("--grid_size", dest="grid_size", type=int)
 compiler.parser.add_option("--query_size", dest="query_size", type=int)
+compiler.parser.add_option("--num_threads", dest="num_threads", type=int, default=4)
 
 
 @compiler.register_function("private_path_query")
@@ -37,19 +38,23 @@ def private_path_query():
             print("Error: query_size argument is required")
             sys.exit(1)
         print(
-            "Arguments: num_parties={}, grid_size={}, query_size={}".format(
+            "Arguments: num_parties={}, grid_size={}, query_size={}, num_threads={}".format(
                 compiler.options.num_parties,
                 compiler.options.grid_size,
                 compiler.options.query_size,
+                compiler.options.num_threads,
             )
         )
         return (
             compiler.options.num_parties,
             compiler.options.grid_size,
             compiler.options.query_size,
+            compiler.options.num_threads,
         )
 
-    def build_Q(num_parties: int, grid_size: int, query_size: int):
+    def build_Q(
+        num_parties: int, grid_size: int, query_size: int, num_threads: int
+    ) -> Tuple[Matrix, Matrix, int, int]:
         alice = 0
         path_length = (
             query_size + 1
@@ -80,16 +85,20 @@ def private_path_query():
 
         for bob in range(1, num_parties):
 
-            @for_range(grid_size)
+            @for_range_opt(grid_size)
             def _(r):
-                @for_range(grid_size)
+                @for_range_opt(grid_size)
                 def __(c):
                     idx = cell_idx(r, c)
                     d = sint.get_input_from(bob)  # 0 safe, 1 dangerous
                     danger_bits[idx] = (danger_bits[idx] + d) > 0
 
         # Now expand into N rows: row = cell index
-        @for_range(grid_size)
+        @for_range_multithread(
+            n_threads=num_threads,
+            n_parallel=(grid_size // num_threads) + 1,
+            n_loops=grid_size,
+        )
         def _(r):
             @for_range(grid_size)
             def __(c):
@@ -111,7 +120,7 @@ def private_path_query():
         qx[0] = currx
         qy[0] = curry
 
-        @for_range(1, path_length)
+        @for_range_opt(1, path_length)
         def _(i):
             dx = sint.get_input_from(alice)
             dy = sint.get_input_from(alice)
@@ -130,14 +139,18 @@ def private_path_query():
         )
 
         # For each step, add an active clause row that one-hots the visited cell in the POSITIVE half
-        @for_range(path_length)
+        @for_range_multithread(
+            n_threads=num_threads,
+            n_parallel=(path_length // num_threads) + 1,
+            n_loops=path_length,
+        )
         def _(i):
             row = n + i
             active[row][0] = sfix(1)
 
-            @for_range(grid_size)
+            @for_range_opt(grid_size)
             def __(r):
-                @for_range(grid_size)
+                @for_range_opt(grid_size)
                 def ___(c):
                     cell = cell_idx(r, c)
                     cond = (qx[i] == r) * (qy[i] == c)  # sint bit
@@ -149,8 +162,8 @@ def private_path_query():
     # -----------------------
     # MatSat solve loop (with active gating)
     # -----------------------
-    num_parties, grid_size, query_size = get_arg_info()
-    Q, active, n, m = build_Q(num_parties, grid_size, query_size)
+    num_parties, grid_size, query_size, num_threads = get_arg_info()
+    Q, active, n, m = build_Q(num_parties, grid_size, query_size, num_threads)
 
     # Use MatSat solve from utility class with active gating
     u_tilde, u, is_solved = MatSatUtils.solve_matsat(
@@ -162,6 +175,7 @@ def private_path_query():
         beta=sfix(0.5),
         max_try=5,
         max_itr=10,
+        num_threads=num_threads,
         print_results=True,
     )
 
