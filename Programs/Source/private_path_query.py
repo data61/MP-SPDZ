@@ -175,7 +175,6 @@ def private_path_query():
         beta=sfix(0.5),
         max_try=5,
         max_itr=10,
-        num_threads=num_threads,
         print_results=True,
     )
 
