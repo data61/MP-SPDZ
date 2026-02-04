@@ -279,3 +279,61 @@ class MatSatUtils:
             print_ln("is_solved = %s", is_solved.reveal())
 
         return u_tilde, u, is_solved
+
+    @staticmethod
+    def save_posterior(matrix: Matrix, n: int):
+        """
+        Saves an n×n matrix of sfix to file.
+
+        Args:
+            matrix: Matrix of size (n x n) with sfix elements
+            n: Dimension of the square matrix
+
+        The matrix is saved row by row (flattened).
+        """
+        # Flatten matrix to list (row by row)
+        matrix_list = []
+        for i in range(n):
+            for j in range(n):
+                matrix_list.append(matrix[i][j])
+
+        # Write to file
+        sfix.write_to_file(matrix_list)
+
+    @staticmethod
+    def load_prior(
+        n: int,
+        iteration_no: int,
+    ) -> Matrix:
+        """
+        Loads an n×n matrix of sfix from file.
+
+        Args:
+            n: Dimension of the square matrix
+            iteration_no: index of iterations, if it is the first iteration, it should be 0 and we provide a default prior
+
+
+        Returns:
+            Tuple of (matrix, stop_position) where:
+            - matrix: Matrix of size (n x n) with sfix elements
+            - stop_position: Final position in file after reading (regint)
+        """
+
+        if iteration_no == 0:
+            matrix = Matrix(n, n, sfix)
+            matrix.assign_all(sfix(0.5))
+            return matrix
+        
+        # Read n*n elements from file
+        num_elements = n * n
+        stop_pos, values_list = sfix.read_from_file(
+            start=iteration_no - 1, n_items=num_elements, crash_if_missing=True
+        )
+
+        # Reconstruct matrix from flat list (row by row)
+        matrix = Matrix(n, n, sfix)
+        for i in range(n):
+            for j in range(n):
+                matrix[i][j] = values_list[i * n + j]
+
+        return matrix, stop_pos
