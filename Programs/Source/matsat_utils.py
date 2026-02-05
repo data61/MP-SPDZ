@@ -1,6 +1,8 @@
-from Compiler.types import sint, sfix, Matrix
+from Compiler.types import sint, sfix, Matrix, Array, MemValue
 from Compiler.library import for_range
+from Compiler.mpc_math import log_fx
 from typing import Optional, Tuple
+import math
 
 
 class MatSatUtils:
@@ -47,6 +49,75 @@ class MatSatUtils:
             b[i][0] = sfix.less_than(a[i][0], theta)
 
         return b
+
+    @staticmethod
+    def entropy(p: sfix) -> sfix:
+        """
+        Computes the entropy of a probability: H(p) = -(p * log(p) + (1-p) * log(1-p))
+
+        Args:
+            p: Probability value (sfix)
+
+        Returns:
+            Entropy value (sfix)
+        """
+        eps = sfix(1e-12)
+        one = sfix(1)
+
+        # Clamp p to [eps, 1-eps] to avoid log(0)
+        p_clamped = (p < eps).if_else(eps, (p > (one - eps)).if_else(one - eps, p))
+
+        # Compute log(p) and log(1-p) using natural logarithm
+        log_p = log_fx(p_clamped, math.e)
+        log_one_minus_p = log_fx(one - p_clamped, math.e)
+
+        # H(p) = -(p * log(p) + (1-p) * log(1-p))
+        entropy_val = -(p_clamped * log_p + (one - p_clamped) * log_one_minus_p)
+        return entropy_val
+
+    @staticmethod
+    def total_entropy(matrix: Matrix, n: int) -> sfix:
+        """
+        Computes the total entropy of a probability matrix.
+        Sum of entropies of all cells: sum_i sum_j H(p_ij)
+
+        Args:
+            matrix: Probability matrix of size (n x n) with sfix elements
+            n: Dimension of the matrix
+
+        Returns:
+            Total entropy (sfix)
+        """
+        total = sfix(0)
+
+        @for_range(n)
+        def _(i):
+            @for_range(n)
+            def __(j):
+                nonlocal total
+                cell_entropy = MatSatUtils.entropy(matrix[i][j])
+                total.update(total + cell_entropy)
+
+        return total
+
+    @staticmethod
+    def information_gain(prior: Matrix, posterior: Matrix, n: int) -> sfix:
+        """
+        Computes information gain from Bayesian update.
+        Information gain = H(prior) - H(posterior)
+
+        Args:
+            prior: Prior probability matrix of size (n x n)
+            posterior: Posterior probability matrix of size (n x n)
+            n: Dimension of the matrix
+
+        Returns:
+            Information gain (sfix)
+        """
+        entropy_before = MatSatUtils.total_entropy(prior, n)
+        entropy_after = MatSatUtils.total_entropy(posterior, n)
+        info_gain = entropy_before - entropy_after
+        return info_gain
 
     @staticmethod
     def compute_Q_diff(Q: Matrix, m: int, n: int) -> Tuple[Matrix, Matrix]:
@@ -323,7 +394,7 @@ class MatSatUtils:
             matrix = Matrix(n, n, sfix)
             matrix.assign_all(sfix(0.5))
             return matrix
-        
+
         # Read n*n elements from file
         num_elements = n * n
         stop_pos, values_list = sfix.read_from_file(
@@ -337,3 +408,112 @@ class MatSatUtils:
                 matrix[i][j] = values_list[i * n + j]
 
         return matrix, stop_pos
+
+    @staticmethod
+    def update_prior(
+        prior: Matrix,
+        qx: Array,
+        qy: Array,
+        n: int,
+        path_length: int,
+        is_solved: sint,
+    ) -> Tuple[Matrix, sfix]:
+        """
+        Performs Bayesian update on prior probability matrix based on path observation.
+
+        If is_solved == 1 (safe path): sets all visited cells to probability 0.
+        If is_solved == 0 (unsafe path): updates probabilities using Bayes' rule:
+            p'_k = p_k / P(unsafe)
+        where P(unsafe) = 1 - P(all safe) = 1 - product(1 - p_i) for all visited cells.
+
+        Args:
+            prior: Prior probability matrix of size (n x n) with sfix elements
+            qx: Array of x-coordinates of visited cells, length is path_length
+            qy: Array of y-coordinates of visited cells, length is path_length
+            n: Dimension of the grid (n x n)
+            path_length: Number of cells in the path
+            is_solved: sint (1 if path is safe, 0 if unsafe)
+
+        Returns:
+            Tuple of (posterior_matrix, information_gain) where:
+            - posterior_matrix: Updated probability matrix of size (n x n)
+            - information_gain: Information gain from the update (sfix)
+        """
+        # Small epsilon to avoid division by zero and exact 0/1
+        eps = sfix(1e-12)
+        one = sfix(1)
+
+        # Collect probabilities of visited cells and compute P(all safe)
+        # P(all safe) = product of (1 - p_i) for all visited cells
+        p_all_safe = MemValue(sfix(1))
+
+        @for_range(path_length)
+        def _(i):
+            # Get probability at visited cell (qx[i], qy[i])
+            # We need to extract the probability from the prior matrix
+            p_i = MemValue(sfix(0))
+
+            @for_range(n)
+            def __(r):
+                @for_range(n)
+                def ___(c):
+                    matches = (qx[i] == r) * (qy[i] == c)  # sint bit
+                    p_i.write(
+                        sfix(matches) * prior[r][c]
+                        + (sfix(1) - sfix(matches)) * p_i.read()
+                    )
+
+            # Accumulate P(all safe) = product of (1 - p_i)
+            p_all_safe.write(p_all_safe.read() * (one - p_i.read()))
+
+        # Compute P(unsafe) = 1 - P(all safe), with epsilon to avoid division by zero
+        p_unsafe = one - p_all_safe.read()
+        p_unsafe = p_unsafe + eps  # Add epsilon to avoid exact zero
+
+        # Create posterior matrix
+        posterior = Matrix(n, n, sfix)
+        safe_mask = sfix(is_solved)
+        unsafe_mask = sfix(1) - safe_mask
+
+        @for_range(n)
+        def _(i):
+            @for_range(n)
+            def __(j):
+                # Check if this cell was visited
+                was_visited = MemValue(sint(0))
+
+                @for_range(path_length)
+                def ___(k):
+                    matches = (qx[k] == i) * (qy[k] == j)
+                    was_visited.write(was_visited.read() + matches)
+
+                was_visited_bit = sfix(was_visited.read() > sint(0))
+
+                # Get prior probability
+                p_prior = prior[i][j]
+
+                # Update logic:
+                # - If safe (is_solved == 1) and visited: set to eps (near 0)
+                # - If unsafe (is_solved == 0) and visited: p_post = p_prior / p_unsafe
+                # - If not visited: keep prior
+                p_post = (
+                    was_visited_bit
+                    * (
+                        safe_mask * eps  # Safe: set to epsilon (near 0)
+                        + unsafe_mask * (p_prior / p_unsafe)  # Unsafe: Bayesian update
+                    )
+                    + (sfix(1) - was_visited_bit) * p_prior  # Not visited: keep prior
+                )
+
+                # Clamp to [eps, 1-eps] to avoid exact 0/1
+                # Use if_else on comparison results
+                p_post_clamped = (p_post < eps).if_else(
+                    eps, (p_post > (one - eps)).if_else(one - eps, p_post)
+                )
+
+                posterior[i][j] = p_post_clamped
+
+        # Compute information gain
+        info_gain = MatSatUtils.information_gain(prior, posterior, n)
+
+        return posterior, info_gain
