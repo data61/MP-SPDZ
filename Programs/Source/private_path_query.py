@@ -236,7 +236,7 @@ def private_path_query():
         def __(j):
             print_ln("posterior[%s][%s] = %s", i, j, posterior[i][j].reveal())
 
-    print_ln("Information gain= %s", info_gain.reveal())
+    print_ln("information_gain= %s", info_gain.reveal())
     print_ln("is_solved= %s", is_solved.reveal())
 
     # Save posterior for next iteration
