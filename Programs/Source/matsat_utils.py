@@ -375,7 +375,7 @@ class MatSatUtils:
     def load_prior(
         n: int,
         iteration_no: int,
-    ) -> Matrix:
+    ) -> Tuple[Matrix, int]:
         """
         Loads an n×n matrix of sfix from file.
 
@@ -383,22 +383,23 @@ class MatSatUtils:
             n: Dimension of the square matrix
             iteration_no: index of iterations, if it is the first iteration, it should be 0 and we provide a default prior
 
-
         Returns:
             Tuple of (matrix, stop_position) where:
             - matrix: Matrix of size (n x n) with sfix elements
-            - stop_position: Final position in file after reading (regint)
+            - stop_position: Final position in file after reading (regint), or 0 for iteration_no == 0
         """
 
         if iteration_no == 0:
             matrix = Matrix(n, n, sfix)
             matrix.assign_all(sfix(0.5))
-            return matrix
+            return matrix, 0  # Return consistent tuple format
 
         # Read n*n elements from file
+        # Each save writes n*n elements, so offset is (iteration_no - 1) * n * n
         num_elements = n * n
+        start_offset = (iteration_no - 1) * num_elements
         stop_pos, values_list = sfix.read_from_file(
-            start=iteration_no - 1, n_items=num_elements, crash_if_missing=True
+            start=start_offset, n_items=num_elements, crash_if_missing=True
         )
 
         # Reconstruct matrix from flat list (row by row)
@@ -444,27 +445,31 @@ class MatSatUtils:
         one = sfix(1)
 
         # Collect probabilities of visited cells and compute P(all safe)
-        # P(all safe) = product of (1 - p_i) for all visited cells
+        # P(all safe) = product of (1 - p_k) for all UNIQUE visited cells
+        # We need to track which cells were visited to avoid double-counting
         p_all_safe = MemValue(sfix(1))
 
-        @for_range(path_length)
-        def _(i):
-            # Get probability at visited cell (qx[i], qy[i])
-            # We need to extract the probability from the prior matrix
-            p_i = MemValue(sfix(0))
-
+        # For each unique cell, compute (1 - p_k) and multiply into p_all_safe
+        @for_range(n)
+        def _(r):
             @for_range(n)
-            def __(r):
-                @for_range(n)
-                def ___(c):
-                    matches = (qx[i] == r) * (qy[i] == c)  # sint bit
-                    p_i.write(
-                        sfix(matches) * prior[r][c]
-                        + (sfix(1) - sfix(matches)) * p_i.read()
-                    )
+            def __(c):
+                # Check if this cell was visited at least once
+                was_visited = MemValue(sint(0))
 
-            # Accumulate P(all safe) = product of (1 - p_i)
-            p_all_safe.write(p_all_safe.read() * (one - p_i.read()))
+                @for_range(path_length)
+                def ___(i):
+                    matches = (qx[i] == r) * (qy[i] == c)  # sint bit
+                    was_visited.write(was_visited.read() + matches)
+
+                # If cell was visited, multiply (1 - p_k) into p_all_safe
+                visited_bit = sfix(was_visited.read() > sint(0))
+                p_k = prior[r][c]
+                # Only multiply if visited: visited_bit * (1 - p_k) + (1 - visited_bit) * 1
+                p_all_safe.write(
+                    p_all_safe.read()
+                    * (visited_bit * (one - p_k) + (one - visited_bit) * one)
+                )
 
         # Compute P(unsafe) = 1 - P(all safe), with epsilon to avoid division by zero
         p_unsafe = one - p_all_safe.read()

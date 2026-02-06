@@ -26,11 +26,10 @@ def test_load_prior():
     print_ln("Loading matrix from file (n=%s, iteration_no=%s)...", n, iteration_no)
 
     # Load the matrix
+    matrix, stop_pos = MatSatUtils.load_prior(n, iteration_no)
     if iteration_no == 0:
-        matrix = MatSatUtils.load_prior(n, iteration_no)
         print_ln("Using default prior matrix (iteration_no=0)")
     else:
-        matrix, stop_pos = MatSatUtils.load_prior(n, iteration_no)
         print_ln("Loaded matrix from file (stop_pos=%s)", stop_pos)
 
     # Print the loaded matrix
