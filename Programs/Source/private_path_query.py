@@ -208,11 +208,7 @@ def private_path_query():
 
     # Load prior and update using is_solved
     iteration_no = compiler.options.iteration_no or 0
-    prior_result = MatSatUtils.load_prior(grid_size, iteration_no)
-    if iteration_no == 0:
-        prior = prior_result
-    else:
-        prior, _ = prior_result
+    prior, _ = MatSatUtils.load_prior(grid_size, iteration_no)
 
     # Print prior matrix
     print_ln("=== Prior Matrix (iteration_no=%s) ===", iteration_no)
@@ -236,7 +232,7 @@ def private_path_query():
         def __(j):
             print_ln("posterior[%s][%s] = %s", i, j, posterior[i][j].reveal())
 
-    print_ln("Information gain= %s", info_gain.reveal())
+    print_ln("information_gain= %s", info_gain.reveal())
     print_ln("is_solved= %s", is_solved.reveal())
 
     # Save posterior for next iteration
