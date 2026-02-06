@@ -148,7 +148,7 @@ class MatSatUtils:
         beta: sfix = None,
         max_try: int = 5,
         max_itr: int = 10,
-        print_results: bool = True,
+        print_results: bool = False,
     ) -> Tuple[Matrix, Matrix, sint]:
         """
         MatSat solve algorithm.
