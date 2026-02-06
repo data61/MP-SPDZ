@@ -19,6 +19,7 @@ compiler = Compiler(usage=usage)
 compiler.parser.add_option("--num_parties", dest="num_parties", type=int)
 compiler.parser.add_option("--grid_size", dest="grid_size", type=int)
 compiler.parser.add_option("--query_size", dest="query_size", type=int)
+compiler.parser.add_option("--iteration_no", dest="iteration_no", type=int, default=0)
 compiler.parser.add_option("--num_threads", dest="num_threads", type=int, default=4)
 
 
@@ -52,14 +53,60 @@ def private_path_query():
             compiler.options.num_threads,
         )
 
-    def build_Q(
-        num_parties: int, grid_size: int, query_size: int, num_threads: int
-    ) -> Tuple[Matrix, Matrix, int, int]:
+    def create_path(query_size: int) -> Tuple[Array, Array, int]:
+        """
+        Creates Alice's path from input.
+
+        Args:
+            query_size: Number of steps in the path (excluding starting position)
+
+        Returns:
+            Tuple of (qx, qy, path_length) where:
+            - qx: Array of x-coordinates
+            - qy: Array of y-coordinates
+            - path_length: Total length of path (query_size + 1)
+        """
         alice = 0
         path_length = (
             query_size + 1
         )  # Alice sends initial starting location and then query_size steps
 
+        qx = Array(path_length, sint)
+        qy = Array(path_length, sint)
+
+        currx, curry = sint.get_input_from(alice), sint.get_input_from(alice)
+        qx[0] = currx
+        qy[0] = curry
+
+        @for_range_opt(1, path_length)
+        def _(i):
+            dx = sint.get_input_from(alice)
+            dy = sint.get_input_from(alice)
+
+            currx.update(currx + dx)
+            curry.update(curry + dy)
+
+            qx[i] = currx
+            qy[i] = curry
+
+        print_ln("ALice path length is %s", path_length)
+
+        print_ln(
+            "Alice path x: %s",
+            [(qx[i].reveal(), qy[i].reveal()) for i in range(path_length)],
+        )
+
+        return qx, qy, path_length
+
+    def build_Q(
+        num_parties: int,
+        grid_size: int,
+        query_size: int,
+        num_threads: int,
+        qx: Array,
+        qy: Array,
+        path_length: int,
+    ) -> Tuple[Matrix, Matrix, int, int]:
         n = grid_size * grid_size  # number of variables
         lit_len = 2 * n  # positive + negative literals
         m = n + path_length  # N (number of rows) bob-rows + path rows
@@ -112,32 +159,6 @@ def private_path_query():
                     d
                 )  # if d=0 this stays 0; gated by active anyway
 
-        # --- Alice path rows (positive literals x_cell for visited cells) ---
-        qx = Array(path_length, sint)
-        qy = Array(path_length, sint)
-
-        currx, curry = sint.get_input_from(alice), sint.get_input_from(alice)
-        qx[0] = currx
-        qy[0] = curry
-
-        @for_range_opt(1, path_length)
-        def _(i):
-            dx = sint.get_input_from(alice)
-            dy = sint.get_input_from(alice)
-
-            currx.update(currx + dx)
-            curry.update(curry + dy)
-
-            qx[i] = currx
-            qy[i] = curry
-
-        print_ln("ALice path length is %s", path_length)
-
-        print_ln(
-            "Alice path x: %s",
-            [(qx[i].reveal(), qy[i].reveal()) for i in range(path_length)],
-        )
-
         # For each step, add an active clause row that one-hots the visited cell in the POSITIVE half
         @for_range_multithread(
             n_threads=num_threads,
@@ -163,7 +184,14 @@ def private_path_query():
     # MatSat solve loop (with active gating)
     # -----------------------
     num_parties, grid_size, query_size, num_threads = get_arg_info()
-    Q, active, n, m = build_Q(num_parties, grid_size, query_size, num_threads)
+
+    # Create path first
+    qx, qy, path_length = create_path(query_size)
+
+    # Build Q matrix using the path
+    Q, active, n, m = build_Q(
+        num_parties, grid_size, query_size, num_threads, qx, qy, path_length
+    )
 
     # Use MatSat solve from utility class with active gating
     u_tilde, u, is_solved = MatSatUtils.solve_matsat(
@@ -177,6 +205,42 @@ def private_path_query():
         max_itr=10,
         print_results=True,
     )
+
+    # Load prior and update using is_solved
+    iteration_no = compiler.options.iteration_no or 0
+    prior_result = MatSatUtils.load_prior(grid_size, iteration_no)
+    if iteration_no == 0:
+        prior = prior_result
+    else:
+        prior, _ = prior_result
+
+    # Print prior matrix
+    print_ln("=== Prior Matrix (iteration_no=%s) ===", iteration_no)
+
+    @for_range(grid_size)
+    def _(i):
+        @for_range(grid_size)
+        def __(j):
+            print_ln("prior[%s][%s] = %s", i, j, prior[i][j].reveal())
+
+    posterior, info_gain = MatSatUtils.update_prior(
+        prior, qx, qy, grid_size, path_length, is_solved
+    )
+
+    # Print posterior matrix and information gain
+    print_ln("=== Posterior Matrix ===")
+
+    @for_range(grid_size)
+    def _(i):
+        @for_range(grid_size)
+        def __(j):
+            print_ln("posterior[%s][%s] = %s", i, j, posterior[i][j].reveal())
+
+    print_ln("Information gain= %s", info_gain.reveal())
+    print_ln("is_solved= %s", is_solved.reveal())
+
+    # Save posterior for next iteration
+    MatSatUtils.save_posterior(posterior, grid_size)
 
 
 if __name__ == "__main__":
