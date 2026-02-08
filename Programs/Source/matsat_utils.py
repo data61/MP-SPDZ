@@ -340,11 +340,11 @@ class MatSatUtils:
                 u_tilde[i][0] = mask * perturbed + (sfix(1) - mask) * u_tilde[i][0]
 
             # Print results if requested (after each try, matching original behavior)
-            if print_results:
+            #if print_results:
 
-                @for_range(n)
-                def _(i):
-                    print_ln("u[%s] = %s", i, u[i][0].reveal())
+                #@for_range(n)
+                #def _(i):
+                    #print_ln("u[%s] = %s", i, u[i][0].reveal())
 
         if print_results:
             print_ln("is_solved = %s", is_solved.reveal())
