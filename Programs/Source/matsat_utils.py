@@ -149,7 +149,8 @@ class MatSatUtils:
         max_try: int = 5,
         max_itr: int = 10,
         print_results: bool = False,
-    ) -> Tuple[Matrix, Matrix, sint]:
+        weighted: bool = True,
+    ) -> Tuple[Matrix, Matrix, sint, sfix]:
         """
         MatSat solve algorithm.
 
@@ -165,6 +166,7 @@ class MatSatUtils:
             max_try: Maximum number of tries.
             max_itr: Maximum number of iterations per try.
             print_results: Whether to print results.
+            weighted: Whether to run the unweighted/weighted version of MatSat
 
         Returns:
             Tuple of (u_tilde, u, is_solved) where:
@@ -186,6 +188,52 @@ class MatSatUtils:
         two_n = MatSatUtils.create_constant_vector(n, 2)
         l_n = MatSatUtils.create_constant_vector(n, l)
 
+        w_v, w_v_sq, w_c = None, None, None
+
+        if weighted:
+            # Weight vectors for weighted MATSAT
+            w_v = MatSatUtils.create_constant_vector(n, 1)  # Variable weights
+            w_v_sq = MatSatUtils.create_constant_vector(n, 1)
+            w_c = MatSatUtils.create_constant_vector(m, 1)  # Clause weights
+
+            Q_t = Q.transpose()
+            col_sums = Q_t.dot(one_m)
+            raw_variable_counts = Matrix(n, 1, sfix)
+            total_count = sfix(0)
+
+            @for_range(n)
+            def _(i):
+                count = col_sums[i][0] + col_sums[i + n][0]
+                raw_variable_counts[i][0] = count
+                total_count.update(total_count + count)
+
+            avg_weight = total_count / n
+
+            # Normalize w_v
+            @for_range(n)
+            def _(i):
+                val = raw_variable_counts[i][0] / avg_weight
+                w_v[i][0] = val
+                w_v_sq[i][0] = val * val
+
+            # [IMPORTANT] This efectively replaces the old clause active gating
+            # logic. If there is an active weight vector as input, then we are
+            # solving for weighted MAXSAT.
+            if active is not None:
+                w_c = active
+            else:
+                w_v_expanded = Matrix(2 * n, 1, sfix)
+
+                @for_range(n)
+                def _(i):
+                    val = w_v[i][0]
+                    w_v_expanded[i][0] = val
+                    w_v_expanded[i + n][0] = val
+
+                w_c = Q.dot(w_v_expanded)
+
+            # End of weighted setup
+
         # Initialize relaxed assignment u_tilde in [0,1]^n
         u_tilde = Matrix(n, 1, sfix)
 
@@ -197,6 +245,7 @@ class MatSatUtils:
         err = sfix(0)
         is_solved = sint(0)
 
+        # -- Main optimization loop --
         # Outer try loop
         @for_range(max_try)
         def _(try_idx):
@@ -219,51 +268,59 @@ class MatSatUtils:
                 Q_utilde_d = Q.dot(u_tilde_d)  # m x 1
 
                 # Compute satisfaction with optional active gating
-                if active is not None:
-                    # sat_i = active_i * min1(Q·u_d) + (1-active_i)*1
-                    sat = Matrix(m, 1, sfix)
+                min1_Q_utilde_d = Matrix(m, 1, sfix)
 
-                    @for_range(m)
-                    def ___(i):
-                        a = active[i][0]
-                        sat[i][0] = a * MatSatUtils.min1(Q_utilde_d[i][0]) + (
-                            sfix(1) - a
-                        ) * sfix(1)
+                @for_range(m)
+                def ___(i):
+                    min1_Q_utilde_d[i][0] = MatSatUtils.min1(Q_utilde_d[i][0])
 
-                    # Jsat = sum_i (1 - sat_i) + regularizer
-                    jsat_first_term = one_m.dot((one_m - sat).transpose())
+                # Cost calculation
+                if weighted:
+                    # Jsat_w = 1_{m \times 1} \dot (w_c \odot (1_{m \times 1} -
+                    # \min_1(Q\tilde{u}^d))) + \|w_c \odot \tilde{u} \odot (1_{n
+                    # \times 1} - \tilde{u})\|_2^2
+                    jsat_first_term = one_m.transpose().dot(
+                        w_c.schur(one_m - min1_Q_utilde_d)
+                    )
+                    jsat_reg_term = (l / 2) * MatSatUtils.vector_norm(
+                        w_v.schur(u_tilde.schur(one_n - u_tilde))
+                    )
+
                 else:
-                    # Without active gating: sat_i = min1(Q·u_d)
-                    min1_Q_utilde_d = Matrix(m, 1, sfix)
+                    # Jsat = 1_{m \times 1} \dot (1_{m \times 1} - \min_1(Q\tilde{u}^d)))
+                    jsat_first_term = one_m.transpose().dot(one_m - min1_Q_utilde_d)
+                    jsat_reg_term = (l / 2) * MatSatUtils.vector_norm(
+                        u_tilde.schur(one_n - u_tilde)
+                    )
 
-                    @for_range(m)
-                    def ___(i):
-                        min1_Q_utilde_d[i][0] = MatSatUtils.min1(Q_utilde_d[i][0])
-
-                    # Jsat = sum_i (1 - min1(Q·u_d)) + regularizer
-                    jsat_first_term = one_m.dot((one_m - min1_Q_utilde_d).transpose())
-
-                jsat_reg_term = (l / 2) * MatSatUtils.vector_norm(
-                    u_tilde.schur(one_n - u_tilde)
-                )
                 jsat = jsat_first_term[0][0] + jsat_reg_term
 
+                # Jacobian calculation
+
                 # Compute bin_Qud = 1{ Q·u_d < 1 }
-                if active is not None:
-                    # Gate by active so inactive rows contribute 0
-                    bin_Qud = Matrix(m, 1, sfix)
+                bin_Qud = MatSatUtils.less_than_threshold(Q_utilde_d, sfix(1))
 
-                    @for_range(m)
-                    def ___(i):
-                        bin_Qud[i][0] = active[i][0] * (Q_utilde_d[i][0] < sfix(1))
+                if weighted:
+                    jsatacb_first_term = (Q_diff.transpose()).dot(w_c.schur(bin_Qud))
 
+                    jsatacb_reg_term = l_n.schur(
+                        w_v_sq.schur(
+                            (
+                                (u_tilde.schur(one_n - u_tilde)).schur(
+                                    one_n - two_n.schur(u_tilde)
+                                )
+                            )
+                        )
+                    )
                 else:
-                    bin_Qud = MatSatUtils.less_than_threshold(Q_utilde_d, sfix(1))
+                    jsatacb_first_term = Q_diff.transpose().dot(bin_Qud)
 
-                jsatacb_first_term = Q_diff.transpose().dot(bin_Qud)
-                jsatacb_reg_term = l_n.schur(
-                    u_tilde.schur(one_n - u_tilde).schur(one_n - two_n.schur(u_tilde))
-                )
+                    jsatacb_reg_term = l_n.schur(
+                        u_tilde.schur(one_n - u_tilde).schur(
+                            one_n - two_n.schur(u_tilde)
+                        )
+                    )
+
                 jsatacb = jsatacb_first_term + jsatacb_reg_term
                 jsatacb_norm = MatSatUtils.vector_norm(jsatacb)
 
@@ -295,23 +352,12 @@ class MatSatUtils:
 
                 Q_ud = Q.dot(u_d)
 
-                if active is not None:
-                    # Gated error computation
-                    @for_range(m)
-                    def ___(i):
-                        a = active[i][0]
-                        sat_i = a * MatSatUtils.min1(Q_ud[i][0]) + (sfix(1) - a) * sfix(
-                            1
-                        )
-                        err.update(err + (sfix(1) - sat_i))
-
-                else:
-                    # Standard error computation
-                    @for_range(m)
-                    def ___(i):
-                        nonlocal err
-                        min1_val = MatSatUtils.min1(Q_ud[i][0])
-                        err.update(err + sfix(1) - min1_val)
+                # Error computation
+                @for_range(m)
+                def ___(i):
+                    nonlocal err
+                    min1_val = MatSatUtils.min1(Q_ud[i][0])
+                    err.update(err + sfix(1) - min1_val)
 
                 zero_err = err == sfix(0)
 
@@ -340,16 +386,34 @@ class MatSatUtils:
                 u_tilde[i][0] = mask * perturbed + (sfix(1) - mask) * u_tilde[i][0]
 
             # Print results if requested (after each try, matching original behavior)
-            #if print_results:
+            # if print_results:
 
-                #@for_range(n)
-                #def _(i):
-                    #print_ln("u[%s] = %s", i, u[i][0].reveal())
+            #   @for_range(n)
+            #   def _(i):
+            #       print_ln("u[%s] = %s", i, u[i][0].reveal())
+
+        # Calculate number of satisfied clauses only after last iteration
+        satisfied_clauses = sfix(0)
+
+        u_final_d = Matrix(2 * n, 1, sfix)
+
+        @for_range(n)
+        def _(i):
+            u_final_d[i][0] = u[i][0]
+            u_final_d[i + n][0] = sint(1) - u[i][0]
+
+        check_final = Q.dot(u_final_d)
+
+        @for_range(m)
+        def _(i):
+            is_satisfied = MatSatUtils.min1(sint(check_final[i][0]))
+            satisfied_clauses.update(satisfied_clauses + is_satisfied)
 
         if print_results:
             print_ln("is_solved = %s", is_solved.reveal())
+            print_ln("satisfied clauses = %s", satisfied_clauses.reveal())
 
-        return u_tilde, u, is_solved
+        return u_tilde, u, is_solved, satisfied_clauses
 
     @staticmethod
     def save_posterior(matrix: Matrix, n: int):
