@@ -162,7 +162,7 @@ def private_path_query():
     )
 
     # Use MatSat solve from utility class with active gating
-    u_tilde, u, is_solved = MatSatUtils.solve_matsat(
+    u_tilde, u, is_solved, satisfied_clauses = MatSatUtils.solve_matsat(
         Q=Q,
         n=n,
         m=m,
