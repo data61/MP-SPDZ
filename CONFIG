@@ -57,9 +57,7 @@ endif
 
 ifeq ($(OS), Linux)
 ifeq ($(ARM), 1)
-ifeq ($(shell cat /proc/cpuinfo | grep -q aes; echo $$?), 0)
-ARCH = -march=armv8.2-a+crypto
-endif
+ARCH = -mcpu=native
 endif
 endif
 
