@@ -144,6 +144,7 @@ class MatSatUtils:
         n: int,
         m: int,
         active: Optional[Matrix] = None,
+        variable_weights: Optional[Matrix] = None,
         l: float = 2.0,
         beta: sfix = None,
         max_try: int = 5,
@@ -161,6 +162,8 @@ class MatSatUtils:
             m: Number of clauses/rows.
             active: Optional matrix of size (m x 1) for active clause gating.
                    If None, all clauses are active.
+            variable_weights: Optional matrix of size (n x 1). When provided and
+                   weighted=True, these values are used as variable weights.
             l: Regularization parameter.
             beta: Perturbation parameter (defaults to sfix(0.5)).
             max_try: Maximum number of tries.
@@ -199,25 +202,34 @@ class MatSatUtils:
             w_v_sq = MatSatUtils.create_constant_vector(n, 1)
             w_c = MatSatUtils.create_constant_vector(m, 1)  # Clause weights
 
-            Q_t = Q.transpose()
-            col_sums = Q_t.dot(one_m)
-            raw_variable_counts = Matrix(n, 1, sfix)
-            total_count = sfix(0)
+            if variable_weights is not None:
 
-            @for_range(n)
-            def _(i):
-                count = col_sums[i][0] + col_sums[i + n][0]
-                raw_variable_counts[i][0] = count
-                total_count.update(total_count + count)
+                @for_range(n)
+                def _(i):
+                    val = variable_weights[i][0]
+                    w_v[i][0] = val
+                    w_v_sq[i][0] = val * val
 
-            avg_weight = total_count / n
+            else:
+                Q_t = Q.transpose()
+                col_sums = Q_t.dot(one_m)
+                raw_variable_counts = Matrix(n, 1, sfix)
+                total_count = sfix(0)
 
-            # Normalize w_v
-            @for_range(n)
-            def _(i):
-                val = raw_variable_counts[i][0] / avg_weight
-                w_v[i][0] = val
-                w_v_sq[i][0] = val * val
+                @for_range(n)
+                def _(i):
+                    count = col_sums[i][0] + col_sums[i + n][0]
+                    raw_variable_counts[i][0] = count
+                    total_count.update(total_count + count)
+
+                avg_weight = total_count / n
+
+                # Normalize w_v
+                @for_range(n)
+                def _(i):
+                    val = raw_variable_counts[i][0] / avg_weight
+                    w_v[i][0] = val
+                    w_v_sq[i][0] = val * val
 
             # [IMPORTANT] This efectively replaces the old clause active gating
             # logic. If there is an active weight vector as input, then we are
@@ -333,13 +345,23 @@ class MatSatUtils:
 
                 epsilon = sfix(1e-8)
                 alpha = jsat / (jsatacb_norm + epsilon)
+                # Keep gradient updates numerically stable in fixed-point.
+                alpha_cap = sfix(1)
+                alpha = (alpha > alpha_cap).if_else(
+                    alpha_cap, (alpha < -alpha_cap).if_else(-alpha_cap, alpha)
+                )
 
                 # Gradient step
                 new_u_tilde = Matrix(n, 1, sfix)
 
                 @for_range(n)
                 def ___(i):
-                    new_u_tilde[i][0] = u_tilde[i][0] - alpha * jsatacb[i][0]
+
+                    updated = u_tilde[i][0] - alpha * jsatacb[i][0]
+                    # Project to [0,1] to prevent runaway values and NaN in sfix ops.
+                    new_u_tilde[i][0] = (updated < sfix(0)).if_else(
+                        sfix(0), (updated > sfix(1)).if_else(sfix(1), updated)
+                    )
 
                 # Threshold
                 threshold = sfix(0.5)
@@ -390,14 +412,17 @@ class MatSatUtils:
             @for_range(n)
             def _(i):
                 perturbed = (sfix(1) - beta) * u_tilde[i][0] + beta * delta[i][0]
-                u_tilde[i][0] = mask * perturbed + (sfix(1) - mask) * u_tilde[i][0]
+                mixed = mask * perturbed + (sfix(1) - mask) * u_tilde[i][0]
+                u_tilde[i][0] = (mixed < sfix(0)).if_else(
+                    sfix(0), (mixed > sfix(1)).if_else(sfix(1), mixed)
+                )
 
             # Print results if requested (after each try, matching original behavior)
-            # if print_results:
+            if print_results:
 
-            #   @for_range(n)
-            #   def _(i):
-            #       print_ln("u[%s] = %s", i, u[i][0].reveal())
+                @for_range(n)
+                def _(i):
+                    print_ln("u[%s] = %s", i, u[i][0].reveal())
 
         # Calculate number of satisfied clauses only after last iteration
         satisfied_clauses = sfix(0)
