@@ -34,11 +34,14 @@ compiler = Compiler(usage=usage)
 compiler.parser.add_option("--num_parties", dest="num_parties", type=int)
 compiler.parser.add_option("--grid_size", dest="grid_size", type=int)
 compiler.parser.add_option("--query_size", dest="query_size", type=int)
+compiler.parser.add_option(
+    "--is_graph", dest="is_graph", action="store_true", default=False
+)
 
 
 @compiler.register_function("verifier")
 def verifier():
-    def get_arg_info() -> Tuple[int, int, int]:
+    def get_arg_info() -> Tuple[int, int, int, bool]:
         compiler.parse_args()
         if not compiler.options.num_parties:
             print("Error: num_parties argument is required")
@@ -53,12 +56,18 @@ def verifier():
             compiler.options.num_parties,
             compiler.options.grid_size,
             compiler.options.query_size,
+            compiler.options.is_graph,
         )
 
-    num_parties, grid_size, query_size = get_arg_info()
+    num_parties, grid_size, query_size, is_graph = get_arg_info()
 
     def get_path_from_bob(hazard_matrix: Matrix, bob_id: int) -> None:
-        """gets all the locations from bob and Ors over them inserting into the matrix"""
+        """
+        Get all hazard locations from Bob and OR them into the hazard matrix.
+
+        In grid mode, hazard_matrix[i][j] represents whether cell (i,j) is hazardous.
+        In graph mode, hazard_matrix[u][v] represents whether edge (u -> v) is hazardous.
+        """
         assert (
             bob_id >= 1 and bob_id < num_parties
         ), "Bob ID must be between 1 and num_parties-1"
@@ -67,8 +76,15 @@ def verifier():
                 d = sint.get_input_from(bob_id)
                 hazard_matrix[i][j] = (hazard_matrix[i][j] + d) > 0
 
-    path_length = query_size + 1
-    qx, qy, _ = PrivatePathQueryUtils.create_path(query_size)
+    # Path length differs between grid and graph modes.
+    # - Grid mode: query_size is number of moves; path length is query_size + 1 (including start).
+    # - Graph mode: query_size is number of edges; path length is query_size.
+    if is_graph:
+        path_length = query_size
+    else:
+        path_length = query_size + 1
+
+    qx, qy, _ = PrivatePathQueryUtils.create_path(query_size, is_graph)
 
     hazard_matrix = Matrix(grid_size, grid_size, sint)
     hazard_matrix.assign_all(0)

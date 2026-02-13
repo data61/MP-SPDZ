@@ -20,6 +20,9 @@ compiler = Compiler(usage=usage)
 compiler.parser.add_option("--num_parties", dest="num_parties", type=int)
 compiler.parser.add_option("--grid_size", dest="grid_size", type=int)
 compiler.parser.add_option("--query_size", dest="query_size", type=int)
+compiler.parser.add_option(
+    "--is_graph", dest="is_graph", action="store_true", default=False
+)
 compiler.parser.add_option("--iteration_no", dest="iteration_no", type=int, default=0)
 compiler.parser.add_option("--num_threads", dest="num_threads", type=int, default=4)
 
@@ -52,6 +55,7 @@ def private_path_query():
             compiler.options.grid_size,
             compiler.options.query_size,
             compiler.options.num_threads,
+            compiler.options.is_graph,
         )
 
     def build_Q(
@@ -62,6 +66,7 @@ def private_path_query():
         qx: Array,
         qy: Array,
         path_length: int,
+        is_graph: bool = False,
     ) -> Tuple[Matrix, Matrix, int, int]:
         n = grid_size * grid_size  # number of variables
         lit_len = 2 * n  # positive + negative literals
@@ -80,7 +85,8 @@ def private_path_query():
         one = sfix(1)
 
         # --- Bob (assume party 1 is "Bob"; if multiple Bobs, OR them) ---
-        # If you actually have multiple Bobs, we OR their danger bits so a cell is dangerous if any Bob says so.
+        # In grid mode: 0 = safe, 1 = dangerous
+        # In graph mode: grid represents adjacency matrix where 1 = safe edge, 0 = dangerous/no edge
         # Party IDs 1..num_parties-1
         # We'll build a single "danger" bit per cell as OR across Bobs.
         danger_bits = Array(n, sint)
@@ -93,8 +99,14 @@ def private_path_query():
                 @for_range_opt(grid_size)
                 def __(c):
                     idx = cell_idx(r, c)
-                    d = sint.get_input_from(bob)  # 0 safe, 1 dangerous
-                    danger_bits[idx] = (danger_bits[idx] + d) > 0
+                    d = sint.get_input_from(bob)
+                    if is_graph:
+                        # In graph mode: grid represents adjacency matrix where 1 = safe edge, 0 = dangerous/no edge
+                        # So we invert: danger = 1 - d (if d=1 safe, danger=0; if d=0 dangerous, danger=1)
+                        danger_bits[idx] = (danger_bits[idx] + (sint(1) - d)) > 0
+                    else:
+                        # In grid mode: 0 = safe, 1 = dangerous
+                        danger_bits[idx] = (danger_bits[idx] + d) > 0
 
         # Now expand into N rows: row = cell index
         @for_range_multithread(
@@ -139,14 +151,14 @@ def private_path_query():
     # -----------------------
     # MatSat solve loop (with active gating)
     # -----------------------
-    num_parties, grid_size, query_size, num_threads = get_arg_info()
+    num_parties, grid_size, query_size, num_threads, is_graph = get_arg_info()
 
     # Create path first
-    qx, qy, path_length = PrivatePathQueryUtils.create_path(query_size)
+    qx, qy, path_length = PrivatePathQueryUtils.create_path(query_size, is_graph)
 
     # Build Q matrix using the path
     Q, active, n, m = build_Q(
-        num_parties, grid_size, query_size, num_threads, qx, qy, path_length
+        num_parties, grid_size, query_size, num_threads, qx, qy, path_length, is_graph
     )
 
     # Use MatSat solve from utility class with active gating
