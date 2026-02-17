@@ -1,0 +1,47 @@
+
+import sys
+sys.path.append('Programs/Source')
+from Compiler.types import sint, sfix, Matrix, Array, MemValue
+from Compiler.library import print_ln
+from matsat_utils import MatSatUtils
+
+def main():
+    # 1 variable, 3 clauses: x1, x1, !x1
+    # Q structure: m rows, 2*n cols.
+    # n=1, m=3.
+    # Col 0: x1 (positive)
+    # Col 1: !x1 (negative)
+    
+    # We use sfix for Q entries
+    Q = Matrix(3, 2, sfix)
+    # Row 0: x1
+    Q[0][0] = 1
+    Q[0][1] = 0
+    # Row 1: x1
+    Q[1][0] = 1
+    Q[1][1] = 0
+    # Row 2: !x1
+    Q[2][0] = 0
+    Q[2][1] = 1
+    
+    n = 1
+    m = 3
+    
+    print_ln("Starting test_best_u with x1, x1, !x1")
+    
+    # Run solve_matsat
+    # It should favor u=1 (error 1) over u=0 (error 2)
+    # We use sufficient iterations to finding solution
+    u_tilde, u, is_solved, satisfied = MatSatUtils.solve_matsat(
+        Q, n, m, 
+        max_try=1, 
+        max_itr=20, 
+        print_results=True,
+        weighted=False
+    )
+    
+    print_ln("Final u[0]: %s", u[0][0].reveal())
+    print_ln("Is Solved: %s", is_solved.reveal())
+    print_ln("Satisfied Clauses: %s", satisfied.reveal())
+
+main()

@@ -260,6 +260,10 @@ class MatSatUtils:
         err = sfix(0)
         is_solved = sint(0)
 
+        # Track best solution found so far
+        best_u = Matrix(n, 1, sint)
+        min_err = sfix(m + 1.0)
+
         # -- Main optimization loop --
         # Outer try loop
         @for_range(max_try)
@@ -269,7 +273,7 @@ class MatSatUtils:
             # Inner iteration loop
             @for_range(max_itr)
             def __(iter_idx):
-                nonlocal is_solved, err
+                nonlocal is_solved, err, min_err
                 err.update(0)
 
                 # Dual vector u_d = [u; 1-u]
@@ -390,6 +394,14 @@ class MatSatUtils:
 
                 zero_err = err == sfix(0)
 
+                # Update best solution if current error is lower than min_err
+                update_best = err < min_err
+                min_err.update(update_best.if_else(err, min_err))
+
+                @for_range(n)
+                def ___(i):
+                    best_u[i][0] = update_best.if_else(new_u[i][0], best_u[i][0])
+
                 # Freeze if solved
                 @for_range(n)
                 def ___(i):
@@ -426,6 +438,11 @@ class MatSatUtils:
 
         # Calculate number of satisfied clauses only after last iteration
         satisfied_clauses = sfix(0)
+
+        # Use the best u found across all iterations
+        @for_range(n)
+        def _(i):
+            u[i][0] = best_u[i][0]
 
         u_final_d = Matrix(2 * n, 1, sfix)
 

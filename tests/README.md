@@ -45,5 +45,3 @@ uv run pytest tests/test_matsat_clause_weights.py::TestMatSatClauseWeights::test
   ```bash
   pkill -f shamir-party.x
   ```
-
-Happy Testing! 🎉
