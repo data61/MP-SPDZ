@@ -189,8 +189,6 @@ void Commit_And_Open_(vector<octetStream>& datas, const Player& P, Coordinator& 
              { throw invalid_commitment(); }
         }
     }
-
-  coordinator.finished();
 }
 
 

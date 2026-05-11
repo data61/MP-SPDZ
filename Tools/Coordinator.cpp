@@ -22,6 +22,7 @@ Coordinator::Coordinator(const Names& N, string type_name) :
 Coordinator::~Coordinator()
 {
     in.stop();
+    done.push(1);
     pthread_join(thread, 0);
     if (waited != 0 and OnlineOptions::singleton.verbose)
         cerr << "Coordination took " << waited << " seconds" << endl;

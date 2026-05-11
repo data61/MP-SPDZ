@@ -238,6 +238,8 @@ void MAC_Check_<U>::Check(const Player& P)
         mac_fail_remove<U>(P);
     }
 
+  this->coordinator->finished();
+
   vals.erase(vals.begin(), vals.begin() + popen_cnt);
   macs.erase(macs.begin(), macs.begin() + popen_cnt);
 
@@ -347,6 +349,8 @@ void MAC_Check_Z2k<T, U, V, W>::Check(const Player& P)
   this->popen_cnt=0;
   if (!zj_sum.is_zero())
     mac_fail_remove<W>(P);
+
+  this->coordinator->finished();
 }
 
 
