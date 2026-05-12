@@ -167,24 +167,50 @@ template<class T>
 void ShareThread<T>::and_(Processor<T>& processor,
         const vector<int>& args, bool repeat)
 {
+    vector<int> active_args;
+    int active_limit = -1;
+    long prefix = processor.get_arg().get();
+    if (prefix < 0)
+        active_limit = int(-prefix);
+
+    if (active_limit >= 0)
+    {
+        active_args.reserve(args.size());
+        for (auto it = args.begin(); it < args.end(); it += 4)
+        {
+            int active_bits = min(*it, active_limit);
+            if (active_bits > 0)
+            {
+                active_args.push_back(active_bits);
+                active_args.push_back(*(it + 1));
+                active_args.push_back(*(it + 2));
+                active_args.push_back(*(it + 3));
+            }
+        }
+    }
+    else
+    {
+        active_args = args;
+    }
+
     auto& protocol = this->protocol;
     auto& S = processor.S;
-    processor.check_args(args, 4);
+    processor.check_args(active_args, 4);
     protocol->init_mul();
     T x_ext, y_ext;
 
     size_t total_bits = 0;
-    for (auto it = args.begin(); it < args.end(); it += 4)
+    for (auto it = active_args.begin(); it < active_args.end(); it += 4)
         total_bits += *it;
 
     // accept 10 % waste
-    bool fast_mode = 0.1 * total_bits > args.size() / 4 * T::default_length;
+    bool fast_mode = 0.1 * total_bits > active_args.size() / 4 * T::default_length;
     if (fast_mode)
     {
         protocol->set_fast_mode(true);
     }
 
-    ArgList<BitOpTuple<T>> infos(args);
+    ArgList<BitOpTuple<T>> infos(active_args);
 
     if (repeat)
         for (auto info : infos)
@@ -268,11 +294,43 @@ void ShareThread<T>::andrsvec(Processor<T>& processor, const vector<int>& args)
     int N_BITS = T::default_length;
     auto& protocol = this->protocol;
     assert(protocol);
+
+    vector<int> active_args;
+    int active_limit = -1;
+    long prefix = processor.get_arg().get();
+    if (prefix < 0)
+        active_limit = int(-prefix);
+
+    if (active_limit >= 0)
+    {
+        active_args.reserve(args.size());
+        auto it = args.begin();
+        while (it < args.end())
+        {
+            int n_args = (*it - 3) / 2;
+            int size = *(it + 1);
+            int active_size = min(size, active_limit);
+            if (active_size > 0)
+            {
+                int group_size = 2 * n_args + 3;
+                active_args.push_back(*it);
+                active_args.push_back(active_size);
+                for (int i = 0; i < group_size - 2; i++)
+                    active_args.push_back(*(it + 2 + i));
+            }
+            it += 2 * n_args + 3;
+        }
+    }
+    else
+    {
+        active_args = args;
+    }
+
     protocol->init_mul();
-    auto it = args.begin();
+    auto it = active_args.begin();
     T x_ext, y_ext;
     int total_bits = 0;
-    while (it < args.end())
+    while (it < active_args.end())
     {
         int n_args = (*it++ - 3) / 2;
         int size = *it++;
@@ -297,8 +355,8 @@ void ShareThread<T>::andrsvec(Processor<T>& processor, const vector<int>& args)
 
     protocol->exchange();
 
-    it = args.begin();
-    while (it < args.end())
+    it = active_args.begin();
+    while (it < active_args.end())
     {
         int n_args = (*it++ - 3) / 2;
         int size = *it++;

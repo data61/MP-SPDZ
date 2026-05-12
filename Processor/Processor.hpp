@@ -163,7 +163,7 @@ void Processor<sint, sgf2n>::reset(const Program& program,int arg)
   Ci.resize(program.num_reg(INT));
 
   this->arg = arg;
-  Procb.reset(program);
+  Procb.reset(program, arg);
 }
 
 template<class T>
@@ -472,6 +472,8 @@ void SubProcessor<T>::POpen(const Instruction& inst)
     check();
   auto& reg = inst.get_start();
   int size = inst.get_size();
+  if (size == 0)
+    return;
   assert(reg.size() % 2 == 0);
   int sz=reg.size() / 2;
   MC.init_open(P, sz * size);
@@ -553,6 +555,11 @@ void SubProcessor<T>::mulrs(const vector<int>& reg)
 template<class T>
 void SubProcessor<T>::dotprods(const vector<int>& reg, int size)
 {
+    if (size == 0)
+    {
+        maybe_check();
+        return;
+    }
     protocol.init_dotprod();
     for (int i = 0; i < size; i++)
     {
