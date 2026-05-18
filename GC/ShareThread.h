@@ -56,6 +56,9 @@ public:
 
     void pre_run();
     void post_run() { ShareThread<T>::post_run(); }
+
+    TimerWithComm prep_time()
+    { return this->DataF.prep_timer; }
 };
 
 template<class T>

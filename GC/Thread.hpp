@@ -66,18 +66,27 @@ void Thread<T>::run()
     processor.setup_redirection(P->my_num(), thread_num, master.opts,
             processor.out);
 
-    done.push(0);
+    ThreadQueue::thread_queue = &queue;
+    queue.finished(0);
     pre_run();
+    queue.start_timer();
 
-    ScheduleItem item;
-    while (tape_schedule.pop_dont_stop(item))
+    while (true)
     {
-        processor.reset(machine.progs.at(item.tape), item.arg);
-        run(machine.progs[item.tape]);
-        done.push(0);
+        auto job = queue.next();
+        if (job.prognum == -1)
+            break;
+        queue.start_online(*P, prep_time());
+        processor.reset(machine.progs.at(job.prognum), job.arg);
+        run(machine.progs[job.prognum]);
+        queue.stop_online(*P, prep_time());
+        queue.finished(job);
     }
 
+    queue.start_online(*P, prep_time());
     post_run();
+    queue.stop_online(*P, prep_time());
+    queue.stop_timer(*P);
 }
 
 template<class T>
@@ -90,14 +99,13 @@ void Thread<T>::run(Program& program)
 template<class T>
 void Thread<T>::join_tape()
 {
-    int _;
-    done.pop(_);
+    queue.result();
 }
 
 template<class T>
 void Thread<T>::finish()
 {
-    tape_schedule.stop();
+    queue.schedule(-1);
     pthread_join(thread, 0);
 }
 

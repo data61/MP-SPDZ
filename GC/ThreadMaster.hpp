@@ -42,7 +42,7 @@ ThreadMaster<T>::ThreadMaster(OnlineOptions& opts) :
 template<class T>
 void ThreadMaster<T>::run_tape(int thread_number, int tape_number, int arg)
 {
-    threads.at(thread_number)->tape_schedule.push({tape_number, arg});
+    threads.at(thread_number)->queue.schedule({tape_number, arg});
 }
 
 template<class T>
@@ -90,7 +90,11 @@ void ThreadMaster<T>::run_with_error()
     machine.reset(machine.progs[0], memory);
 
     for (int i = 0; i < machine.nthreads; i++)
+    {
         threads.push_back(new_thread(i));
+        machine.queues.push_back(&threads.back()->queue);
+    }
+
     // must start after constructor due to virtual functions
     for (auto thread : threads)
         thread->start();
@@ -99,7 +103,7 @@ void ThreadMaster<T>::run_with_error()
 
     machine.reset_timer();
 
-    threads[0]->tape_schedule.push(0);
+    machine.queues.at(0)->schedule(0);
 
     for (auto thread : threads)
         thread->finish();
@@ -110,6 +114,9 @@ void ThreadMaster<T>::run_with_error()
 
     post_run();
 
+    if (opts.verbose)
+        machine.queues.print_breakdown();
+
     NamedCommStats stats = P->total_comm();
     ExecutionStats exe_stats;
     for (auto thread : threads)
@@ -119,6 +126,8 @@ void ThreadMaster<T>::run_with_error()
         exe_stats += thread->processor.stats;
         delete thread;
     }
+
+    machine.queues.clear();
 
     if (not exe_stats.empty())
         exe_stats.print();

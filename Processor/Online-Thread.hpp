@@ -119,17 +119,14 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
   queues->finished({});
 
   DataPositions actual_usage(P.num_players());
-  Timer thread_timer(CLOCK_THREAD_CPUTIME_ID), wait_timer;
+  Timer thread_timer(CLOCK_THREAD_CPUTIME_ID);
   thread_timer.start();
-  TimerWithComm timer, online_timer, online_prep_timer;
-  timer.start();
+  queues->start_timer();
 
   while (flag)
     { // Wait until I have a program to run
-      wait_timer.start();
       ThreadJob job = queues->next();
       program = job.prognum;
-      wait_timer.stop();
 #ifdef DEBUG_THREADS
       printf("\tRunning program %d/job %d in thread %d\n", program, job.type,
           num);
@@ -267,8 +264,7 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
 #ifdef DEBUG_THREADS
           printf("\tClient %d about to run %d\n",num,program);
 #endif
-          online_timer.start(P.total_comm());
-          online_prep_timer -= Proc.prep_time();
+          queues->start_online(P, Proc.prep_time());
           Proc.reset(progs[program], job.arg);
 
           // Bits, Triples, Squares, and Inverses skipping
@@ -298,27 +294,20 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
           printf("\tSignalling I have finished with program %d"
               "in thread %d\n", program, num);
 #endif
-          online_timer.stop(P.total_comm());
-          online_prep_timer += Proc.prep_time();
-          wait_timer.start();
+          queues->stop_online(P, Proc.prep_time());
           queues->finished(job, P.total_comm());
-	 wait_timer.stop();
        }  
     }
 
   // final check
-  online_timer.start(P.total_comm());
-  online_prep_timer -= Proc.prep_time();
+  queues->start_online(P, Proc.prep_time());
   Proc.check();
-  online_timer.stop(P.total_comm());
-  online_prep_timer += Proc.prep_time();
+  queues->stop_online(P, Proc.prep_time());
 
   if (machine.opts.file_prep_per_thread)
     Proc.DataF.prune();
 
-  wait_timer.start();
   queues->next();
-  wait_timer.stop();
 
 #ifdef VERBOSE
   if (MC2->number() + MCp->number() > 0)
@@ -351,10 +340,7 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
 
   // wind down thread by thread
   machine.stats += Proc.stats;
-  queues->timers["wait"] = wait_timer + queues->wait_timer;
-  timer.stop(P.total_comm());
-  queues->timers["online"] = online_timer - online_prep_timer - queues->wait_timer;
-  queues->timers["prep"] = timer - queues->timers["wait"] - queues->timers["online"];
+  queues->stop_timer(P);
 
   assert(Proc.share_thread.protocol);
   queues->timers["random"] = Proc.Procp.protocol.randomness_time()
