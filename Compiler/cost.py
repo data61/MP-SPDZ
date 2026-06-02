@@ -353,7 +353,8 @@ def expected_communication(protocol, req_num, length, n_parties=None,
         n_mults = get_int('triple')
     and_cost = get_and_cost(protocol, n_parties)
     if and_cost:
-        res += Comm(and_cost) * math.ceil(get_bit('triple') / 8)
+        n_mults = get_bit(get_bit('triple'))
+        res += Comm(and_cost) * math.ceil(n_mults / 8) if n_mults != float("inf") else Comm(and_cost) * float("inf")
     else:
         n_mults += get_bit('triple') / (length * 8)
     bit_cost = Comm(apply_length(
@@ -403,10 +404,13 @@ def expected_communication(protocol, req_num, length, n_parties=None,
         sh_random_unit = get_match_variable(
             variable_random, sh_protocol, n_parties)
         if sh_unit:
-            res += length * Comm(
-                sum(2 * output_cost * n_mults),
-                int(n_mults * (3 * sh_random_unit + 2 * sh_unit + \
-                    2 * sum(output_cost))))
+            if n_mults == float("inf"):
+                res += Comm(float("inf"), float("inf"))
+            else:
+                res += length * Comm(
+                    sum(2 * output_cost * n_mults),
+                    int(n_mults * (3 * sh_random_unit + 2 * sh_unit + \
+                        2 * sum(output_cost))))
     res += Comm(get_match(trunc_pr, protocol)) * length * \
         get_int('probabilistic truncation')
     res += Comm(bit2a.get(x)) * length * get_int('bit2A')
