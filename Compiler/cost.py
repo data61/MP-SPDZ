@@ -3,6 +3,15 @@ import math
 import os
 import itertools
 
+def preserve_inf(op, x):
+    if x == float('inf'):
+        return x
+    else:
+        return op(x)
+
+my_ceil, my_floor = (lambda x: preserve_inf(op, x) \
+    for op in (math.ceil, math.floor))
+
 class Comm:
     def __init__(self, comm=0, offline=0):
         try:
@@ -353,7 +362,7 @@ def expected_communication(protocol, req_num, length, n_parties=None,
         n_mults = get_int('triple')
     and_cost = get_and_cost(protocol, n_parties)
     if and_cost:
-        res += Comm(and_cost) * math.ceil(get_bit('triple') / 8)
+        res += Comm(and_cost) * my_ceil(get_bit('triple') / 8)
     else:
         n_mults += get_bit('triple') / (length * 8)
     bit_cost = Comm(apply_length(
@@ -405,8 +414,8 @@ def expected_communication(protocol, req_num, length, n_parties=None,
         if sh_unit:
             res += length * Comm(
                 sum(2 * output_cost * n_mults),
-                int(n_mults * (3 * sh_random_unit + 2 * sh_unit + \
-                    2 * sum(output_cost))))
+                my_floor(n_mults * (3 * sh_random_unit + 2 * sh_unit + \
+                                    2 * sum(output_cost))))
     res += Comm(get_match(trunc_pr, protocol)) * length * \
         get_int('probabilistic truncation')
     res += Comm(bit2a.get(x)) * length * get_int('bit2A')
