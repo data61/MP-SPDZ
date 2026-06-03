@@ -24,19 +24,59 @@ def get_block():
     return get_program().curr_block
 
 def vectorize(function):
-    def vectorized_function(*args, **kwargs):
-        if len(args) > 0 and 'size' in dir(args[0]):
-            instructions_base.set_global_vector_size(args[0].size)
-            res = function(*args, **kwargs)
-            instructions_base.reset_global_vector_size()
-        elif 'size' in kwargs:
-            instructions_base.set_global_vector_size(kwargs['size'])
-            del kwargs['size']
-            res = function(*args, **kwargs)
-            instructions_base.reset_global_vector_size()
+    def mask_output(value, active: regint):
+        if value is None:
+            return None
+        if isinstance(value, tuple):
+            return tuple(mask_output(x, active) for x in value)
+        if isinstance(value, list):
+            return [mask_output(x, active) for x in value]
+        
+        try:
+            size = value.size
+        except AttributeError:
+            return value
+        
+        if size == 1:
+            return value
+
+        return value * active
+
+    def get_vector_size(call_args, call_kwargs):
+        if len(call_args) > 0 and 'size' in dir(call_args[0]):
+            return call_args[0].size
+        elif 'size' in call_kwargs:
+            return call_kwargs['size']
         else:
-            res = function(*args, **kwargs)
+            return None
+
+    def vectorized_function(*args, **kwargs):
+        active_vector_size = regint.conv(kwargs.pop('active_length', None))
+
+        size = get_vector_size(args, kwargs)
+        if size is not None:
+            if 'size' in kwargs:
+                del kwargs['size']
+            instructions_base.set_global_vector_size(size)
+
+        set_active_vector_size = active_vector_size is not None and size is not None and size > 1
+        context_saved_arg = None
+        if set_active_vector_size:
+            context_saved_arg = get_arg()
+            starg(-active_vector_size)
+
+        res = function(*args, **kwargs)
+
+        if set_active_vector_size:
+            starg(context_saved_arg)
+            active = regint.inc(size) < active_vector_size
+            res = mask_output(res, active)
+        
+        if size is not None:
+            instructions_base.reset_global_vector_size()
+
         return res
+
     vectorized_function.__name__ = function.__name__
     copy_doc(vectorized_function, function)
     return vectorized_function
