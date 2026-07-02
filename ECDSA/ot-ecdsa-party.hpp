@@ -94,12 +94,10 @@ void run(int argc, const char** argv)
     P256Element::init();
     P256Element::Scalar::next::init_field(P256Element::Scalar::pr(), false);
 
-    P256Element::Scalar keyp;
-    SeededPRNG G;
-    keyp.randomize(G);
-
     typedef T<P256Element::Scalar> pShare;
     DataPositions usage;
+
+    auto keyp = pShare::LivePrep::get_mac_key(P);
 
     pShare::MAC_Check::setup(P);
     T<P256Element>::MAC_Check::setup(P);

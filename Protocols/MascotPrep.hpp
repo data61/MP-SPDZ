@@ -45,7 +45,7 @@ void OTPrep<T>::set_protocol(typename T::Protocol& protocol)
             BaseMachine::fresh_ot_setup(proc->P),
             proc->P.N, -1,
             OnlineOptions::singleton.batch_size, 1,
-            params, proc->MC.get_alphai(), &proc->P);
+            params, &proc->P);
     triple_generator->multi_threaded = false;
 }
 

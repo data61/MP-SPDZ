@@ -71,7 +71,6 @@ RealProgramParty<T>::RealProgramParty(int argc, const char** argv) :
 	auto& N = this->N;
 	auto& P = this->P;
 	auto& delta = this->delta;
-	auto& mac_key = this->mac_key;
 	auto& garble_processor = this->garble_processor;
 	auto& prng = this->prng;
 	auto& program = this->program;
@@ -95,12 +94,12 @@ RealProgramParty<T>::RealProgramParty(int argc, const char** argv) :
 	usage = DataPositions(N.num_players());
 	if (online_opts.live_prep)
 	{
-		mac_key.randomize(prng);
+		mac_key = T::LivePrep::get_mac_key(*P);
 		prep = new typename T::LivePrep(0, usage);
 	}
 	else
 	{
-	    T::read_or_generate_mac_key(prep_dir, *P, mac_key);
+		maybe_read_mac_key<T>(N, mac_key);
 		prep = new Sub_Data_Files<T>(N, prep_dir, usage);
 	}
 

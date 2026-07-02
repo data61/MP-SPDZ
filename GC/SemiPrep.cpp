@@ -35,7 +35,7 @@ void SemiPrep::set_protocol(SemiSecret::Protocol& protocol)
     triple_generator = new SemiSecret::TripleGenerator(
             BaseMachine::fresh_ot_setup(protocol.P),
             protocol.P.N, -1, OnlineOptions::singleton.batch_size,
-            1, params, {}, &protocol.P);
+            1, params, &protocol.P);
     triple_generator->multi_threaded = false;
     this->P = &protocol.P;
 }

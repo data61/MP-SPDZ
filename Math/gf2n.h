@@ -91,6 +91,8 @@ protected:
 
   static string fake_opts() { return " -lg2 " + to_string(length()); }
 
+  static void check_setup(string) {}
+
   static const true_type invertible;
   static const true_type characteristic_two;
 

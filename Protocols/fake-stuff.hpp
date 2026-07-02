@@ -280,6 +280,18 @@ void read_mac_key(const Names& N, typename T::mac_key_type& key)
 }
 
 template <class T>
+void maybe_read_mac_key(const Names& N, typename T::mac_key_type& key)
+{
+  try
+  {
+    read_mac_key<T>(N, key);
+  }
+  catch (exception&)
+  {
+  }
+}
+
+template <class T>
 void read_mac_key(const string& directory, const Names& N, T& key)
 {
   read_mac_key(directory, N.my_num(), N.num_players(), key);

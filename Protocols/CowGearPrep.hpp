@@ -55,14 +55,14 @@ void CowGearPrep<T>::basic_setup(Player& P)
 }
 
 template<class T>
-void CowGearPrep<T>::setup(Player& P, mac_key_type alphai)
+void CowGearPrep<T>::setup(Player& P)
 {
     basic_setup(P);
-    key_setup(P, alphai);
+    key_setup(P);
 }
 
 template<class T>
-void CowGearPrep<T>::key_setup(Player& P, mac_key_type alphai)
+void CowGearPrep<T>::key_setup(Player& P)
 {
     CODE_LOCATION
     Timer timer;
@@ -71,20 +71,7 @@ void CowGearPrep<T>::key_setup(Player& P, mac_key_type alphai)
     auto& setup = machine.setup<FD>();
     auto& options = CowGearOptions::singleton;
     read_or_generate_secrets(setup, P, machine,
-            options.covert_security, T::covert);
-
-    // adjust mac key
-    mac_key_type diff = alphai - setup.alphai;
-    setup.set_alphai(alphai);
-    Bundle<octetStream> bundle(P);
-    diff.pack(bundle.mine);
-    P.unchecked_broadcast(bundle);
-    for (int i = 0; i < P.num_players(); i++)
-    {
-        Plaintext_<FD> mess(setup.FieldD);
-        mess.assign_constant(bundle[i].get<mac_key_type>(), Polynomial);
-        machine.enc_alphas[i] += mess;
-    }
+            options.covert_security, T::covert, T());
 
     // generate minimal number of items
     machine.nTriplesPerThread = 1;
@@ -92,6 +79,18 @@ void CowGearPrep<T>::key_setup(Player& P, mac_key_type alphai)
     cerr << T::type_string() << " key setup took " << timer.elapsed()
             << " seconds" << endl;
 #endif
+}
+
+template<class T>
+typename CowGearPrep<T>::mac_key_type CowGearPrep<T>::get_mac_key(Player& P)
+{
+    if (pairwise_machine == 0)
+        basic_setup(P);
+
+    auto& mac_key = pairwise_machine->setup<FD>().alphai;
+    if (mac_key == 0)
+        key_setup(P);
+    return mac_key;
 }
 
 template<class T>
@@ -104,9 +103,9 @@ PairwiseGenerator<typename T::clear::FD>& CowGearPrep<T>::get_generator()
     {
         PlainPlayer P(proc->P.N, "CowGear" + T::type_string());
         if (pairwise_machine == 0)
-            setup(P, proc->MC.get_alphai());
+            setup(P);
         else
-            key_setup(P, proc->MC.get_alphai());
+            key_setup(P);
         BaseMachine::add_one_off(P.total_comm());
     }
     lock.unlock();

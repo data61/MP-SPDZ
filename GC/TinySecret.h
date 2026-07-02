@@ -84,6 +84,11 @@ public:
         return T::get_mac_key();
     }
 
+    static void set_mac_key(mac_key_type& mac_key)
+    {
+        part_type::set_mac_key(mac_key);
+    }
+
     template<class U>
     static void reveal_inst(U& processor, const vector<int>& args)
     {

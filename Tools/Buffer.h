@@ -80,7 +80,10 @@ octetStream file_signature(const typename T::mac_type& mac_key = {})
     if (T::has_mac)
     {
         if (mac_key == typename T::mac_type())
+        {
+            assert(T::get_mac_key() != 0);
             T::get_mac_key().pack(res);
+        }
         else
             mac_key.pack(res);
     }

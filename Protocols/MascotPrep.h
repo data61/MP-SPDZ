@@ -32,6 +32,9 @@ class MascotInputPrep : public OTPrep<T>
     void buffer_inputs(int player);
 
 public:
+    static typename T::mac_key_type get_mac_key(Player& P);
+    static void teardown();
+
     MascotInputPrep(SubProcessor<T> *proc, DataPositions &usage) :
             BufferPrep<T>(usage), BitPrep<T>(proc, usage),
             OTPrep<T>(proc, usage)
@@ -128,5 +131,19 @@ public:
     {
     }
 };
+
+template<class T>
+typename T::mac_key_type MascotInputPrep<T>::get_mac_key(Player& P)
+{
+    auto mac_key = T::TripleGenerator::get_mac_key(P);
+    T::set_mac_key(mac_key);
+    return mac_key;
+}
+
+template<class T>
+void MascotInputPrep<T>::teardown()
+{
+	T::TripleGenerator::reset_mac_key();
+}
 
 #endif /* PROTOCOLS_MASCOTPREP_H_ */

@@ -77,6 +77,7 @@ public:
     typedef This input_check_type;
     typedef MamaRectangle<T, N> Square;
     typedef typename T::Square Rectangle;
+    typedef This part_type;
 
     static const int N_MACS = N;
 

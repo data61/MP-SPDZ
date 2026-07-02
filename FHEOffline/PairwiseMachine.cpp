@@ -92,6 +92,7 @@ void RealPairwiseMachine::set_mac_key(T alphai)
     auto& N = P;
     PairwiseSetup<FD>& s = setup<FD>();
     s.alphai = alphai;
+    Share<typename FD::T>::set_mac_key(alphai);
     for (size_t i = 0; i < s.alpha.num_slots(); i++)
         s.alpha.set_element(i, alphai);
     insecure("MAC key generation");

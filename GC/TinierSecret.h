@@ -40,6 +40,7 @@ public:
     typedef typename super::part_type check_type;
     typedef Share<T> input_check_type;
     typedef check_type input_type;
+    typedef This bit_prep_type;
 
     static string type_short()
     {

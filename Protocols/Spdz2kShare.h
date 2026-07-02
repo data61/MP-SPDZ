@@ -48,6 +48,7 @@ public:
     typedef Spdz2kTripleGenerator<Spdz2kShare> TripleGenerator;
     typedef Z2<K + 2 * S> sacri_type;
     typedef Z2kRectangle<TAU(K, S), K + S> Rectangle;
+    typedef This part_type;
 
     typedef MAC_Check_Z2k<Z2<K + S>, Z2<S>, open_type, Spdz2kShare> MAC_Check;
     typedef Direct_MAC_Check_Z2k<Spdz2kShare> Direct_MC;

@@ -108,6 +108,8 @@ public:
     static bool bits_from_triples() { return false; }
     static bool dabits_from_bits() { return false; }
 
+    static typename T::mac_key_type get_mac_key(Player&) { return {}; }
+
     BufferPrep(DataPositions& usage);
     virtual ~BufferPrep();
 

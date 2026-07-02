@@ -169,6 +169,10 @@ public:
         throw runtime_error("no MAC");
     }
 
+    static void set_mac_key(GC::NoValue)
+    {
+    }
+
     template<class T>
     static string proto_fake_opts()
     {

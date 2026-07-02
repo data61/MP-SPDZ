@@ -48,6 +48,7 @@ ShareThread<T>::ShareThread(Preprocessing<T>& prep, Player& P,
 template<class T>
 ShareThread<T>::~ShareThread()
 {
+    singleton = 0;
     if (MC)
         delete MC;
     if (protocol)

@@ -1,4 +1,5 @@
 #include "OTTripleSetup.h"
+#include "Tools/benchmarking.h"
 
 void* run_ot(void* job)
 {
@@ -73,4 +74,46 @@ OTTripleSetup OTTripleSetup::get_fresh()
         res.baseReceiverOutputs[i] = bot.receiver_outputs;
     }
     return res;
+}
+
+void OTTripleSetup::pack(octetStream& os) const
+{
+    os.store(my_num);
+    os.store(baseSenderInputs);
+    os.store(baseReceiverOutputs);
+    base_receiver_inputs.pack(os);
+}
+
+void OTTripleSetup::unpack(octetStream& os)
+{
+    os.get(my_num);
+    os.get(baseSenderInputs);
+    os.get(baseReceiverOutputs);
+    base_receiver_inputs.unpack(os);
+
+    nparties = baseSenderInputs.size() + 1;
+    nbase = baseReceiverOutputs.at(0).size();
+
+    assert(my_num < nparties);
+    assert(baseReceiverOutputs.size() == baseSenderInputs.size());
+    for (auto& x : baseReceiverOutputs)
+        assert(x.size() == size_t(nbase));
+    for (auto& x : baseSenderInputs)
+        assert(x.size() == size_t(nbase));
+}
+
+void OTTripleSetup::check(TwoPartyPlayer& P)
+{
+    insecure("reveal for check");
+    int index = index_for(P.other_player_num());
+    vector<octetStream> os(2);
+    os[0].store(baseSenderInputs.at(index));
+    P.send_receive_player(os);
+    sender_type x;
+    os[1].get(x);
+    for (size_t i = 0; i < base_receiver_inputs.size(); i++)
+    {
+        auto bit = base_receiver_inputs.get_bit(i);
+        assert(baseReceiverOutputs.at(index).at(i) == x.at(i)[bit]);
+    }
 }

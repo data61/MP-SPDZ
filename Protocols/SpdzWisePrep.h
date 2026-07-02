@@ -31,6 +31,8 @@ class SpdzWisePrep : public MaliciousRingPrep<T>
     void buffer_bits(false_type, false_type, true_type);
 
 public:
+    static typename T::mac_key_type get_mac_key(Player& P);
+
     SpdzWisePrep(SubProcessor<T>* proc, DataPositions& usage) :
         BufferPrep<T>(usage),
         BitPrep<T>(proc, usage), RingPrep<T>(proc, usage),

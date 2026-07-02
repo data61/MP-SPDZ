@@ -3,6 +3,9 @@
  *
  */
 
+#ifndef OT_OTMULTIPLIER_HPP_
+#define OT_OTMULTIPLIER_HPP_
+
 #include "OT/config.h"
 
 #include "OT/OTMultiplier.h"
@@ -87,11 +90,19 @@ OTMultiplier<T>::~OTMultiplier()
 {
 }
 
-template<class T>
-void OTMultiplier<T>::init()
+template<class U>
+void OTMultiplierBase::init(U& key, Player& P, int other, OTTripleSetup& ot_setup)
 {
-    keyBits.set(generator.get_mac_key());
+    VirtualTwoPartyPlayer player(P, other);
+    OTExtensionWithMatrix rot_ext(&player);
+    int index = key.ot.index_for(other);
+    rot_ext.init(ot_setup.base_receiver_inputs,
+            ot_setup.baseSenderInputs.at(index),
+            ot_setup.baseReceiverOutputs.at(index));
+    auto& keyBits = key.ot.base_receiver_inputs;
     rot_ext.extend(keyBits.size(), keyBits);
+    auto& senderOutput = key.ot.baseSenderInputs.at(index);
+    auto& receiverOutput = key.ot.baseReceiverOutputs.at(index);
     senderOutput.resize(keyBits.size());
     for (size_t j = 0; j < keyBits.size(); j++)
     {
@@ -104,6 +115,32 @@ void OTMultiplier<T>::init()
     rot_ext.receiverOutputMatrix.vertical_to(receiverOutput);
     assert(receiverOutput.size() >= keyBits.size());
     receiverOutput.resize(keyBits.size());
+
+    if (OnlineOptions::singleton.has_option("debug_mac"))
+        key.ot.check(player);
+}
+
+template<class T>
+void OTMultiplier<T>::init()
+{
+    if (not T::has_mac)
+        return;
+
+    keyBits.set(generator.get_mac_key());
+    auto& ot_setup = generator.get_mac_key().ot;
+    if (OnlineOptions::singleton.has_option("debug_mac"))
+        cerr << "key bits: " << keyBits.str() << "/"
+                << ot_setup.base_receiver_inputs.str() << endl;
+    assert(keyBits == ot_setup.base_receiver_inputs);
+    senderOutput = ot_setup.baseSenderInputs.at(thread_num);
+    receiverOutput = ot_setup.baseReceiverOutputs.at(thread_num);
+
+    if (OnlineOptions::singleton.has_option("debug_mac"))
+    {
+        cerr << "MAC key: " << generator.get_mac_key() << endl;
+        ot_setup.check(*generator.players.at(thread_num));
+    }
+
     init_authenticator(keyBits, senderOutput, receiverOutput);
 }
 
@@ -549,6 +586,8 @@ void MascotMultiplier<T>::multiplyForBits(true_type)
     int nBits = generator.nTriplesPerLoop + generator.field_size;
     int nBlocks = ceil(1.0 * nBits / 128);
     BitVector extKeyBits = this->keyBits;
+    if (OnlineOptions::singleton.has_option("debug_mac"))
+        cerr << "key bits: " << extKeyBits.str() << endl;
     extKeyBits.resize_zero(128);
     auto extSenderOutput = this->senderOutput;
     extSenderOutput.resize(128, {{2, BitVector(128)}});
@@ -667,3 +706,5 @@ void OTMultiplier<T>::multiplyForMixed()
 {
     throw runtime_error("mixed generation not implemented in this case");
 }
+
+#endif

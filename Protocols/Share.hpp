@@ -9,27 +9,6 @@ typename Share_<T, V>::mac_key_type Share_<T, V>::mac_key;
 
 
 template<class T, class V>
-template<class U>
-void Share_<T, V>::read_or_generate_mac_key(string directory, const Player& P,
-        U& key)
-{
-    try
-    {
-        read_mac_key(directory, P.N, key);
-    }
-    catch (mac_key_error&)
-    {
-#ifdef VERBOSE
-        cerr << "Generating fresh MAC key" << endl;
-#endif
-        SeededPRNG G;
-        key.randomize(G);
-    }
-
-    set_mac_key(key);
-}
-
-template<class T, class V>
 typename Share_<T, V>::mac_key_type Share_<T, V>::get_mac_key()
 {
     return mac_key;

@@ -51,7 +51,7 @@ void TinierSharePrep<T>::set_protocol(typename T::Protocol& protocol)
     triple_generator = new typename T::TripleGenerator(
             BaseMachine::fresh_ot_setup(protocol.P), protocol.P.N, -1,
             OnlineOptions::singleton.batch_size, 1,
-            params, thread.MC->get_alphai(), &protocol.P);
+            params, &protocol.P);
     triple_generator->multi_threaded = false;
     this->inputs.resize(thread.P->num_players());
     init_real(protocol.P);

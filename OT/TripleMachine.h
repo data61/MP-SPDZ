@@ -37,9 +37,9 @@ class TripleMachine : public OfflineMachineBase, public MascotParams
 public:
     TripleMachine(int argc, const char** argv);
 
-    template<class T>
+    template<class T, class U>
     GeneratorThread* new_generator(OTTripleSetup& setup, int i,
-            typename T::mac_key_type mac_key);
+            U& mac_key);
 
     void run();
 };

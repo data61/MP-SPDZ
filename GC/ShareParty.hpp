@@ -108,9 +108,10 @@ ShareParty<T>::ShareParty(int argc, const char** argv, ez::ezOptionParser& opt,
     else
         P = new PlainPlayer(this->N, "shareparty");
 
-    T::read_or_generate_mac_key(
-            get_prep_sub_dir<typename T::part_type>(PREP_DIR, network_opts.nplayers),
-            *P, this->mac_key);
+    if (online_opts.live_prep)
+        this->mac_key = T::LivePrep::get_mac_key(*P);
+    else
+        maybe_read_mac_key<typename T::part_type>(this->N, this->mac_key);
 
     T::MC::setup(*P);
 

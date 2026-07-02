@@ -96,6 +96,7 @@ Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
   if (opts.live_prep)
     {
       sint::LivePrep::basic_setup(*P);
+      sgf2n::LivePrep::basic_setup(*P);
     }
 
   // Set the prime modulus if not done earlier
@@ -106,28 +107,32 @@ Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
   sint::bit_type::MAC_Check::setup(*P);
   sgf2n::MAC_Check::setup(*P);
 
+  // for OT-based preprocessing
+  sint::clear::next::template init<typename sint::clear>(false);
+
   if (opts.live_prep)
-    alphapi = read_generate_write_mac_key<sint>(*P);
+    {
+      alphapi = sint::LivePrep::get_mac_key(*P);
+      alpha2i = sgf2n::LivePrep::get_mac_key(*P);
+      alphabi = sint::bit_type::LivePrep::get_mac_key(*P);
+    }
   else
     {
       // check for directory
       Sub_Data_Files<sint>::check_setup(N);
-      // require existing MAC key
+      // require existing MAC keys
       if (sint::has_mac)
-        read_mac_key<sint>(N, alphapi);
+        maybe_read_mac_key<sint>(N, alphapi);
+      if (sgf2n::has_mac)
+        maybe_read_mac_key<sgf2n>(N, alpha2i);
+      if (sint::bit_type::part_type::has_mac)
+        maybe_read_mac_key<typename sint::bit_type::part_type>(N, alphabi);
     }
-
-  alpha2i = read_generate_write_mac_key<sgf2n>(*P);
-  alphabi = read_generate_write_mac_key<typename
-      sint::bit_type::part_type>(*P);
 
 #ifdef DEBUG_MAC
   cerr << "MAC Key p = " << alphapi << endl;
   cerr << "MAC Key 2 = " << alpha2i << endl;
 #endif
-
-  // for OT-based preprocessing
-  sint::clear::next::template init<typename sint::clear>(false);
 
   // Initialize the global memory
   auto memtype = opts.memtype;
@@ -203,15 +208,12 @@ void Machine<sint, sgf2n>::prepare(const string& progname_str)
         threads.push_back(thread);
       else
         throw runtime_error("cannot start thread");
+
+      // cannot start threads in parallel
+      queues[i]->result();
     }
 
   assert(queues.size() == threads.size());
-
-  // synchronize with clients before starting timer
-  for (int i=old_n_threads; i<nthreads; i++)
-    {
-      queues[i]->result();
-    }
 }
 
 template<class sint, class sgf2n>

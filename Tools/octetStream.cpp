@@ -262,6 +262,15 @@ void octetStream::output(ostream& s) const
   s.write((char*)data, len);
 }
 
+void octetStream::output(const string& filename)
+{
+  ofstream s(filename);
+  output(s);
+  if (not s.good())
+   throw file_error("cannot write to " + filename);
+  s.close();
+}
+
 ostream& operator<<(ostream& s,const octetStream& o)
 {
   for (size_t i=0; i<o.get_length(); i++)

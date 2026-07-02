@@ -272,6 +272,8 @@ class octetStream
   void input(istream& s);
   /// Output to stream
   void output(ostream& s) const;
+  /// Output to file
+  void output(const string& filename);
 
   /// Send on ``socket_num`` while receiving on ``receiving_socket``,
   /// overwriting current content

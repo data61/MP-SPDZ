@@ -70,10 +70,6 @@ class Share_ : public ShareInterface
    static int threshold(int nplayers)
      { return T::threshold(nplayers); }
 
-   template<class U>
-   static void read_or_generate_mac_key(string directory, const Player& P,
-           U& key);
-
    static void specification(octetStream& os);
 
    static mac_key_type get_mac_key();
@@ -172,6 +168,7 @@ public:
     typedef T sacri_type;
     typedef typename T::Square Rectangle;
     typedef Rectangle Square;
+    typedef This part_type;
 
     typedef MAC_Check_<Share> MAC_Check;
     typedef Direct_MAC_Check<Share> Direct_MC;

@@ -231,7 +231,7 @@ class BitVector
     bool equals(const BitVector& K) const
     {
         if (nbits != K.nbits)
-          { throw invalid_length(); }
+          { return false; }
         for (unsigned int i = 0; i < nbytes; i++)
           { if (bytes[i] != K.bytes[i]) { return false; } }
         return true;

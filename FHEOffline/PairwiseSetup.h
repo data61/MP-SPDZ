@@ -20,9 +20,9 @@ void secure_init(T& setup, Player& P, U& machine,
 template <class FD>
 class PairwiseSetup
 {
+public:
     typedef typename FD::T T;
 
-public:
     FHE_Params params;
     FD FieldD;
     typename FD::T alphai;

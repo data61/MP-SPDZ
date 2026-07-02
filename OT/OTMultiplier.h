@@ -38,6 +38,9 @@ public:
     WaitQueue<MultJob> inbox;
     WaitQueue<MultJob> outbox;
 
+    template<class U>
+    static void init(U& key, Player& P, int other, OTTripleSetup& ot_setup);
+
     virtual ~OTMultiplierBase() {}
     virtual void multiply() = 0;
 };

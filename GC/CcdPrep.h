@@ -24,6 +24,11 @@ class CcdPrep : public BufferPrep<T>
 public:
     static const bool use_part = true;
 
+    static typename T::mac_key_type get_mac_key(Player& P)
+    {
+        return T::part_type::LivePrep::get_mac_key(P);
+    }
+
     CcdPrep(DataPositions& usage) :
             BufferPrep<T>(usage), part_prep(usage), part_proc(0)
     {

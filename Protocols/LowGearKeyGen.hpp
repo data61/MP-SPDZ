@@ -34,7 +34,7 @@ KeyGenProtocol<X, L>::KeyGenProtocol(Player& P, const FHE_Params& params,
     if (OnlineOptions::singleton.live_prep)
     {
         prep = new MascotDabitOnlyPrep<share_type>(0, usage);
-        alphai.randomize(G);
+        alphai = MascotDabitOnlyPrep<share_type>::get_mac_key(P);
     }
     else
     {
@@ -62,6 +62,7 @@ KeyGenProtocol<X, L>::~KeyGenProtocol()
     delete MC;
 
     MC->teardown();
+    MascotDabitOnlyPrep<share_type>::teardown();
 
     OnlineOptions::singleton.batch_size = backup_batch_size;
     open_type::reset();

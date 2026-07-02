@@ -147,20 +147,17 @@ TripleMachine::TripleMachine(int argc, const char** argv) :
         gfpvar1::init_default(128, false);
     gf2n_long::init_field();
     gf2n_short::init_field();
-    
-    PRNG G;
-    G.ReSeed();
-    mac_key2.randomize(G);
-    mac_keyp.randomize(G);
-    mac_keyz.randomize(G);
 }
 
-template<class T>
+template<class T, class U>
 GeneratorThread* TripleMachine::new_generator(OTTripleSetup& setup, int i,
-        typename T::mac_key_type mac_key)
+        U& mac_key)
 {
     if (i == 0)
+    {
+        mac_key = T::LivePrep::get_mac_key(*player);
         T::MAC_Check::setup(*player);
+    }
 
     if (output and i == 0)
     {
@@ -170,7 +167,7 @@ GeneratorThread* TripleMachine::new_generator(OTTripleSetup& setup, int i,
     }
 
     return new typename T::TripleGenerator(setup, N[i % nConnections], i,
-            nTriplesPerThread, nloops, *this, mac_key);
+            nTriplesPerThread, nloops, *this);
 }
 
 void TripleMachine::run()

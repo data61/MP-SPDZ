@@ -43,6 +43,8 @@ class RealProgramParty : public ProgramPartySpec<T>
 
 	bool one_shot;
 
+	typename T::mac_key_type mac_key;
+
 public:
 	static RealProgramParty& s();
 

@@ -13,6 +13,7 @@
 
 #include "OT/Triple.hpp"
 #include "OT/OTMultiplier.hpp"
+#include "OT/MascotMacKey.hpp"
 #include "Protocols/MAC_Check.hpp"
 #include "Protocols/SemiInput.hpp"
 #include "Protocols/SemiMC.hpp"
@@ -44,6 +45,24 @@ void* run_ot_thread(void* ptr)
     return NULL;
 }
 
+template<class T>
+typename OTTripleGenerator<T>::mac_key_type OTTripleGenerator<T>::get_mac_key(
+        Player& P)
+{
+    if (mac_key == 0)
+    {
+        mac_key.template read_or_generate<T>(P);
+        OTTripleGenerator<typename T::bit_prep_type>::mac_key = mac_key.get_fresh();
+    }
+    return mac_key;
+}
+
+template<class T>
+void OTTripleGenerator<T>::reset_mac_key()
+{
+	mac_key = {};
+}
+
 /*
  * Copies the relevant base OTs from setup
  * N.B. setup must not be stored as it will be used by other threads
@@ -51,36 +70,36 @@ void* run_ot_thread(void* ptr)
 template<class T>
 NPartyTripleGenerator<T>::NPartyTripleGenerator(const OTTripleSetup& setup,
         const Names& names, int thread_num, int _nTriples, int nloops,
-        MascotParams& machine, mac_key_type mac_key, Player* parentPlayer) :
+        MascotParams& machine, Player* parentPlayer) :
         OTTripleGenerator<T>(setup, names, thread_num, _nTriples, nloops,
-                machine, mac_key, parentPlayer)
+                machine, parentPlayer)
 {
 }
 
 template<class T>
 SimpleMascotTripleGenerator<T>::SimpleMascotTripleGenerator(const OTTripleSetup& setup,
         const Names& names, int thread_num, int _nTriples, int nloops,
-        MascotParams& machine, mac_key_type mac_key, Player* parentPlayer) :
+        MascotParams& machine, Player* parentPlayer) :
         NPartyTripleGenerator<T>(setup, names, thread_num, _nTriples, nloops,
-                machine, mac_key, parentPlayer)
+                machine, parentPlayer)
 {
 }
 
 template<class T>
 MascotTripleGenerator<T>::MascotTripleGenerator(const OTTripleSetup& setup,
         const Names& names, int thread_num, int _nTriples, int nloops,
-        MascotParams& machine, mac_key_type mac_key, Player* parentPlayer) :
+        MascotParams& machine, Player* parentPlayer) :
         SimpleMascotTripleGenerator<T>(setup, names, thread_num, _nTriples, nloops,
-                machine, mac_key, parentPlayer)
+                machine, parentPlayer)
 {
 }
 
 template<class T>
 Spdz2kTripleGenerator<T>::Spdz2kTripleGenerator(const OTTripleSetup& setup,
         const Names& names, int thread_num, int _nTriples, int nloops,
-        MascotParams& machine, mac_key_type mac_key, Player* parentPlayer) :
+        MascotParams& machine, Player* parentPlayer) :
         NPartyTripleGenerator<T>(setup, names, thread_num, _nTriples, nloops,
-                machine, mac_key, parentPlayer)
+                machine, parentPlayer)
 {
 }
 
@@ -100,12 +119,11 @@ void OTTripleGenerator<T>::set_batch_size(int batch_size)
 template<class T>
 OTTripleGenerator<T>::OTTripleGenerator(const OTTripleSetup& setup,
         const Names& names, int thread_num, int _nTriples, int nloops,
-        MascotParams& machine, mac_key_type mac_key, Player* parentPlayer) :
+        MascotParams& machine, Player* parentPlayer) :
         globalPlayer(parentPlayer ? *parentPlayer : *new PlainPlayer(names,
                 to_string(thread_num))),
         parentPlayer(parentPlayer),
         thread_num(thread_num),
-        mac_key(mac_key),
         my_num(setup.get_my_num()),
         nloops(nloops),
         nparties(setup.get_nparties()),
@@ -276,7 +294,7 @@ void NPartyTripleGenerator<W>::generateInputs(int player)
     GlobalPRNG G(globalPlayer);
     typename W::input_check_type check_sum;
     inputs.resize(toCheck);
-    auto mac_key = this->get_mac_key();
+    typename W::mac_type mac_key = this->get_mac_key();
     SemiInput<SemiShare<T>> input(0, globalPlayer);
     input.maybe_init(globalPlayer);
     input.reset_all(globalPlayer);
@@ -358,7 +376,9 @@ void MascotTripleGenerator<T>::generateBitsGf2n()
         typename T::clear r;
         for (int j = 0; j < nBitsToCheck; j++)
         {
-            auto mac_sum = valueBits[0].get_bit(j) ? this->get_mac_key() : 0;
+            auto mac_sum =
+                    valueBits[0].get_bit(j) ?
+                            typename T::clear(this->get_mac_key()) : 0;
             for (int i = 0; i < this->nparties-1; i++)
                 mac_sum += this->ot_multipliers[i]->macs[0][j];
             bits[j].set_share(valueBits[0].get_bit(j));

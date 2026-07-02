@@ -32,7 +32,8 @@ public:
         T::clear::next::init_default(prime_length, false);
 
         // must initialize MAC key for security of some protocols
-        T::read_or_generate_mac_key(directory, P, mac_key);
+        mac_key = T::LivePrep::get_mac_key(P);
+        (void) directory;
 
         T::MAC_Check::setup(P);
     }
@@ -50,7 +51,8 @@ public:
         T::clear::next::init_field(prime, false);
 
         // must initialize MAC key for security of some protocols
-        T::read_or_generate_mac_key(directory, P, mac_key);
+        mac_key = T::LivePrep::get_mac_key(P);
+        (void) directory;
 
         T::MAC_Check::setup(P);
     }
@@ -92,7 +94,8 @@ public:
     {
         T::part_type::open_type::init_field();
         T::mac_key_type::init_field();
-        T::part_type::read_or_generate_mac_key(directory, P, mac_key);
+        mac_key = T::part_type::LivePrep::get_mac_key(P);
+        (void) directory;
 
         T::MAC_Check::setup(P);
     }

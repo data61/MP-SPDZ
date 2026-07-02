@@ -38,6 +38,11 @@ class TinierSharePrep : public PersonalPrep<T>
     void init_real(Player& P);
 
 public:
+    static typename T::mac_key_type get_mac_key(Player& P)
+    {
+        return T::TripleGenerator::get_mac_key(P);
+    }
+
     TinierSharePrep(DataPositions& usage, int input_player =
             PersonalPrep<T>::SECURE);
     TinierSharePrep(SubProcessor<T>*, DataPositions& usage);

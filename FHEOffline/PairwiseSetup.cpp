@@ -47,7 +47,7 @@ void PairwiseSetup<FD>::init(const Player& P, int sec, int plaintext_length,
     }
 
     alpha = FieldD;
-    alphai = read_or_generate_mac_key<Share<T>>(P);
+    alphai.randomize(G);
     alpha.assign_constant(alphai);
 }
 

@@ -7,10 +7,12 @@
 #include "Tools/time-func.h"
 #include "Processor/InputTuple.h"
 #include "Protocols/dabit.h"
+#include "Protocols/Share.h"
 
 #include "OT/OTTripleSetup.h"
 #include "OT/MascotParams.h"
 #include "OT/OTMultiplier.h"
+#include "MascotMacKey.h"
 
 #include <map>
 #include <vector>
@@ -50,8 +52,13 @@ class OTTripleGenerator : public GeneratorThread
 {
     typedef typename T::open_type open_type;
     typedef typename T::mac_key_type mac_key_type;
+    typedef MascotMacKey<typename T::mac_key_type> complete_mac_key_type;
+
+    template<class> friend class OTTripleGenerator;
 
 protected:
+    static complete_mac_key_type mac_key;
+
     //OTTripleSetup* setup;
     Player& globalPlayer;
     Player* parentPlayer;
@@ -64,8 +71,6 @@ protected:
     ofstream outputFile;
 
     SeededPRNG share_prg;
-
-    mac_key_type mac_key;
 
     void start_progress();
     void print_progress(int k);
@@ -104,9 +109,12 @@ public:
 
     typename T::MAC_Check* MC;
 
+    static complete_mac_key_type& get_mac_key() { return mac_key; }
+    static mac_key_type get_mac_key(Player& P);
+    static void reset_mac_key();
+
     OTTripleGenerator(const OTTripleSetup& setup, const Names& names,
             int thread_num, int nTriples, int nloops, MascotParams& machine,
-            mac_key_type mac_key,
             Player* parentPlayer = 0);
     ~OTTripleGenerator();
 
@@ -121,8 +129,6 @@ public:
     void generateMixedTriples();
 
     void run_multipliers(MultJob job);
-
-    mac_key_type get_mac_key() const { return mac_key; }
 
     Player& get_player() { return globalPlayer; }
 };
@@ -141,13 +147,15 @@ public:
 
     NPartyTripleGenerator(const OTTripleSetup& setup, const Names& names,
             int thread_num, int nTriples, int nloops, MascotParams& machine,
-            mac_key_type mac_key,
             Player* parentPlayer = 0);
     virtual ~NPartyTripleGenerator() {}
 
     void generate();
     void generateInputs(int player);
 };
+
+template<class T>
+typename OTTripleGenerator<T>::complete_mac_key_type OTTripleGenerator<T>::mac_key;
 
 template<class T>
 class SimpleMascotTripleGenerator : public NPartyTripleGenerator<T>
@@ -162,7 +170,6 @@ public:
 
     SimpleMascotTripleGenerator(const OTTripleSetup& setup, const Names& names,
             int thread_num, int nTriples, int nloops, MascotParams& machine,
-            mac_key_type mac_key,
             Player* parentPlayer = 0);
     virtual ~SimpleMascotTripleGenerator() {}
 
@@ -190,7 +197,6 @@ public:
 
     MascotTripleGenerator(const OTTripleSetup& setup, const Names& names,
             int thread_num, int nTriples, int nloops, MascotParams& machine,
-            mac_key_type mac_key,
             Player* parentPlayer = 0);
 };
 
@@ -211,7 +217,6 @@ public:
 
     Spdz2kTripleGenerator(const OTTripleSetup& setup, const Names& names,
             int thread_num, int nTriples, int nloops, MascotParams& machine,
-            mac_key_type mac_key,
             Player* parentPlayer = 0);
 
     void generateTriples();

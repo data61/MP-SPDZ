@@ -36,8 +36,10 @@ public:
     static const bool homomorphic = true;
 
     static void basic_setup(Player& P);
-    static void key_setup(Player& P, mac_key_type alphai);
+    static void key_setup(Player& P);
     static void teardown();
+
+    static mac_key_type get_mac_key(Player& P);
 
     ChaiGearPrep(SubProcessor<T>* proc, DataPositions& usage) :
             BufferPrep<T>(usage), BitPrep<T>(proc, usage),

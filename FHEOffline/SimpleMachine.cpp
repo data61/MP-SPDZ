@@ -253,7 +253,9 @@ void MultiplicativeMachine::fake_keys(int slack)
     part_setup.unpack(os);
     part_setup.check();
 
-    part_setup.alphai = read_or_generate_mac_key<Share<typename FD::T>>(P);
+    SeededPRNG G;
+    part_setup.alphai.randomize(G);
+    Share<typename FD::T>::set_mac_key(part_setup.alphai);
     Plaintext_<FD> m(part_setup.FieldD);
     m.assign_constant(part_setup.alphai);
     vector<Ciphertext> C({part_setup.pk.encrypt(m)});

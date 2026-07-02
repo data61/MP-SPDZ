@@ -18,6 +18,14 @@
 #include "GC/RepPrep.hpp"
 
 template<class T>
+typename T::mac_key_type SpdzWisePrep<T>::get_mac_key(Player& P)
+{
+    if (T::get_mac_key() == 0)
+        read_generate_write_mac_key<T>(P);
+    return T::get_mac_key();
+}
+
+template<class T>
 void SpdzWisePrep<T>::buffer_triples()
 {
     assert(this->protocol != 0);

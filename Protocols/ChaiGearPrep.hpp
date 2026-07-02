@@ -61,7 +61,7 @@ void ChaiGearPrep<T>::basic_setup(Player& P)
 }
 
 template<class T>
-void ChaiGearPrep<T>::key_setup(Player& P, mac_key_type alphai)
+void ChaiGearPrep<T>::key_setup(Player& P)
 {
     CODE_LOCATION
     Timer timer;
@@ -70,20 +70,7 @@ void ChaiGearPrep<T>::key_setup(Player& P, mac_key_type alphai)
     auto& setup = machine->setup.part<FD>();
     auto& options = CowGearOptions::singleton;
     read_or_generate_secrets(setup, P, *machine, options.covert_security,
-            T::covert);
-
-    // adjust mac key
-    mac_key_type diff = alphai - setup.alphai;
-    setup.alphai = alphai;
-    Bundle<octetStream> bundle(P);
-    diff.pack(bundle.mine);
-    P.unchecked_broadcast(bundle);
-    for (int i = 0; i < P.num_players(); i++)
-    {
-        Plaintext_<FD> mess(setup.FieldD);
-        mess.assign_constant(bundle[i].get<mac_key_type>(), Polynomial);
-        setup.calpha += mess;
-    }
+            T::covert, T());
 
     // generate minimal number of items
     machine->nTriplesPerThread = 1;
@@ -91,6 +78,18 @@ void ChaiGearPrep<T>::key_setup(Player& P, mac_key_type alphai)
     cerr << T::type_string() << " key setup took " << timer.elapsed()
             << " seconds" << endl;
 #endif
+}
+
+template<class T>
+typename ChaiGearPrep<T>::mac_key_type ChaiGearPrep<T>::get_mac_key(Player& P)
+{
+    if (machine == 0)
+        basic_setup(P);
+
+    auto& mac_key = machine->setup.part<FD>().alphai;
+    if (mac_key == 0)
+        key_setup(P);
+    return mac_key;
 }
 
 template<class T>
@@ -104,7 +103,7 @@ typename ChaiGearPrep<T>::Generator& ChaiGearPrep<T>::get_generator()
         PlainPlayer P(proc->P.N, "ChaiGear" + T::type_string());
         if (machine == 0)
             basic_setup(P);
-        key_setup(P, proc->MC.get_alphai());
+        key_setup(P);
         BaseMachine::add_one_off(P.total_comm());
     }
     lock.unlock();

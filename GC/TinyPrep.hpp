@@ -16,11 +16,10 @@ template<class T>
 void TinierSharePrep<T>::init_real(Player& P)
 {
     assert(real_triple_generator == 0);
-    auto& thread = ShareThread<secret_type>::s();
     real_triple_generator = new typename T::whole_type::TripleGenerator(
             BaseMachine::fresh_ot_setup(P), P.N, -1,
             OnlineOptions::singleton.batch_size, 1, params,
-            thread.MC->get_alphai(), &P);
+            &P);
     real_triple_generator->multi_threaded = false;
 }
 

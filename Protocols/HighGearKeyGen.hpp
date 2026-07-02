@@ -84,6 +84,10 @@ void HighGearKeyGen<L, M>::run(PartSetup<FD>& setup, MachineBase& machine)
     CODE_LOCATION
     RunningTimer timer;
 
+    DataPositions prep_usage;
+    BT::LivePrep preprocessing(prep_usage);
+    GC::ShareThread<BT> thread(preprocessing, P, BT::LivePrep::get_mac_key(P));
+
     GlobalPRNG global_prng(P);
     auto& fftd = params.FFTD();
 

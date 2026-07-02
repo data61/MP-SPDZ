@@ -9,9 +9,11 @@
 #include "Networking/Player.h"
 #include "Tools/Bundle.h"
 
-template<class T, class U, class V>
+#include "Protocols/fake-stuff.hpp"
+
+template<class T, class U, class V, class W>
 void read_or_generate_secrets(T& setup, Player& P, U& machine,
-        int num_runs, V)
+        int num_runs, V, W)
 {
     octetStream os;
     setup.params.pack(os);
@@ -62,6 +64,9 @@ void read_or_generate_secrets(T& setup, Player& P, U& machine,
         machine.pack(os);
         os.output(output);
     }
+
+    W::set_mac_key(setup.alphai);
+    write_mac_key<W>(P.N, setup.alphai);
 }
 
 template <class T, class U, class V>
