@@ -35,7 +35,7 @@ Co-ordinate MAC checks among threads and race condition in MAC checks
 failure attacks if the result of computation in one thread would be
 used in another before checking. See also "SPDZ Multi-Threaded MAC
 Check" on `mpcsec.org <https://mpcsec.org>`_. A further related race
-condition has been reported by Tadas Majoravas.
+condition has been reported by Tadas Majorovas.
 
 
 Remove MAC key in case of failure
