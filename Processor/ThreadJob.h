@@ -25,6 +25,7 @@ enum ThreadJobType
     FFT_JOB,
     CIPHER_PLAIN_MULT_JOB,
     MATRX_RAND_MULT_JOB,
+    SHUFFLE_JOB,
     NO_JOB
 };
 
@@ -183,6 +184,22 @@ public:
         input = &alpha2;
         length = m;
         supply = &PrD;
+    }
+};
+
+template<class T> class ShuffleTuple;
+
+class ShuffleJob : public ThreadJob
+{
+public:
+    template<class T>
+    ShuffleJob(typename T::Protocol::Shuffler* shuffler, StackedVector<T>& a,
+            vector<ShuffleTuple<T>>& shuffles)
+    {
+        type = SHUFFLE_JOB;
+        output = shuffler;
+        output2 = &a;
+        supply = &shuffles;
     }
 };
 

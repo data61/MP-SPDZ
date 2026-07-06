@@ -149,7 +149,7 @@ void InputBase<T>::exchange()
 }
 
 template<class T>
-void InputBase<T>::raw_input(SubProcessor<T>& proc, const vector<int>& args,
+void InputBase<T>::raw_input(SubProcessor<T>& proc, const ArgVector& args,
         int size)
 {
     auto& P = proc.P;
@@ -227,8 +227,8 @@ T InputBase<T>::finalize(int player, int n_bits)
 
 template<class T>
 template<class U>
-void InputBase<T>::prepare(SubProcessor<T>& Proc, int player, const int* params,
-        int size)
+void InputBase<T>::prepare(SubProcessor<T>& Proc, int player,
+        const ArgVector::value_type* params, int size)
 {
     auto& input = Proc.input;
     assert(Proc.Proc != 0);
@@ -253,8 +253,8 @@ void InputBase<T>::prepare(SubProcessor<T>& Proc, int player, const int* params,
 
 template<class T>
 template<class U>
-void InputBase<T>::finalize(SubProcessor<T>& Proc, int player, const int* dest,
-        int size)
+void InputBase<T>::finalize(SubProcessor<T>& Proc, int player,
+        const ArgVector::value_type* dest, int size)
 {
     auto& input = Proc.input;
     for (int k = 0; k < size; k++)
@@ -265,7 +265,7 @@ void InputBase<T>::finalize(SubProcessor<T>& Proc, int player, const int* dest,
 template<class T>
 template<class U>
 void InputBase<T>::input(SubProcessor<T>& Proc,
-        const vector<int>& args, int size)
+        const ArgVector& args, int size)
 {
     auto& input = Proc.input;
     input.reset_all(Proc.P);
@@ -277,7 +277,7 @@ void InputBase<T>::input(SubProcessor<T>& Proc,
     if (Proc.Proc and Proc.Proc->use_stdin())
     {
         for (size_t i = n_arg_tuple - 1; i < args.size(); i += n_arg_tuple)
-            n_from_me += (args[i] == Proc.P.my_num()) * size;
+            n_from_me += (int(args[i]) == Proc.P.my_num()) * size;
         if (n_from_me > 0)
             cout << "Please input " << n_from_me << " " << U::NAME << "(s):" << endl;
     }
@@ -316,7 +316,7 @@ int InputBase<T>::get_player(SubProcessor<T>& Proc, int arg, bool player_from_re
 }
 
 template<class T>
-void InputBase<T>::input_mixed(SubProcessor<T>& Proc, const vector<int>& args,
+void InputBase<T>::input_mixed(SubProcessor<T>& Proc, const ArgVector& args,
     int size, bool player_from_reg)
 {
     auto& input = Proc.input;

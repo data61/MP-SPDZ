@@ -10,6 +10,7 @@
 #include "IntInput.h"
 #include "FixInput.h"
 #include "FloatInput.h"
+#include "Instruction.h"
 #include "Tools/Exceptions.h"
 
 #include <iostream>
@@ -25,7 +26,8 @@ void ProcessorBase::open_input_file(const string& name)
 }
 
 template<class T>
-T ProcessorBase::get_input(bool interactive, const int* params)
+T ProcessorBase::get_input(bool interactive,
+        const ArgVector::value_type* params)
 {
     if (interactive)
         return get_input<T>(cin, "standard input", params);
@@ -34,7 +36,8 @@ T ProcessorBase::get_input(bool interactive, const int* params)
 }
 
 template<class T>
-T ProcessorBase::get_input(istream& input_file, const string& input_filename, const int* params)
+T ProcessorBase::get_input(istream& input_file, const string& input_filename,
+        const ArgVector::value_type* params)
 {
     T res;
     if (input_file.peek() == EOF)

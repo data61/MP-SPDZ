@@ -215,6 +215,8 @@ enum
     PRINTFLOATPLAIN = 0xBC,
     WRITEFILESHARE = 0xBD,
     READFILESHARE = 0xBE,
+    WRITEFILECLEAR = 0xC3,
+    READFILECLEAR = 0xC4,
     CONDPRINTSTR = 0xBF,
     PRINTFLOATPREC = 0xE0,
     CONDPRINTPLAIN = 0xE1,
@@ -345,6 +347,7 @@ struct TempVars {
   typename sint::open_type rrp, xip;
 };
 
+typedef vector<unsigned> ArgVector;
 
 class BaseInstruction
 {
@@ -354,9 +357,9 @@ class BaseInstruction
 protected:
   int opcode;         // The code
   int size;           // Vector size
-  int r[4];           // Fixed parameter registers
+  unsigned r[4];      // Fixed parameter registers
   size_t n;             // Possible immediate value
-  vector<int>  start; // Values for a start/stop open
+  ArgVector start;    // Values for extended instructions
   string str;
 
   void bytecode_assert(bool condition) const;
@@ -365,9 +368,9 @@ public:
   BaseInstruction() : opcode(0), size(0), n(0) {}
   virtual ~BaseInstruction() {};
 
-  int get_r(int i) const { return r[i]; }
+  unsigned get_r(int i) const { return r[i]; }
   size_t get_n() const { return n; }
-  const vector<int>& get_start() const { return start; }
+  const vector<unsigned>& get_start() const { return start; }
   int get_opcode() const { return opcode; }
   int get_size() const { return size; }
 
@@ -414,6 +417,7 @@ public:
   void gbitcom(StackedVector<cgf2n>& registers) const;
 
   void execute_regint(ArithmeticProcessor& Proc, MemoryPart<Integer>& Mi) const;
+  void incint(StackedVector<Integer>& Ci) const;
 
   void shuffle(ArithmeticProcessor& Proc) const;
   void bitdecint(ArithmeticProcessor& Proc) const;

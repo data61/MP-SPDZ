@@ -197,7 +197,7 @@ Secret<T> Secret<T>::operator>>(int i) const
 
 template <class T>
 template <class U>
-void Secret<T>::bitcom(StackedVector<U>& S, const vector<int>& regs)
+void Secret<T>::bitcom(StackedVector<U>& S, const ArgVector& regs)
 {
     registers.clear();
     for (unsigned int i = 0; i < regs.size(); i++)
@@ -210,7 +210,7 @@ void Secret<T>::bitcom(StackedVector<U>& S, const vector<int>& regs)
 
 template <class T>
 template <class U>
-void Secret<T>::bitdec(StackedVector<U>& S, const vector<int>& regs) const
+void Secret<T>::bitdec(StackedVector<U>& S, const ArgVector& regs) const
 {
     if (regs.size() > registers.size())
         throw overflow("not enough bits for bit decomposition", regs.size(),
@@ -226,7 +226,7 @@ void Secret<T>::bitdec(StackedVector<U>& S, const vector<int>& regs) const
 template<class T>
 template<class U>
 void Secret<T>::trans(Processor<U>& processor, int n_outputs,
-        const vector<int>& args)
+        const ArgVector& args)
 {
     int n_inputs = args.size() - n_outputs;
     int dl = U::default_length;
@@ -255,7 +255,9 @@ void Secret<T>::reveal(size_t n_bits, U& x)
             << registers.size() << ") bits" << endl;
 #endif
     if (n_bits > registers.size())
-        throw out_of_range("not enough wires for revealing");
+        throw out_of_range(
+                "not enough wires for revealing: " + to_string(n_bits) + "/"
+                        + to_string(registers.size()));
     x = 0;
     for (unsigned int i = 0; i < min(8 * sizeof(U), registers.size()); i++)
     {

@@ -1,5 +1,21 @@
 The changelog explains changes pulled through from the private development repository. Bug fixes and small enhancements are committed between releases and not documented here.
 
+## 0.4.3 (Jul 6, 2026)
+
+- Fixed security bug: malicious parties not committed to MAC key across threads and executions
+- Fixed security bug: insufficient checks in Rep4
+- Improved radix sort
+- Optimized 32-bit computation
+- Multithreaded Rep3 shuffling
+- Improved benchmarking in binary virtual machines
+- More sophisticated register allocation
+- C++-20 requirement throughout
+- Option for parametrized communication cost
+- Use budget when merging function calls
+- Timeout for compilation to allow identification of blowouts
+- Option to disable index checks in loops
+- File persistence for public integers
+
 ## 0.4.2 (Dec 24, 2025)
 
 - Expected communication cost in compiler
@@ -8,6 +24,7 @@ The changelog explains changes pulled through from the private development repos
 - Option of choosing SoftSpoken parameter at run-time
 - BERT functionality (@hiddely)
 - Recommended reading list in documentation
+- Fixed security bug: minor security parameter degradation in HighGear input protocol
 
 ## 0.4.1 (May 30, 2025)
 
@@ -18,7 +35,7 @@ The changelog explains changes pulled through from the private development repos
 - Backend optimizations benefitting the most efficient protocols like Rep3
 - Allow regint registers as argument in exported functions
 - More efficient dot product for GF(2^n)
-- File persistance for GF(2^n)
+- File persistence for GF(2^n)
 - Output of binary secrets
 - SHA256
 - Improved navigation by providing links to relevant papers (`./compile.py --papers`) and outputting which code is executed (`./<protocol>-party.x --code-locations`)
@@ -119,6 +136,7 @@ The changelog explains changes pulled through from the private development repos
 - Square-root ORAM (@Quitlox)
 - Improved ORAM in binary circuits
 - UTF-8 outputs
+- Fixed security bug: insufficient parameter in non-interactive zero-knowledge proofs
 
 ## 0.3.3 (Aug 25, 2022)
 

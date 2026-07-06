@@ -11,18 +11,26 @@ void Commit(octetStream& comm,octetStream& open,const octetStream& message, int 
     comm = open.hash();
 }
 
-bool Open(octetStream& message,const octetStream& comm,const octetStream& open, int send_player)
+bool Open(octetStream& message,const octetStream& comm, octetStream& open, int send_player)
 {
     octetStream h = open.hash();
-    octet* open_bytes = open.get_data();
     // first 4 bytes are player no.
-    int open_player = BYTES_TO_INT(open_bytes);
+    int open_player;
+    try
+    {
+        open_player = open.get<int>();
+    }
+    catch (exception& e)
+    {
+        throw invalid_commitment(send_player, e.what());
+    }
+
     if (!(h.equals(comm) && open_player == send_player))
     {
-        return false;
+        throw invalid_commitment(send_player);
     }
     message.reset_write_head();
-    message.append(open_bytes + sizeof(int), open.get_length() - SEED_SIZE - sizeof(int));
+    message.append(open.consume(0), open.left() - SEED_SIZE);
     return true;
 }
 
@@ -45,9 +53,11 @@ void Commitment::commit(const octetStream& message, const octetStream& open)
 void Commitment::check(const octetStream& message, const octetStream& comm,
         const octetStream& open)
 {
+    if (open.empty())
+        throw invalid_commitment(send_player, "empty opening");
     commit(message, open);
     if (!(comm == this->comm))
-        throw invalid_commitment();
+        throw invalid_commitment(send_player);
 }
 
 void AllCommitments::commit_and_open(const octetStream& message)

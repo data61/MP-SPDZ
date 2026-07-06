@@ -46,9 +46,10 @@ class invalid_length: public runtime_error
     public:
       invalid_length(string msg = "") : runtime_error("Invalid length: " + msg) {}
     };
-class invalid_commitment: public exception
-    { virtual const char* what() const throw()
-        { return "Invalid Commitment"; }
+class invalid_commitment: public runtime_error
+    {
+public:
+    invalid_commitment(int player = -1, const char* message = 0);
     };
 class IO_Error: public exception
     {

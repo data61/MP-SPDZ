@@ -25,6 +25,7 @@ papers = {
     'KS14': 'https://eprint.iacr.org/2014/137',
     'KSS13': 'https://eprint.iacr.org/2013/143',
     'KS22': 'https://eprint.iacr.org/2022/933',
+    'KS26': 'https://eprint.iacr.org/2026/944',
     'LFHH+20': 'https://doi.org/10.1145/3411501.3419427',
     'NO07': 'https://doi.org/10.1007/978-3-540-71677-8_23',
     'Shi19': 'https://eprint.iacr.org/2019/274',

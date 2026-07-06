@@ -18,6 +18,10 @@ class BlockAllocator:
         self.by_logsize = [defaultdict(set) for i in range(64)]
         self.by_address = {}
 
+    def free_size(self):
+        return sum(sum(x * len(y) for x, y in xx.items())
+                   for xx in self.by_logsize)
+
     def by_size(self, size):
         if size >= 2 ** 64:
             raise CompilerError('size exceeds addressing capability')
@@ -52,7 +56,9 @@ class BlockAllocator:
                 else:
                     block_size = 0
         if block_size >= size:
-            addr = self.by_size(block_size).pop()
+            available = self.by_size(block_size)
+            addr = min(available)
+            available.remove(addr)
             del self.by_address[addr]
             diff = block_size - size
             if diff:
@@ -244,10 +250,17 @@ class StraightlineAllocator:
                         "Register(s) %s never used, assigned by '%s' in %s" % \
                         (unused_regs,i,format_trace(i.caller)))
 
-            for j in i.get_used():
-                self.alloc_reg(j, alloc_pool)
-            for j in i.get_def():
-                self.dealloc_reg(j, i, alloc_pool)
+            if i.read_after_write:
+                for j in i.get_used():
+                    self.alloc_reg(j, alloc_pool)
+                for j in i.get_def():
+                    self.dealloc_reg(j, i, alloc_pool)
+            else:
+                for part in reversed(list(i.get_parts())):
+                    for j in part.get_def():
+                        self.dealloc_reg(j, i, alloc_pool)
+                    for j in part.get_used():
+                        self.alloc_reg(j, alloc_pool)
 
             if k % 1000000 == 0 and k > 0:
                 print("Allocated registers for %d instructions at" % k, time.asctime())
@@ -364,11 +377,16 @@ class Merger:
         except StopIteration:
             return mergecount, None
 
-        for i in merges_iter:
-            instructions[n].merge(instructions[i])
-            instructions[i] = None
-            self.merge_nodes(n, i)
-            mergecount += 1
+        under_budget = reduce(operator.or_, (
+            (instructions[x].get_repeat() or 0) <
+            self.block.parent.program.memory_budget for x in merge))
+
+        if under_budget:
+            for i in merges_iter:
+                instructions[n].merge(instructions[i])
+                instructions[i] = None
+                self.merge_nodes(n, i)
+                mergecount += 1
 
         return mergecount, n
 

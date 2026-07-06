@@ -39,8 +39,12 @@ for filename in glob.glob('../Compiler/*.py'):
 out = csv.writer(open('other-reading.csv', 'w'))
 
 for ref, keywords in sorted(refs.items(), key=lambda x: list(sorted(
-        re.sub('\(', '', xx).lower() for xx in x[1]))):
+        re.sub(r'\(', '', xx).lower() for xx in x[1]))):
     out.writerow([', '.join(sorted(keywords, key=lambda x: x.lower())),
                   papers[ref]])
 
 del out
+
+for ref, paper in papers.items():
+    if ref not in refs and paper not in protocol_links:
+        print('missing', ref, file=sys.stderr)

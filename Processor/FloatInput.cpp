@@ -9,7 +9,7 @@
 
 const char* FloatInput::NAME = "real number";
 
-void FloatInput::read(std::istream& in, const int* params)
+void FloatInput::read(std::istream& in, const ArgVector::value_type* params)
 {
     double x;
     in >> x;

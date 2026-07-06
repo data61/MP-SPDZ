@@ -90,6 +90,8 @@ public:
     static const bool has_trunc_pr = true;
     static const bool malicious = false;
 
+    static false_type is_clear;
+
     static string type_short() { return "D" + string(1, T::type_char()); }
 
     static int threshold(int nplayers)
@@ -164,5 +166,8 @@ public:
         }
     }
 };
+
+template<class T>
+false_type SemiShare<T>::is_clear;
 
 #endif /* PROTOCOLS_SEMISHARE_H_ */

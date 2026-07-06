@@ -131,7 +131,9 @@ void ThreadMaster<T>::run_with_error()
 
     if (not exe_stats.empty())
         exe_stats.print();
-    stats.print();
+
+    if (opts.verbose)
+        stats.print();
 
     machine.print_timers();
 

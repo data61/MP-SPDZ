@@ -192,8 +192,7 @@
     X(DIVINT, auto dest = &Proc.get_Ci()[r[0]]; auto op1 = &Proc.get_Ci()[r[1]]; \
             auto op2 = &Proc.get_Ci()[r[2]], \
             if (*op2 == 0) throw division_by_zero(); *dest++ = *op1++ / *op2++) \
-    X(INCINT, auto dest = &Proc.get_Ci()[r[0]]; auto base = Proc.get_Ci()[r[1]], \
-            int inc = (i / start[0]) % start[1]; *dest++ = base + inc * int(n)) \
+    X(INCINT, incint(Proc.get_Ci()),) \
     X(EQZC, auto dest = &Ci[r[0]]; auto source = &Ci[r[1]], *dest++ = *source++ == 0) \
     X(LTZC, auto dest = &Ci[r[0]]; auto source = &Ci[r[1]], *dest++ = *source++ < 0) \
     X(LTC, auto dest = &Ci[r[0]]; auto op1 = &Ci[r[1]]; auto op2 = &Ci[r[2]], \
@@ -394,6 +393,8 @@
     X(INITCLIENTCONNECTION, throw not_implemented(),) \
     X(GWRITEFILESHARE, throw not_implemented(),) \
     X(GREADFILESHARE, throw not_implemented(),) \
+    X(WRITEFILECLEAR, throw not_implemented(),) \
+    X(READFILECLEAR, throw not_implemented(),) \
 
 #define ALL_INSTRUCTIONS ARITHMETIC_INSTRUCTIONS REGINT_INSTRUCTIONS \
     CLEAR_GF2N_INSTRUCTIONS REMAINING_INSTRUCTIONS

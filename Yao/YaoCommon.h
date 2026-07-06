@@ -66,7 +66,7 @@ public:
         return max(1u, thread::hardware_concurrency() / master.machine.nthreads);
     }
 
-    vector<array<size_t, 2>> get_splits(const vector<int>& args, int threshold,
+    vector<array<size_t, 2>> get_splits(const ArgVector& args, int threshold,
             int total);
 
     void wait(int n_threads)

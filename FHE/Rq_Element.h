@@ -38,6 +38,8 @@ protected:
     a({r0, r1}), lev(n_mults()) {}
 
   public:
+
+  static false_type optimized_packing;
   
   int n_mults() const { return a.size() - 1; }
 

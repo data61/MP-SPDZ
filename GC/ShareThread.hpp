@@ -96,7 +96,7 @@ class BitOpTuple
 public:
     static const int n = 4;
 
-    BitOpTuple(vector<int>::const_iterator it) :
+    BitOpTuple(ArgVector::const_iterator it) :
             n_bits(*it++), dest(*it++), left(*it++), right(*it++)
     {
     }
@@ -166,7 +166,7 @@ public:
 
 template<class T>
 void ShareThread<T>::and_(Processor<T>& processor,
-        const vector<int>& args, bool repeat)
+        const ArgVector& args, bool repeat)
 {
     auto& protocol = this->protocol;
     auto& S = processor.S;
@@ -264,7 +264,7 @@ void ShareThread<T>::and_(Processor<T>& processor,
 }
 
 template<class T>
-void ShareThread<T>::andrsvec(Processor<T>& processor, const vector<int>& args)
+void ShareThread<T>::andrsvec(Processor<T>& processor, const ArgVector& args)
 {
     int N_BITS = T::default_length;
     auto& protocol = this->protocol;
@@ -318,7 +318,7 @@ void ShareThread<T>::andrsvec(Processor<T>& processor, const vector<int>& args)
 }
 
 template<class T>
-void ShareThread<T>::xors(Processor<T>& processor, const vector<int>& args)
+void ShareThread<T>::xors(Processor<T>& processor, const ArgVector& args)
 {
     processor.check_args(args, 4);
     auto it = args.begin();

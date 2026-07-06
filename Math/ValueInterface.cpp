@@ -9,6 +9,9 @@
 #include <sys/stat.h>
 
 const false_type ValueInterface::binary;
+const false_type ValueInterface::optimized_packing;
+
+const true_type ValueInterface::is_clear;
 
 void ValueInterface::check_setup(const string& directory)
 {

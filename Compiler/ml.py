@@ -669,6 +669,23 @@ class MultiOutput(MultiOutputBase):
         else:
             return self.exp[i].reveal_list()
 
+class TwoQuadOutput(MultiOutput):
+    def _forward(self, batch):
+        N = len(batch)
+        @for_range_opt_multithread(self.n_threads, N)
+        def _(i):
+            x = self.X[i][:]
+            squares = (x + 5) ** 2
+            self.exp[i][:] = squares / sum(squares)
+            self.losses[i] = sum((-self.Y[batch[i]][:] + self.exp[i][:]) ** 2)
+        self.l.write(sum(self.losses.get_vector(0, N)) / N)
+
+    def backward(self, batch):
+        N = len(batch)
+        @for_range_opt_multithread(self.n_threads, N)
+        def _(i):
+            self.nabla_X[i] = -self.Y[batch[i]][:] + self.exp[i][:]
+
 class ReluMultiOutput(MultiOutputBase):
     """
     Output layer for multi-class classification with back-propagation

@@ -25,14 +25,19 @@ def process(tapename, res, regs):
             if isinstance(arg, RegisterArgFormat):
                 regs[type(arg)] = max(regs[type(arg)], arg.i + inst.size)
 
-tapes = Program.read_tapes(sys.argv[1])
-n_threads = Program.read_n_threads(sys.argv[1])
-domain_size = Program.read_domain_size(sys.argv[1]) or 8
+try:
+    tapes = Program.read_tapes(sys.argv[1])
+    n_threads = Program.read_n_threads(sys.argv[1])
+    domain_size = Program.read_domain_size(sys.argv[1]) or 8
 
-process(next(tapes), res, regs)
+    process(next(tapes), res, regs)
 
-for tapename in tapes:
-    process(tapename, res, thread_regs)
+    for tapename in tapes:
+        process(tapename, res, thread_regs)
+except:
+    n_threads = 1
+    domain_size = 8
+    process(sys.argv[1], res, regs)
 
 reverse_formats = dict((v, k) for k, v in ArgFormats.items())
 

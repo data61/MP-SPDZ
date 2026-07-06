@@ -27,7 +27,7 @@ void RepRingOnlyEdabitPrep<T>::buffer_edabits(int n_bits, ThreadQueues*)
     vector<T> wholes(swholes.begin(), swholes.end());
 
     auto& P = this->proc->P;
-    vector<int> regs(P.num_players() * n_bits);
+    ArgVector regs(P.num_players() * n_bits);
     for (size_t i = 0; i < regs.size(); i++)
         regs[i] = i * buffer_size / dl;
     typedef typename T::bit_type bt;

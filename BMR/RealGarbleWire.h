@@ -44,9 +44,9 @@ public:
 	        GC::Processor<GC::Secret<RealGarbleWire>>& processor);
 
 	static void inputb(GC::Processor<GC::Secret<RealGarbleWire>>& processor,
-			const vector<int>& args);
+			const ArgVector& args);
 	static void inputbvec(GC::Processor<GC::Secret<RealGarbleWire>>& processor,
-			ProcessorBase& input_processor, const vector<int>& args);
+			ProcessorBase& input_processor, const ArgVector& args);
 
 	void garble(PRFOutputs& prf_output, const RealGarbleWire<T>& left,
 			const RealGarbleWire<T>& right);

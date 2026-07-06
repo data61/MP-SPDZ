@@ -74,6 +74,8 @@ public:
 
     static const bool garbled = false;
 
+    static false_type is_clear;
+
     static int threshold(int) { return 0; }
 
     static MC* new_mc(mac_key_type key) { return new MC(key); }
@@ -85,31 +87,31 @@ public:
     static void store(Memory<FakeSecret>& mem, vector< WriteAccess<FakeSecret> >& accesses);
 
     template <class T>
-    static void andrs(T& processor, const vector<int>& args)
+    static void andrs(T& processor, const ArgVector& args)
     { processor.andrs(args); }
-    static void ands(GC::Processor<FakeSecret>& processor, const vector<int>& regs);
+    static void ands(GC::Processor<FakeSecret>& processor, const ArgVector& regs);
     template <class T>
-    static void andrsvec(T&, const vector<int>&)
+    static void andrsvec(T&, const ArgVector&)
     { throw runtime_error("andrsvec not implemented"); }
     static void andm(GC::Processor<FakeSecret>& processor, const ::Instruction& instruction)
     { processor.andm(instruction); }
     template <class T>
-    static void xors(GC::Processor<T>& processor, const vector<int>& regs)
+    static void xors(GC::Processor<T>& processor, const ArgVector& regs)
     { processor.xors(regs); }
     template <class T>
-    static void inputb(T& processor, const vector<int>& args)
+    static void inputb(T& processor, const ArgVector& args)
     { processor.input(args); }
     template <class T>
-    static void inputb(T& processor, ArithmeticProcessor&, const vector<int>& args)
+    static void inputb(T& processor, ArithmeticProcessor&, const ArgVector& args)
     { processor.input(args); }
     static void inputbvec(Processor<FakeSecret>& processor,
-            ProcessorBase& input_processor, const vector<int>& args);
+            ProcessorBase& input_processor, const ArgVector& args);
     template <class T>
-    static void reveal_inst(T& processor, const vector<int>& args)
+    static void reveal_inst(T& processor, const ArgVector& args)
     { processor.reveal(args); }
 
     static void trans(Processor<FakeSecret>& processor, int n_inputs,
-            const vector<int>& args);
+            const ArgVector& args);
 
     template <class T>
     static void convcbit(Integer& dest, const Clear& source, T&) { dest = source; }
@@ -121,7 +123,7 @@ public:
     static void andm(GC::Processor<U>&, const BaseInstruction&)
     { throw runtime_error("andm not implemented"); }
 
-    static void run_tapes(const vector<int>& args);
+    static void run_tapes(const ArgVector& args);
 
     static FakeSecret input(GC::Processor<FakeSecret>& processor, const InputArgs& args);
     static FakeSecret input(int from, word input, int n_bits);
@@ -144,8 +146,8 @@ public:
     template <class T>
     void store(Memory<T>& mem, size_t address) { mem[address] = *this; }
 
-    void bitcom(StackedVector<FakeSecret>& S, const vector<int>& regs);
-    void bitdec(StackedVector<FakeSecret>& S, const vector<int>& regs) const;
+    void bitcom(StackedVector<FakeSecret>& S, const ArgVector& regs);
+    void bitdec(StackedVector<FakeSecret>& S, const ArgVector& regs) const;
 
     template <class T>
     void xor_(int n, const FakeSecret& x, const T& y)

@@ -259,7 +259,18 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
           matrix_rand_mult(job, sint::triple_matmul);
           queues->finished(job);
         }
-      else
+      else if (job.type == SHUFFLE_JOB)
+        {
+          assert(job.output);
+          assert(job.output2);
+          assert(job.supply);
+          ((typename sint::Protocol::Shuffler*) job.output)->shuffle_job(
+              *(StackedVector<sint>*) job.output2,
+              *(const vector<ShuffleTuple<sint>>*) job.supply, job.begin,
+              job.end, P, &machine.queues);
+          queues->finished(job);
+        }
+      else if (job.type == TAPE_JOB)
         { // RUN PROGRAM
 #ifdef DEBUG_THREADS
           printf("\tClient %d about to run %d\n",num,program);
@@ -295,8 +306,10 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
               "in thread %d\n", program, num);
 #endif
           queues->stop_online(P, Proc.prep_time());
-          queues->finished(job, P.total_comm());
+          queues->finished(job, {P.total_comm(), Proc.stats});
        }  
+      else
+        throw runtime_error("unknown job type " + to_string(job.type));
     }
 
   // final check
@@ -308,6 +321,7 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
     Proc.DataF.prune();
 
   queues->next();
+  queues->stop_timer(P);
 
 #ifdef VERBOSE
   if (MC2->number() + MCp->number() > 0)
@@ -339,8 +353,13 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
     }
 
   // wind down thread by thread
-  machine.stats += Proc.stats;
-  queues->stop_timer(P);
+
+  if (not Proc.stats.empty() and
+      OnlineOptions::singleton.verbose)
+    {
+      cerr << "Thread " << thread_num << endl;
+      Proc.stats.print();
+    }
 
   assert(Proc.share_thread.protocol);
   queues->timers["random"] = Proc.Procp.protocol.randomness_time()
@@ -383,9 +402,10 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
 
   // prevent faulty usage message
   Proc.DataF.set_usage(actual_usage);
+  auto exe_stats = Proc.stats;
   delete processor;
 
-  queues->finished(actual_usage, P.total_comm(), stats);
+  queues->finished(actual_usage, {P.total_comm(), exe_stats}, stats);
 
   delete MC2;
   delete MCp;

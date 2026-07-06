@@ -53,6 +53,7 @@ public:
     const static bool expensive = false;
     const static bool malicious = false;
     const static int bit_generation_threshold = 3;
+    static false_type is_clear;
 
     static string type_short()
     {
@@ -138,5 +139,8 @@ public:
 
 template<class T>
 true_type ShamirShare<T>::variable_players;
+
+template<class T>
+false_type ShamirShare<T>::is_clear;
 
 #endif /* PROTOCOLS_SHAMIRSHARE_H_ */

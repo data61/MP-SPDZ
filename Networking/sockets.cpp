@@ -198,3 +198,79 @@ void close_client_socket(int socket)
       error(tmp);
     }
 }
+
+void send(int socket, octet* msg, size_t len)
+{
+  size_t i = 0;
+  long wait = 1;
+  long count = 0;
+  long max_wait = 0;
+
+  while (i < len)
+    {
+      count++;
+      size_t j = send_non_blocking(socket, msg + i, len - i);
+      i += j;
+      if (j > 0)
+        wait = 1;
+      else
+        {
+          max_wait = max(wait, max_wait);
+          usleep(wait);
+          wait *= 2;
+          wait = min(wait, 1000l);
+        }
+    }
+
+  if (OnlineOptions::singleton.has_option("send_count"))
+    if (max_wait)
+      fprintf(stderr, "called send %ld times, maximum wait %e seconds\n", count,
+          max_wait * 1e-6);
+}
+
+void receive(int socket, octet* msg, size_t len)
+{
+  size_t i = 0;
+  int fail = 0;
+  long wait = 1;
+  long count = 0;
+  long max_wait = 0;
+
+  while (len - i > 0)
+    {
+      int j = recv(socket, msg + i, len - i, 0);
+      count++;
+
+      // success first
+      if (j > 0)
+        {
+          i = i + j;
+          fail = 0;
+          wait = 1;
+        }
+      else if (j < 0)
+        {
+          if (errno == EAGAIN or errno == EINTR)
+            {
+              if (++fail > 100000)
+                error("Unavailable too many times", true);
+              else
+                {
+                  wait = min(wait, 500l);
+                  usleep(wait *= 2);
+                  max_wait = max(wait, max_wait);
+                }
+            }
+          else
+            {
+              error("Receiving error", true, len - i);
+            }
+        }
+      else
+        throw closed_connection();
+    }
+
+  if (max_wait and OnlineOptions::singleton.has_option("recv_count"))
+    fprintf(stderr, "called recv %ld times, maximum wait %e seconds\n", count,
+        max_wait * 1e-6);
+}

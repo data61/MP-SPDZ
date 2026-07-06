@@ -27,6 +27,12 @@ public:
     template <class FD>
     PairwiseSetup<FD>& setup();
 
+    template <class FD>
+    PairwiseSetup<FD>& get_setup()
+    {
+        return setup<FD>();
+    }
+
     void pack(octetStream& os) const;
     void unpack(octetStream& os);
 

@@ -2,6 +2,7 @@
 #include "Matrix.h"
 #include "QGroup.h"
 #include "Math/bigint.h"
+#include "Processor/OnlineOptions.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -71,7 +72,9 @@ void QGroup::assign(int mm,int seed)
 
   Vi=inv(V);
 
-  cout << "Quotient Group Generators :\n";
+  bool verbose = OnlineOptions::singleton.has_option("verbose_he_setup");
+  if (verbose)
+    cout << "Quotient Group Generators :\n";
   g.resize(npr); d.resize(npr);
   ngen=0;  Gord=1;
   bigint temp;
@@ -83,7 +86,8 @@ void QGroup::assign(int mm,int seed)
           g[ngen]=mpz_get_ui(temp.get_mpz_t());
           d[ngen]=mpz_get_ui(S[i][i].get_mpz_t());
 	  Gord=Gord*d[ngen];
-	  cout << "\t(" << g[ngen] << "," << d[ngen] << ")" << endl;
+	  if (verbose)
+	    cout << "\t(" << g[ngen] << "," << d[ngen] << ")" << endl;
           ngen++;
         }
     }

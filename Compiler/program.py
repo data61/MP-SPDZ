@@ -12,6 +12,7 @@ import re
 import sys
 import hashlib
 import random
+import time
 from collections import defaultdict, deque
 from functools import reduce
 
@@ -25,7 +26,7 @@ from Compiler.instructions_base import RegType
 from . import allocator as al
 from . import util
 from .papers import *
-from .cost import expected_communication
+from .cost import expected_communication, is_malicious
 
 data_types = dict(
     triple=0,
@@ -71,6 +72,7 @@ class defaults:
     stop = False
     insecure = False
     keep_cisc = False
+    variable_cost = False
 
 
 class Program(object):
@@ -103,6 +105,10 @@ class Program(object):
             self.set_ring_size(int(options.ring))
         else:
             self.bit_length = int(options.binary) or int(options.field)
+            if options.field:
+                print("WARNING: --field/-F does not set the field size "
+                      "but the number of usable bits. Use -lgp with the "
+                      "virtual machine to set the field size.")
             if options.prime:
                 self.prime = int(options.prime)
                 print("WARNING: --prime/-P activates code that usually isn't "
@@ -262,6 +268,12 @@ class Program(object):
         self.allow_tight_parameters = True
         self.warned_about_tightness = False
         self.warned_about_a2b = False
+        self.memory_budget = 10 ** 7
+        self.warned_about = defaultdict(lambda: False)
+        self.keep_cisc = (options.keep_cisc or "").split(",")
+        self.timeout = None
+        self.expansion_timeout = 10
+        self.warned_about_mem = False
 
         Program.prog = self
         from . import comparison, instructions, instructions_base, types
@@ -559,6 +571,9 @@ class Program(object):
             self.allocated_mem[mem_type] += size
             if len(str(addr)) != len(str(addr + size)) and self.verbose:
                 print("Memory of type '%s' now of size %d" % (mem_type, addr + size))
+            if (self.verbose or addr > 10 ** 9) and size > 0.1 * addr:
+                print("adding %d to memory of type '%s' at size %d in block %s" % (
+                    size, mem_type, addr, self.curr_block.name))
             if addr + size >= MEM_MAX:
                 raise CompilerError(
                     "allocation exceeded for type '%s' after adding %d" % \
@@ -645,6 +660,9 @@ class Program(object):
         if self.verbose:
             if self.saved:
                 print("Saved %s memory units through reallocation" % self.saved)
+            print("Freed memory:", ", ".join(
+                "%s: %d" % (x, y.free_size())
+                for x, y in self.free_mem_blocks.items()))
 
     def public_input(self, x):
         """Append a value to the public input file."""
@@ -879,11 +897,8 @@ class Program(object):
         try:
             return open(schedule).readlines()
         except FileNotFoundError:
-            print(
-                "%s not found, have you compiled the program?" % schedule,
-                file=sys.stderr,
-            )
-            sys.exit(1)
+            raise Exception(
+                "%s not found, have you compiled the program?" % schedule)
 
     @classmethod
     def read_tapes(cls, schedule):
@@ -896,9 +911,20 @@ class Program(object):
         return int(cls.read_schedule(schedule)[0])
 
     @classmethod
-    def read_domain_size(cls, schedule):
+    def read_domain_size(cls, program):
+        schedule = cls.read_schedule(program)
+        try:
+            domain = schedule[6]
+            t, n = domain.split(':')
+            n = int(n)
+            if t == "R" and n <= 32:
+                return 4
+            elif n:
+                return (n + 63) // 64
+        except:
+            pass
         from Compiler.instructions import reqbl_class
-        tapename = cls.read_schedule(schedule)[2].strip().split(":")[0]
+        tapename = schedule[2].strip().split(":")[0]
         for inst in Tape.read_instructions(tapename):
             if inst.code == reqbl_class.code:
                 bl = inst.args[0]
@@ -910,7 +936,7 @@ class Program(object):
             if isinstance(reference, tuple):
                 assert part is None
                 reference = ', '.join(papers.get(x) or x for x in reference)
-            suffix = ' (%s)' % part or ''
+            suffix = ' (%s)' % part if part else ''
             print('Recommended reading on %s: %s%s' % (
                 concept, papers.get(reference) or reference, suffix))
             self.recommended.add(key)
@@ -927,6 +953,27 @@ class Program(object):
         length = int(math.ceil(bit_length / 8))
         return expected_communication(
             self.options.execute, self.req_num or Tape.ReqNum(), length)
+
+    def warn_about_slow_loop(self):
+        if not self.warned_about['loop']:
+            print(
+                "WARNING: Using run-time values (regint) with optimized loops "
+                "is slower because the optimization happens at compile time. "
+                "Use int to avoid this. See "
+                "https://mp-spdz.readthedocs.io/en/latest/compilation.html on "
+                "how to use compile-time arguments. Alternatively, use "
+                "@for_range_parallel to control the optimization manually: "
+                "https://mp-spdz.readthedocs.io/en/latest/Compiler.html#Compiler.library.for_range_parallel"
+            )
+            self.warned_about['loop'] = True
+
+    def unlimited_compilation(self):
+        self.timeout = None
+        self.expansion_timeout = None
+
+    def malicious_protocol(self):
+        if self.options.execute:
+            return is_malicious(self.options.execute)
 
 class Tape:
     """A tape contains a list of basic blocks, onto which instructions are added."""
@@ -954,7 +1001,6 @@ class Tape:
         self.singular = True
         self.free_threads = set() if thread_pool is None else thread_pool
         self.loop_breaks = []
-        self.warned_about_mem = False
         self.return_values = []
         self.ran_threads = False
         self.unused_decorators = {}
@@ -1334,6 +1380,7 @@ class Tape:
         for req, num in sorted(self.req_num.items()):
             if num == float("inf") or num >= 2**64:
                 num = -1
+            num = int(round(num))
             if req[1] in data_types:
                 self.basicblocks[-1].instructions.append(
                     Compiler.instructions.use(
@@ -1496,6 +1543,8 @@ class Tape:
 
         def __mul__(self, other):
             res = Tape.ReqNum()
+            if other == 0:
+                return res
             for i in self:
                 res[i] = other * self[i]
             return res
@@ -1531,6 +1580,12 @@ class Tape:
                 for req, num in list(self.items())
                 if req[1] != "input" and req[0] != "edabit"
             )
+
+        def finite(self):
+            for y, x in self.items():
+                if not math.isfinite(x) and not y == ('bit', 'inverse'):
+                    return False
+            return True
 
         def pretty(self):
             def t(x):
@@ -1660,6 +1715,8 @@ class Tape:
                         % (bit_length, self.program.prime)
                         + (" (for %s)" % reason if reason else '')
                     )
+            if self.program.bit_length:
+                bit_length = max(bit_length, self.program.bit_length)
             bit_length += 1
             if bit_length > self.req_bit_length[t]:
                 self.req_bit_length[t] = bit_length
@@ -1674,6 +1731,14 @@ class Tape:
         tape = open("Programs/Bytecode/%s.bc" % tapename, "rb")
         while tape.peek():
             yield inst_base.ParsedInstruction(tape)
+
+    @property
+    def warned_about_mem(self):
+        return self.program.warned_about_mem
+
+    @warned_about_mem.setter
+    def warned_about_mem(self, value):
+        self.program.warned_about_mem = value
 
     class _no_truth(object):
         __slots__ = []
@@ -1808,6 +1873,11 @@ class Tape:
             res.vector = self.vector[base : base + size]
             return res
 
+        @property
+        def vec(self):
+            self.create_vector_elements()
+            return self.vector
+
         def create_vector_elements(self):
             if self.vector:
                 return
@@ -1815,7 +1885,15 @@ class Tape:
                 self.vector = [self]
                 return
             self.vector = []
+            start = time.time()
+            prog = self.program.program
             for i in range(self.size):
+                if prog.expansion_timeout and \
+                   time.time() - start > prog.expansion_timeout:
+                    raise CompilerError(
+                        "Vector expansion timed out. Use arrays instead "
+                        "of vectors to access entries or add "
+                        "'program.unlimited_compilation()' at the beginning")
                 reg = self._new_by_number(self.i + i)
                 reg.set_vectorbase(self)
                 self.vector.append(reg)

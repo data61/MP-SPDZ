@@ -118,7 +118,7 @@ prep_setup_error::prep_setup_error(const string& error, int nplayers,
                         + error
                         + "\nHave you run the right program for generating it, "
                                 "such as './Fake-Offline.x "
-                        + to_string(nplayers) + fake_opts + "'?")
+                        + to_string(nplayers) + " " + fake_opts + "'?")
 {
 }
 
@@ -156,5 +156,14 @@ field_too_small::field_too_small(int length, int security) :
                         + " bits) for chosen security (" + to_string(security)
                         + "). Increase size with -lgp or "
                         "decrease security with --security")
+{
+}
+
+invalid_commitment::invalid_commitment(int player, const char* message) :
+        runtime_error(
+                "invalid commitment"
+                        + (player < 0 ?
+                                string() : " from party " + to_string(player))
+                        + (message ? string(": ") + message : string()))
 {
 }

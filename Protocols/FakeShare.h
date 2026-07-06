@@ -38,6 +38,8 @@ public:
     static const bool is_real = false;
     static const bool variable_players = false;
 
+    static false_type is_clear;
+
     static string type_short()
     {
         return "emul";
@@ -63,7 +65,7 @@ public:
     {
     }
 
-    static void split(StackedVector<bit_type>& dest, const vector<int>& regs,
+    static void split(StackedVector<bit_type>& dest, const ArgVector& regs,
             int n_bits, const This* source, int n_inputs,
             GC::FakeSecret::Protocol& protocol);
 };

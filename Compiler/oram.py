@@ -1303,7 +1303,7 @@ class TreeORAM(AbstractORAM):
 
         # add all possible leaves to ensure appearance in B
         leaves = self.value_type.Array(m + 2 ** self.D)
-        leaves[:] = unsorted_leaves
+        leaves.assign_vector(unsorted_leaves)
         leaves.assign(regint.inc(2 ** self.D), base=m)
         leaves.sort()
 
@@ -1557,12 +1557,12 @@ class PackedIndexStructure(object):
             c = mod2m(rem, self.log_entries_per_element, \
                           self.log_entries_per_block, False)
             b = trunc_zeros(rem - c, self.log_entries_per_element,
-                                      self.log_entries_per_block)
+                            self.log_entries_per_block, signed=False)
             if self.small:
                 return 0, b, c
             else:
                 return trunc_zeros(index - rem, self.log_entries_per_block,
-                                                 log2(self.size)), b, c
+                                   log2(self.size), signed=False), b, c
         else:
             index_bits = bit_decompose(index, log2(self.size))
             l1 = self.log_entries_per_element

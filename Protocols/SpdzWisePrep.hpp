@@ -18,7 +18,7 @@
 #include "GC/RepPrep.hpp"
 
 template<class T>
-typename T::mac_key_type SpdzWisePrep<T>::get_mac_key(Player& P)
+typename T::mac_key_type SpdzWisePrep<T>::get_mac_key(Player& P, bool)
 {
     if (T::get_mac_key() == 0)
         read_generate_write_mac_key<T>(P);

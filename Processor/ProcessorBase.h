@@ -14,6 +14,7 @@ using namespace std;
 #include "Tools/ExecutionStats.h"
 #include "Tools/SwitchableOutput.h"
 #include "OnlineOptions.h"
+#include "Instruction.h"
 #include "Math/Integer.h"
 
 class ProcessorBase
@@ -58,9 +59,10 @@ public:
   void open_input_file(int my_num, int thread_num, const string& prefix="");
 
   template<class T>
-  T get_input(bool interactive, const int* params);
+  T get_input(bool interactive, const ArgVector::value_type* params);
   template<class T>
-  T get_input(istream& is, const string& input_filename, const int* params);
+  T get_input(istream& is, const string& input_filename,
+      const ArgVector::value_type* params);
 
   void setup_redirection(int my_nu, int thread_num, OnlineOptions& opts,
       SwitchableOutput& out, bool real = true);

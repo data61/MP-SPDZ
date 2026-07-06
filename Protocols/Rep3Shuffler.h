@@ -9,14 +9,17 @@
 #include "SecureShuffle.h"
 
 template<class T>
-class Rep3Shuffler
+class Rep3Shuffler : public SecureShuffleBase<T>
 {
 public:
-    typedef array<vector<int>, 2> shuffle_type;
+    typedef array<CheckVector<int>, 2> shuffle_type;
     typedef ShuffleStore<shuffle_type> store_type;
 
 private:
     SubProcessor<T>& proc;
+
+    CheckVector<CheckVector<T>> to_shuffle;
+    CheckVector<typename T::clear> to_share;
 
 public:
     map<long, long> stats;
@@ -25,10 +28,11 @@ public:
 
     void generate(int n_shuffle, shuffle_type& shuffle);
 
-    void apply_multiple(StackedVector<T>& a, vector<ShuffleTuple<T>> &shuffles);
+    void apply_multiple(StackedVector<T>& a, vector<ShuffleTuple<T>> &shuffles,
+            bool multithread = true);
 
-    void inverse_permutation(StackedVector<T>& stack, size_t n, size_t output_base,
-            size_t input_base);
+    void shuffle_job(StackedVector<T>& a, const vector<ShuffleTuple<T>>& shuffles,
+            long begin, long end, Player& P, ThreadQueues* queues);
 };
 
 #endif /* PROTOCOLS_REP3SHUFFLER_H_ */

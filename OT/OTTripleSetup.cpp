@@ -13,7 +13,7 @@ void OTTripleSetup::setup()
     gettimeofday(&baseOTstart, NULL);
 
     G.ReSeed();
-    for (int i = 0; i < nbase; i++)
+    for (int i = 0; i < get_nbase(); i++)
     {
         base_receiver_inputs[i] = G.get_uchar() & 1;
     }
@@ -23,9 +23,9 @@ void OTTripleSetup::setup()
     for (int i = 0; i < nparties - 1; i++)
         threads.push_back({*this, i});
     for (int i = 0; i < nparties - 1; i++)
-        pthread_create(&threads[i].thread, 0, run_ot, &threads[i]);
+        pthread_create(&threads.at(i).thread, 0, run_ot, &threads.at(i));
     for (int i = 0; i < nparties - 1; i++)
-        pthread_join(threads[i].thread, 0);
+        pthread_join(threads.at(i).thread, 0);
     gettimeofday(&baseOTend, NULL);
 #ifdef VERBOSE_BASEOT
     double basetime = timeval_diff(&baseOTstart, &baseOTend);
@@ -34,7 +34,7 @@ void OTTripleSetup::setup()
 
     for (size_t i = 0; i < baseOTs.size(); i++)
     {
-        delete baseOTs[i];
+        delete baseOTs.at(i);
     }
 
     // Receiver send something to force synchronization
@@ -43,17 +43,17 @@ void OTTripleSetup::setup()
 
 void OTTripleSetup::run(int i)
 {
-    baseOTs[i]->set_receiver_inputs(base_receiver_inputs);
-    baseOTs[i]->exec_base(false);
-    baseSenderInputs[i] = baseOTs[i]->sender_inputs;
-    baseReceiverOutputs[i] = baseOTs[i]->receiver_outputs;
+    baseOTs.at(i)->set_receiver_inputs(base_receiver_inputs);
+    baseOTs.at(i)->exec_base(false);
+    baseSenderInputs.at(i) = baseOTs.at(i)->sender_inputs;
+    baseReceiverOutputs.at(i) = baseOTs.at(i)->receiver_outputs;
 }
 
 void OTTripleSetup::close_connections()
 {
     for (size_t i = 0; i < players.size(); i++)
     {
-        delete players[i];
+        delete players.at(i);
     }
 }
 
@@ -62,16 +62,16 @@ OTTripleSetup OTTripleSetup::get_fresh()
     OTTripleSetup res = *this;
     for (int i = 0; i < nparties - 1; i++)
     {
-        BaseOT bot(nbase, 0);
-        bot.sender_inputs = baseSenderInputs[i];
-        bot.receiver_outputs = baseReceiverOutputs[i];
+        BaseOT bot(get_nbase(), 0);
+        bot.sender_inputs = baseSenderInputs.at(i);
+        bot.receiver_outputs = baseReceiverOutputs.at(i);
         bot.set_seeds();
         bot.extend_length();
-        baseSenderInputs[i] = bot.sender_inputs;
-        baseReceiverOutputs[i] = bot.receiver_outputs;
+        baseSenderInputs.at(i) = bot.sender_inputs;
+        baseReceiverOutputs.at(i) = bot.receiver_outputs;
         bot.extend_length();
-        res.baseSenderInputs[i] = bot.sender_inputs;
-        res.baseReceiverOutputs[i] = bot.receiver_outputs;
+        res.baseSenderInputs.at(i) = bot.sender_inputs;
+        res.baseReceiverOutputs.at(i) = bot.receiver_outputs;
     }
     return res;
 }
@@ -92,7 +92,7 @@ void OTTripleSetup::unpack(octetStream& os)
     base_receiver_inputs.unpack(os);
 
     nparties = baseSenderInputs.size() + 1;
-    nbase = baseReceiverOutputs.at(0).size();
+    size_t nbase = get_nbase();
 
     assert(my_num < nparties);
     assert(baseReceiverOutputs.size() == baseSenderInputs.size());

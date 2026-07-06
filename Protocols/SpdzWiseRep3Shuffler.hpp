@@ -44,7 +44,7 @@ void SpdzWiseRep3Shuffler<T>::apply_multiple(StackedVector<T> &a,
         }
     }
 
-    internal.apply_multiple(temporary_memory, mapped_shuffles);
+    internal.apply_multiple(temporary_memory, mapped_shuffles, false);
 
     for (size_t current_shuffle = 0; current_shuffle < n_shuffles; current_shuffle++)
     {
@@ -62,11 +62,4 @@ void SpdzWiseRep3Shuffler<T>::apply_multiple(StackedVector<T> &a,
     }
 
     proc.protocol.maybe_check();
-}
-
-template<class T>
-void SpdzWiseRep3Shuffler<T>::inverse_permutation(StackedVector<T>&, size_t, size_t,
-        size_t)
-{
-    throw not_implemented();
 }

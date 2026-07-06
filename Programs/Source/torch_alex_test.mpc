@@ -2,6 +2,7 @@
 # before testing it in secure computation
 
 program.options_from_args()
+program.unlimited_compilation()
 
 from Compiler import ml
 

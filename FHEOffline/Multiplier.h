@@ -24,8 +24,7 @@ class Multiplier
     PairwiseMachine& machine;
     OffsetPlayer P;
     int num_players, my_num;
-    const FHE_PK& other_pk;
-    const Ciphertext& other_enc_alpha;
+    int key_index;
     map<string, Timer>& timers;
 
     // temporary

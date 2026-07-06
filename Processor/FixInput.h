@@ -10,6 +10,7 @@
 
 #include "Math/bigint.h"
 #include "Math/Integer.h"
+#include "Instruction.h"
 
 template<class T>
 class FixInput_
@@ -23,7 +24,7 @@ public:
 
     T items[N_DEST];
 
-    void read(std::istream& in, const int* params);
+    void read(std::istream& in, const ArgVector::value_type* params);
 };
 
 template<class T>

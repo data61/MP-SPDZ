@@ -335,17 +335,29 @@ void BaseOT::hash_with_id(BitVector& bits, long id)
 
 void BaseOT::set_seeds()
 {
+    assert(size_t(nOT) == sender_inputs.size());
+
+    G_sender.clear();
+    G_receiver.clear();
+
+    PRNG G[2];
+
     for (int i = 0; i < nOT; i++)
     {
         // Set PRG seeds
         if (ot_role & SENDER)
         {
-            G_sender[i][0].SetSeed(sender_inputs[i][0].get_ptr());
-            G_sender[i][1].SetSeed(sender_inputs[i][1].get_ptr());
+            for (int j = 0; j < 2; j++)
+            {
+                G[j].SetSeed(sender_inputs[i][j].get_ptr());
+            }
+
+            G_sender.push_back({G[0], G[1]});
         }
         if (ot_role & RECEIVER)
         {
-            G_receiver[i].SetSeed(receiver_outputs[i].get_ptr());
+            G[0].SetSeed(receiver_outputs[i].get_ptr());
+            G_receiver.push_back(G[0]);
         }
     }
     extend_length();
@@ -357,12 +369,12 @@ void BaseOT::extend_length()
     {
         if (ot_role & SENDER)
         {
-            sender_inputs[i][0].randomize(G_sender[i][0]);
-            sender_inputs[i][1].randomize(G_sender[i][1]);
+            sender_inputs.at(i)[0].randomize(G_sender[i][0]);
+            sender_inputs.at(i)[1].randomize(G_sender[i][1]);
         }
         if (ot_role & RECEIVER)
         {
-            receiver_outputs[i].randomize(G_receiver[i]);
+            receiver_outputs.at(i).randomize(G_receiver[i]);
         }
     }
 }

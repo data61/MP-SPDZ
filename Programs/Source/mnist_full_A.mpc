@@ -88,9 +88,11 @@ if 'dropout-early' in program.args:
 if 'dropout-early.25' in program.args:
     layers.insert(0, ml.Dropout(n_examples, n_features, alpha=.25))
 
-layers += [ml.MultiOutput.from_args(program, n_examples, 10)]
-
-layers[-1].cheaper_loss = 'mse' in program.args
+if '2quad' in program.args:
+    layers += [ml.TwoQuadOutput(n_examples, 10)]
+else:
+    layers += [ml.MultiOutput.from_args(program, n_examples, 10)]
+    layers[-1].cheaper_loss = 'mse' in program.args
 
 if '2dense' in program.args:
     del layers[1]

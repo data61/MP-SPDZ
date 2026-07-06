@@ -11,10 +11,15 @@
 #include "Tools/benchmarking.h"
 #include "Tools/Bundle.h"
 
+#include "OT/MascotMacKey.h"
+#include "GC/TinierSecret.h"
+#include "MascotPrep.h"
+
 #include <algorithm>
 
 #include "Protocols/MAC_Check_Base.hpp"
 #include "mac_key.hpp"
+#include "OT/MascotMacKey.hpp"
 
 template<class T>
 const char* TreeSum<T>::mc_timer_names[] = {
@@ -151,9 +156,13 @@ void Tree_MAC_Check<U>::AddToCheck(const U& share, const T& value, const Player&
 template<class U>
 void mac_fail_remove(const Player& P)
 {
-  unlink(
-      mac_filename<typename U::mac_key_type>(
-          get_prep_sub_dir<U>(P.num_players()), P.my_num()).c_str());
+  string filename;
+  if (U::needs_ot)
+    filename = get_ot_secrets_filename<typename U::prep_type>(P);
+  else
+    filename = U::LivePrep::get_full_secrets_filename(P);
+  cerr << "Removing " << filename << " because of MAC check failure" << endl;
+  assert(unlink(filename.c_str()) == 0);
   throw mac_fail();
 }
 
@@ -174,6 +183,7 @@ void MAC_Check_<U>::Check(const Player& P)
   auto& popen_cnt = this->popen_cnt;
   assert(int(macs.size()) <= popen_cnt);
   assert(this->coordinator);
+  bool debug = OnlineOptions::singleton.has_option("debug_mac");
 
   if (popen_cnt < 10)
     {
@@ -183,11 +193,15 @@ void MAC_Check_<U>::Check(const Player& P)
       for (int i = 0; i < popen_cnt; i++)
         {
           deltas.push_back(vals[i] * this->alphai - macs[i]);
+          if (debug)
+            cout << "MAC check value=" << vals[i] << " key=" << this->alphai
+                << " MAC=" << macs[i] << endl;
           deltas.back().pack(bundle.mine);
         }
       this->timers[COMMIT].start();
       Commit_And_Open_(bundle, P, *this->coordinator);
       this->timers[COMMIT].stop();
+      reset();
       for (auto& delta : deltas)
         {
           for (auto& os : bundle)
@@ -234,16 +248,25 @@ void MAC_Check_<U>::Check(const Player& P)
       typename U::mac_type t;
       for (int i=0; i<P.num_players(); i++)
         { t += tau[i]; }
+      reset();
       if (t != 0)
         mac_fail_remove<U>(P);
     }
 
   this->coordinator->finished();
+}
+
+template<class U>
+void MAC_Check_<U>::reset()
+{
+  auto& vals = this->vals;
+  auto& macs = this->macs;
+  auto& popen_cnt = this->popen_cnt;
 
   vals.erase(vals.begin(), vals.begin() + popen_cnt);
   macs.erase(macs.begin(), macs.begin() + popen_cnt);
 
-  popen_cnt=0;
+  this->popen_cnt=0;
 }
 
 template<class T, class U, class V, class W>

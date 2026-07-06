@@ -50,16 +50,20 @@ class NonLinear:
             return a
         return self._trunc(a, k, m, signed)
 
-    def ltz(self, a, k):
+    def ltz(self, a, k, maybe_mixed=False):
         return -self.trunc(a, k, k - 1, True)
 
 class Masking(NonLinear):
-    def eqz(self, a, k):
+    def eqz(self, a, k, maybe_mixed=False):
         c, r = self._mask(a, k)
         d = [None]*k
         for i,b in enumerate(r[0].bit_decompose_clear(c, k)):
             d[i] = r[i].bit_xor(b)
-        return 1 - types.sintbit.conv(self.kor(d))
+        res = self.kor(d).bit_not()
+        if maybe_mixed:
+            return res
+        else:
+            return types.sintbit.conv(res)
 
 class Prime(Masking):
     """ Non-linear functionality modulo a prime with statistical masking. """
@@ -132,14 +136,14 @@ class KnownPrime(NonLinear):
         assert len(bits) == m
         return bits
 
-    def eqz(self, a, k):
+    def eqz(self, a, k, maybe_mixed=False):
         # always signed
         a += two_power(k)
         prog = program.Program.prog
         return 1 - types.sintbit.conv(KORL(
             self.bit_dec(a, k, k, prog.use_edabit())))
 
-    def ltz(self, a, k):
+    def ltz(self, a, k, maybe_mixed=False):
         if k + 1 < self.prime.bit_length():
             # https://dl.acm.org/doi/10.1145/3474123.3486757
             # "negative" values wrap around when doubling, thus becoming odd
@@ -187,8 +191,8 @@ class Ring(Masking):
         else:
             return super(Ring, self).trunc_round_nearest(a, k, m, signed)
 
-    def ltz(self, a, k):
-        return LtzRing(a, k)
+    def ltz(self, a, k, **kwargs):
+        return LtzRing(a, k, **kwargs)
 
     def require_bit_length(self, *args, **kwargs):
         comparison.require_ring_size(*args, **kwargs)

@@ -87,6 +87,8 @@ public:
 
     static const bool garbled = T::garbled;
 
+    static false_type is_clear;
+
     static bool real_shares(const Player&) { return true; }
 
     static int threshold(int nplayers) { return T::threshold(nplayers); }
@@ -105,34 +107,34 @@ public:
     static void store(U& mem, vector< WriteAccess<V> >& accesses);
 
     template<class U>
-    static void andrs(Processor<U>& processor, const vector<int>& args)
+    static void andrs(Processor<U>& processor, const ArgVector& args)
     { T::andrs(processor, args); }
     template<class U>
-    static void ands(Processor<U>& processor, const vector<int>& args)
+    static void ands(Processor<U>& processor, const ArgVector& args)
     { T::ands(processor, args); }
     template<class U>
-    static void andrsvec(Processor<U>& processor, const vector<int>& args)
+    static void andrsvec(Processor<U>& processor, const ArgVector& args)
     { T::andrsvec(processor, args); }
     template<class U>
-    static void xors(Processor<U>& processor, const vector<int>& args)
+    static void xors(Processor<U>& processor, const ArgVector& args)
     { T::xors(processor, args); }
     template<class U>
-    static void inputb(Processor<U>& processor, const vector<int>& args)
+    static void inputb(Processor<U>& processor, const ArgVector& args)
     { T::inputb(processor, args); }
     template<class U>
     static void inputb(Processor<U>& processor, ProcessorBase& input_proc,
-            const vector<int>& args)
+            const ArgVector& args)
     { T::inputb(processor, input_proc, args); }
     template<class U>
     static void inputbvec(Processor<U>& processor, ProcessorBase& input_proc,
-            const vector<int>& args)
+            const ArgVector& args)
     { T::inputbvec(processor, input_proc, args); }
     template<class U>
-    static void reveal_inst(Processor<U>& processor, const vector<int>& args)
+    static void reveal_inst(Processor<U>& processor, const ArgVector& args)
     { T::reveal_inst(processor, args); }
 
     template<class U>
-    static void trans(Processor<U>& processor, int n_inputs, const vector<int>& args);
+    static void trans(Processor<U>& processor, int n_inputs, const ArgVector& args);
 
     template<class U>
     static void convcbit(Integer& dest, const Clear& source,
@@ -146,7 +148,7 @@ public:
     static void andm(Processor<U>& processor, const BaseInstruction& instruction)
     { T::andm(processor, instruction); }
 
-    static void run_tapes(const vector<int>& args) { T::run_tapes(args); }
+    static void run_tapes(const ArgVector& args) { T::run_tapes(args); }
 
     template<class U>
     static string proto_fake_opts() { return U::fake_opts(); }
@@ -161,9 +163,9 @@ public:
     Secret<T> operator>>(int i) const;
 
     template<class U>
-    void bitcom(StackedVector<U>& S, const vector<int>& regs);
+    void bitcom(StackedVector<U>& S, const ArgVector& regs);
     template<class U>
-    void bitdec(StackedVector<U>& S, const vector<int>& regs) const;
+    void bitdec(StackedVector<U>& S, const ArgVector& regs) const;
 
     Secret<T> operator+(const Secret<T>& x) const;
     Secret<T>& operator+=(const Secret<T>& x) { *this = *this + x; return *this; }
@@ -199,6 +201,9 @@ public:
 
 template <class T>
 int Secret<T>::default_length = 64;
+
+template <class T>
+false_type Secret<T>::is_clear;
 
 template <class T>
 inline ostream& operator<<(ostream& o, const Secret<T>& secret)

@@ -42,6 +42,7 @@ protected:
     string expected_communication;
 
     NamedCommStats one_off_comm;
+    NamedCommStats comm_stats, max_comm;
 
     virtual size_t load_program(const string& threadname,
             const string& filename);
@@ -96,6 +97,8 @@ public:
 
     static void add_one_off(const NamedCommStats& comm);
 
+    static ThreadQueues* maybe_get_queues();
+
     BaseMachine();
     virtual ~BaseMachine() {}
 
@@ -113,8 +116,8 @@ public:
 
     static OTTripleSetup fresh_ot_setup(Player& P);
 
-    NamedCommStats total_comm();
-    void set_thread_comm(const NamedCommStats& stats);
+    ThreadStats total_stats();
+    void set_thread_stats(const ThreadStats& stats);
 
     void print_global_comm(Player& P, const NamedCommStats& stats);
     void print_comm(Player& P, const NamedCommStats& stats);

@@ -393,34 +393,76 @@ def exp2_fx(a, zero_output=False, as19=False):
         return s.if_else(1 / g, g)
 
 
-def mux_exp(x, y, block_size=8):
+def mux_exp(x, y, block_size=8, neg_only=False, time=False, debug=False):
+    library.get_program().reading('exponential', 'KS26')
     assert util.is_constant_float(x)
     from Compiler.GC.types import sbitvec, sbits
-    bits = sbitvec.from_vec(y.v.bit_decompose(y.k, maybe_mixed=True)).v
-    sign = bits[-1]
-    m = math.log(2 ** (y.k - y.f - 1), x)
-    del bits[int(math.ceil(math.log(m, 2))) + y.f:]
+    if time:
+        library.start_timer(1)
+    bits = sbitvec(y.v, y.k).v
+    if time:
+        library.stop_timer(1)
+        library.start_timer(2)
+    if neg_only:
+        m = -math.log(2 ** -y.f, x)
+        int_bits = min(math.log(m, 2), y.k - y.f - 2)
+        if debug:
+            print (m, int_bits)
+        del bits[int(math.ceil(int_bits)) + y.f + 1:]
+    else:
+        m = math.log(2 ** (y.k - y.f - 1), x)
+        del bits[int(math.ceil(math.log(m, 2))) + y.f + 2:]
     parts = []
     for i in range(0, len(bits), block_size):
-        one_hot = sbitvec.from_vec(bits[i:i + block_size]).demux().v
+        if time:
+            library.start_timer(21)
+        block_bits = sbitvec.from_vec(bits[i:i + block_size])
+        if debug:
+            library.print_ln('block bits %s', block_bits.reveal())
+        one_hot = block_bits.demux().v
+        if time:
+            library.stop_timer(21)
         exp = []
-        try:
-            for j in range(len(one_hot)):
-                exp.append(types.cfix.int_rep(x ** (j * 2 ** (i - y.f)), y.f))
-        except OverflowError:
-            pass
-        exp = list(filter(lambda x: x < 2 ** (y.k - 1), exp))
-        bin_part = [0] * max(x.bit_length() for x in exp)
+        for j in range(len(one_hot)):
+            try:
+                if neg_only:
+                    pos = i < len(bits) - block_size
+                else:
+                    pos = j < len(one_hot) / 2 or i < len(bits) - block_size
+                if pos:
+                    entry = j * 2 ** (i - y.f)
+                else:
+                    entry = (j - len(one_hot)) * 2 ** (i - y.f)
+                exp.append(types.cfix.int_rep(x ** entry, y.f))
+            except OverflowError:
+                exp.append(0)
+        if debug:
+            print('table values in block %d (%d):' % (i, len(exp)),
+                  [e * 2 ** -y.f for e in exp])
+        max_res = 2 ** (y.k - 1)
+        bin_part = [0] * max(x.bit_length() for x in exp if x < max_res)
         for j in range(len(bin_part)):
             for k, (a, b) in enumerate(zip(one_hot, exp)):
-                bin_part[j] ^= a if util.bit_decompose(b, len(bin_part))[j] \
-                    else 0
+                if b < max_res and b != 0:
+                    bin_part[j] ^= a if util.bit_decompose(b, len(bin_part))[j] \
+                        else 0
             if util.is_zero(bin_part[j]):
                 bin_part[j] = sbits.get_type(y.size)(0)
-            if i == 0:
-                bin_part[j] = sign.if_else(0, bin_part[j])
+        if time:
+            library.start_timer(23)
         parts.append(y._new(y.int_type(sbitvec.from_vec(bin_part))))
-    return util.tree_reduce(operator.mul, parts)
+        if time:
+            library.stop_timer(23)
+    if debug:
+        for part in parts:
+            library.print_ln('parts %s', util.reveal(part))
+    if time:
+        library.stop_timer(2)
+        library.start_timer(3)
+    res = util.tree_reduce(operator.mul, parts)
+    if time:
+        library.stop_timer(3)
+    return res
 
 
 @types.vectorize

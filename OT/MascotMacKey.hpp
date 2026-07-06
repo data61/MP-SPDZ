@@ -8,11 +8,11 @@
 
 #include "MascotMacKey.h"
 #include "OTMultiplier.hpp"
-#include "Protocols/fake-stuff.hpp"
 
-template<class T>
+#include "Protocols/Share.hpp"
+
 template<class share_type>
-void MascotMacKey<T>::read_or_generate(Player& P)
+string get_ot_secrets_filename(const Player& P)
 {
     octetStream os;
     share_type::specification(os);
@@ -21,6 +21,15 @@ void MascotMacKey<T>::read_or_generate(Player& P)
             + to_string(share_type::clear::length()) + "-"
             + os.check_sum(20).get_str(16) + "-P" + to_string(P.my_num()) + "-"
             + to_string(P.num_players());
+    return filename;
+}
+
+template<class T>
+template<class share_type>
+void MascotMacKey<T>::read_or_generate(Player& P)
+{
+    auto filename = get_ot_secrets_filename<share_type>(P);
+    octetStream os;
 
     auto& key = *this;
 

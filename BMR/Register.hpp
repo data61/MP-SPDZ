@@ -11,7 +11,7 @@
 
 template<class T>
 void ProgramRegister::inputbvec(T& processor, ProcessorBase& input_processor,
-		const vector<int>& args)
+		const ArgVector& args)
 {
 	NoOpInputter inputter;
 	processor.inputbvec(inputter, input_processor, args, *ProgramParty::s().P);
@@ -19,7 +19,7 @@ void ProgramRegister::inputbvec(T& processor, ProcessorBase& input_processor,
 
 template<class T>
 void EvalRegister::inputbvec(T& processor, ProcessorBase& input_processor,
-		const vector<int>& args)
+		const ArgVector& args)
 {
 	EvalInputter inputter;
 	processor.inputbvec(inputter, input_processor, args,

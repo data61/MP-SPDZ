@@ -49,6 +49,10 @@ OnlineOptions::OnlineOptions() : playerno(-1)
 #else
     verbose = false;
 #endif
+
+#ifdef THROW_EXCEPTIONS
+    options.push_back("throw_exceptions");
+#endif
 }
 
 OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
@@ -170,10 +174,6 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
             verbose = true;
 
     code_locations = opt.isSet("--code-locations");
-
-#ifdef THROW_EXCEPTIONS
-    options.push_back("throw_exceptions");
-#endif
 
     if (security)
     {
@@ -367,7 +367,8 @@ void OnlineOptions::finalize(ez::ezOptionParser& opt, int argc,
         opt.getUsage(usage);
         cout << usage;
         for (i = 0; i < badOptions.size(); ++i)
-            cerr << "ERROR: Missing required option " << badOptions[i] << ".";
+            cerr << "ERROR: Missing required option " << badOptions[i] << "."
+                    << endl;
         exit(1);
     }
 
@@ -377,7 +378,7 @@ void OnlineOptions::finalize(ez::ezOptionParser& opt, int argc,
         cout << usage;
         for (i = 0; i < badOptions.size(); ++i)
             cerr << "ERROR: Got unexpected number of arguments for option "
-                    << badOptions[i] << ".";
+                    << badOptions[i] << "." << endl;
         exit(1);
     }
 
@@ -433,9 +434,11 @@ void OnlineOptions::finalize_with_error(ez::ezOptionParser& opt)
     if (opt.get("-lgp") and not opt.isSet("-lgp"))
     {
         int prog_lgp = BaseMachine::prime_length_from_schedule(progname);
-        prog_lgp = DIV_CEIL(prog_lgp, 64) * 64;
-        // only increase to be consistent with program not demanding any length
-        if (prog_lgp > lgp)
+        if (prog_lgp > 64)
+            // round up to limb size for more consistency
+            prog_lgp = DIV_CEIL(prog_lgp, 64) * 64;
+
+        if (prog_lgp)
             lgp = prog_lgp;
     }
 

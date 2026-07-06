@@ -118,6 +118,7 @@ class PRNG
    unsigned int get_uint();
    /// Random 32-bit integer between 0 and ``upper``
    unsigned int get_uint(int upper);
+   unsigned int get_uint_lemire(unsigned int upper);
 
    /* Random integer of any length
     * @res result
@@ -232,6 +233,17 @@ inline unsigned char PRNG::get_uchar()
   return ans;
 }
 
+inline unsigned int PRNG::get_uint()
+{
+  // We need four bytes of randomness
+  if (cnt>RAND_SIZE-4) { next(); }
+  unsigned int ans = 0;
+  memcpy(&ans, random + cnt, 4);
+  cnt += 4;
+  // print_state(); cout << " UINT " << ans << endl;
+  return ans;
+}
+
 
 inline __m128i PRNG::get_doubleword()
 {
@@ -248,20 +260,20 @@ inline void PRNG::get_octets(octet* ans,int len)
   int pos=0;
   while (len)
     {
+      if (cnt==RAND_SIZE)
+        next();
       int step=min(len,RAND_SIZE-cnt);
       memcpy(ans+pos,random+cnt,step);
       pos+=step;
       len-=step;
       cnt+=step;
-      if (cnt==RAND_SIZE)
-        next();
     }
 }
 
 template<int L>
 inline void PRNG::get_octets(octet* ans)
 {
-   if (L < RAND_SIZE - cnt)
+   if (L <= RAND_SIZE - cnt)
    {
      avx_memcpy<L>(ans, random + cnt);
      cnt += L;
@@ -292,6 +304,27 @@ template<>
 inline word PRNG::get()
 {
   return get_word();
+}
+
+// https://arxiv.org/abs/1805.10941
+inline unsigned int PRNG::get_uint_lemire(unsigned int upper)
+{
+  auto s = upper;
+  uint64_t x = get_uint();
+  uint64_t m = x * s;
+  uint64_t twoL = uint64_t(1) << 32;
+  uint64_t l = m % twoL;
+  if (l < s)
+    {
+      uint64_t t = (twoL - s) % s;
+      while (l < t)
+        {
+          x = get_uint();
+          m = x * s;
+          l = m % twoL;
+        }
+    }
+  return m >> 32;
 }
 
 #endif

@@ -52,8 +52,6 @@ class Machine : public BaseMachine
 
   RunningTimer setup_timer;
 
-  NamedCommStats max_comm;
-
   int max_trunc_size;
   Lock warn_lock;
 
@@ -92,7 +90,7 @@ class Machine : public BaseMachine
 
   const Names& get_N() { return N; }
 
-  DataPositions run_tapes(const vector<int> &args,
+  DataPositions run_tapes(const ArgVector& args,
       Data_Files<sint, sgf2n>& DataF);
   void fill_buffers(int thread_number, int tape_number,
       Preprocessing<sint> *prep,

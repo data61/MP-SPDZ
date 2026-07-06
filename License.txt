@@ -1,4 +1,4 @@
-The Software is copyright (c) 2025, Commonwealth Scientific and Industrial Research Organisation (CSIRO) ABN 41 687 119 230.
+The Software is copyright (c) 2026, Commonwealth Scientific and Industrial Research Organisation (CSIRO) ABN 41 687 119 230.
 
 CSIRO grants you a licence to the Software on the terms of the BSD 3-Clause Licence.
 

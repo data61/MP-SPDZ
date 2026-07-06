@@ -16,7 +16,7 @@
 #include <cmath>
 
 template<class T>
-class FakeShuffle
+class FakeShuffle : public SecureShuffleBase<T>
 {
 public:
     typedef vector<vector<int>> shuffle_type;
@@ -55,10 +55,6 @@ public:
                 swap(a[output_base + i], a[output_base + i + unit_size]);
         }
     }
-
-    void inverse_permutation(StackedVector<T> &, size_t, size_t, size_t) {
-        throw runtime_error("inverse permutation not implemented");
-    };
 
     void apply_multiple(StackedVector<T> &a, vector<ShuffleTuple<T>>& shuffles)
     {
@@ -220,7 +216,7 @@ public:
     }
 
     template<int = 0>
-    void trunc_pr(const vector<int>& regs, int size, SubProcessor<T>& proc, false_type)
+    void trunc_pr(const ArgVector& regs, int size, SubProcessor<T>& proc, false_type)
     {
         this->trunc_rounds++;
         for (size_t i = 0; i < regs.size(); i += 4)
@@ -301,19 +297,22 @@ public:
             }
     }
 
-    void cisc(SubProcessor<T>& processor, const Instruction& instruction)
+    void cisc(SubProcessor<T>& processor, const StackedVector<Integer>& Ci,
+            const Instruction& instruction)
     {
-        cisc(processor, instruction, T::characteristic_two);
+        cisc(processor, Ci, instruction, T::characteristic_two);
     }
 
     template<int = 0>
-    void cisc(SubProcessor<T>&, const Instruction&, true_type)
+    void cisc(SubProcessor<T>&, const StackedVector<Integer>&,
+            const Instruction&, true_type)
     {
         throw not_implemented();
     }
 
     template<int = 0>
-    void cisc(SubProcessor<T>& processor, const Instruction& instruction, false_type)
+    void cisc(SubProcessor<T>& processor, const StackedVector<Integer>& Ci,
+            const Instruction& instruction, false_type)
     {
         int r0 = instruction.get_r(0);
         string tag((char*)&r0, 4);
@@ -326,7 +325,7 @@ public:
                 ltz_stats[args[i + 4]] += args[i + 1];
                 assert(i + args[i] <= args.size());
                 assert(args[i] >= 5);
-                for (int j = 0; j < args[i + 1]; j++)
+                for (size_t j = 0; j < args[i + 1]; j++)
                 {
                     auto& res = processor.get_S()[args[i + 2] + j];
                     res = T(processor.get_S()[args[i + 3] + j]).get_bit(
@@ -340,7 +339,7 @@ public:
             {
                 assert(i + args[i] <= args.size());
                 assert(args[i] >= 5);
-                for (int j = 0; j < args[i + 1]; j++)
+                for (size_t j = 0; j < args[i + 1]; j++)
                 {
                     auto& res = processor.get_S()[args[i + 2] + j];
                     res = processor.get_S()[args[i + 3] + j] == 0;
@@ -357,7 +356,7 @@ public:
                 int m = args[i + 5];
                 int s = args[i + 6];
                 assert((s == 0) or (s == 1));
-                for (int j = 0; j < args[i + 1]; j++)
+                for (size_t j = 0; j < args[i + 1]; j++)
                 {
                     auto& res = processor.get_S()[args[i + 2] + j];
                     res = ((T(processor.get_S()[args[i + 3] + j])
@@ -371,7 +370,7 @@ public:
             {
                 assert(i + args[i] <= args.size());
                 int f = args.at(i + 6);
-                for (int j = 0; j < args[i + 1]; j++)
+                for (size_t j = 0; j < args[i + 1]; j++)
                 {
                     auto& res = processor.get_S()[args[i + 2] + j];
                     mpf_class a[2];
@@ -391,7 +390,7 @@ public:
             {
                 assert(i + args[i] <= args.size());
                 int f = args.at(i + 5);
-                for (int j = 0; j < args[i + 1]; j++)
+                for (size_t j = 0; j < args[i + 1]; j++)
                 {
                     auto& res = processor.get_S()[args[i + 2] + j];
                     auto a = bigint(typename T::clear(
@@ -406,12 +405,26 @@ public:
             {
                 assert(i + args[i] <= args.size());
                 int f = args.at(i + 5);
-                for (int j = 0; j < args[i + 1]; j++)
+                for (size_t j = 0; j < args[i + 1]; j++)
                 {
                     auto& res = processor.get_S()[args[i + 2] + j];
                     auto a = bigint(typename T::clear(
                                     processor.get_S()[args[i + 3] + j]));
                     res = bigint(round((log2(mpf_class(a).get_d()) - f) * exp2(f)));
+                }
+            }
+        }
+        else if (tag == "bite")
+        {
+            for (size_t i = 0; i < args.size(); i += args[i])
+            {
+                assert(i + args[i] <= args.size());
+                assert(args[i] == 5);
+                for (size_t j = 0; j < args[i + 1]; j++)
+                {
+                    auto& res = processor.get_S()[args[i + 2] + j];
+                    auto& source = processor.get_S()[args[i + 3] + j];
+                    res = source.get_bit(Ci[args[i + 4]].get());
                 }
             }
         }

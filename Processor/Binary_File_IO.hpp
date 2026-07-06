@@ -7,13 +7,39 @@
  */
 
 template<class T>
+bool Binary_File_IO<T>::is_gf2n(true_type)
+{
+  return T::characteristic_two;
+}
+
+template<class T>
+bool Binary_File_IO<T>::is_gf2n(false_type)
+{
+  return T::clear::characteristic_two;
+}
+
+template<class T>
+bool Binary_File_IO<T>::real_shares(const Player&, true_type)
+{
+  return true;
+}
+
+template<class T>
+bool Binary_File_IO<T>::real_shares(const Player& P, false_type)
+{
+  return T::real_shares(P);
+}
+
+template<class T>
 inline string Binary_File_IO<T>::filename(int my_number)
 {
   string dir = "Persistence";
   mkdir_p(dir.c_str());
   string res = dir + "/Transactions";
-  if (T::clear::characteristic_two)
+  if (is_gf2n(T::is_clear))
     res += "-gf2n";
+  if (T::is_clear)
+    res += "-clear";
   return res + "-P" + to_string(my_number) + ".data";
 }
 

@@ -71,14 +71,6 @@ bool Hemi<T>::use_plain_matmul(const array<int, 3> dim, SubProcessor<T>& process
         }
         catch (signature_mismatch&)
         {
-            if (not warned)
-            {
-                cerr << "Cannot find matrix triples on disk, "
-                        << "reverting to plain triples" << endl;
-                cerr << "Use './Fake-Offline.x -p <program-with-args> ...'"
-                        << " to generate matrix triples" << endl;
-                warned = true;
-            }
         }
 
         Bundle<octetStream> os(processor.P);
@@ -88,12 +80,27 @@ bool Hemi<T>::use_plain_matmul(const array<int, 3> dim, SubProcessor<T>& process
 
         for (auto& o : os)
             if (not o.get_int(4))
+            {
+                if (not warned)
+                {
+                    cerr << "Some party couldn't find matrix triples on disk, "
+                            << "reverting to plain triples" << endl;
+                    cerr << "Use './Fake-Offline.x -p <program-with-args> ...'"
+                            << " to generate matrix triples" << endl;
+                    warned = true;
+                }
+
                 return true;
+            }
     }
 
     auto& prep = get_matrix_prep(dim, processor);
     int savings = (dim[0] * dim[2]) / (dim[0] + dim[2]) + 1;
     int requirement = BaseMachine::matrix_requirement(dim[0], dim[1], dim[2]);
+
+    if (requirement <= 0)
+        fprintf(stderr, "Bug in matrix multiplication requirements "
+                "leading to potential efficiency loss\n");
 
     if (OnlineOptions::singleton.has_option("verbose_matrix"))
         fprintf(stderr, "savings=%d minimum_batch=%d requirement=%d\n", savings,
@@ -110,11 +117,11 @@ void Hemi<T>::matmulsm(SubProcessor<T>& processor, MemoryPart<T>& source,
     CODE_LOCATION
     auto& dim = instruction.get_start();
 
-    vector<int> plain_args, complex_args;
+    ArgVector plain_args, complex_args;
 
     for (auto it = dim.begin(); it < dim.end(); it += 12)
     {
-        array<int, 3> real_dims({it[3], it[4], it[5]});
+        array<int, 3> real_dims({int(it[3]), int(it[4]), int(it[5])});
 
         if (use_plain_matmul(real_dims, processor))
             plain_args.insert(plain_args.end(), it, it + 12);
@@ -141,11 +148,11 @@ void Hemi<T>::matmulsm(SubProcessor<T>& processor, MemoryPart<T>& source,
         auto C = S.begin() + matmulArgs[0];
         size_t firstFactorBase  = Proc->get_Ci().at(matmulArgs[1]).get();
         size_t secondFactorBase = Proc->get_Ci().at(matmulArgs[2]).get();
-        auto resultNumberOfRows = matmulArgs[3];
-        auto usedNumberOfFirstFactorColumns = matmulArgs[4];
-        auto resultNumberOfColumns = matmulArgs[5];
-        auto firstFactorTotalNumberOfColumns = matmulArgs[10];
-        auto secondFactorTotalNumberOfColumns = matmulArgs[11];
+        int resultNumberOfRows = matmulArgs[3];
+        int usedNumberOfFirstFactorColumns = matmulArgs[4];
+        int resultNumberOfColumns = matmulArgs[5];
+        int firstFactorTotalNumberOfColumns = matmulArgs[10];
+        int secondFactorTotalNumberOfColumns = matmulArgs[11];
 
         assert(C + resultNumberOfRows * resultNumberOfColumns <= S.end());
 

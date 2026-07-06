@@ -39,14 +39,13 @@ void send(T& socket, size_t a, size_t len);
 template<class T>
 void receive(T& socket, size_t& a, size_t len);
 
+void send(int socket, octet* msg, size_t len);
+void receive(int socket, octet* msg, size_t len);
+
 
 inline size_t send_non_blocking(int socket, octet* msg, size_t len)
 {
-#ifdef __APPLE__
-  int j = send(socket,msg,min(len,10000lu),MSG_DONTWAIT);
-#else
   int j = send(socket,msg,len,MSG_DONTWAIT);
-#endif
   if (j < 0)
     {
       if (errno != EINTR and errno != EAGAIN and errno != EWOULDBLOCK and
@@ -58,63 +57,12 @@ inline size_t send_non_blocking(int socket, octet* msg, size_t len)
   return j;
 }
 
-inline void send(int socket,octet *msg,size_t len)
-{
-  size_t i = 0;
-  long wait = 1;
-  while (i < len)
-    {
-      size_t j = send_non_blocking(socket, msg + i, len - i);
-      i += j;
-      if (i > 0)
-	wait = 1;
-      else
-	{
-	  usleep(wait);
-	  wait *= 2;
-	}
-    }
-}
-
 template<class T>
 inline void send(T& socket, size_t a, size_t len)
 {
   octet blen[8];
   encode_length(blen, a, len);
   send(socket, blen, len);
-}
-
-inline void receive(int socket,octet *msg,size_t len)
-{
-  size_t i=0;
-  int fail = 0;
-  long wait = 1;
-  while (len-i>0)
-    { int j=recv(socket,msg+i,len-i,0);
-      // success first
-      if (j > 0)
-	{
-	  i = i + j;
-	  fail = 0;
-	  wait = 1;
-	}
-      else if (j < 0)
-        {
-          if (errno == EAGAIN or errno == EINTR)
-            {
-              if (++fail > 25)
-                error("Unavailable too many times", true);
-              else
-                {
-                  usleep(wait *= 2);
-                }
-            }
-          else
-            { error("Receiving error", true, len - i); }
-        }
-      else
-        throw closed_connection();
-    }
 }
 
 template<class T>

@@ -16,11 +16,11 @@ int AndJob::run()
 	__m128i* prf_output = new __m128i[PAD_TO_8(ProgramParty::s().get_n_parties())];
 	auto gate = gates.begin();
 	auto& S = *this->S;
-	const vector<int>& args = *this->args;
+	const ArgVector& args = *this->args;
 	int i_gate = 0;
 	for (size_t i = start; i < end; i += 4)
 	{
-		for (int j = 0; j < args[i]; j++)
+		for (size_t j = 0; j < args[i]; j++)
 		{
 			i_gate++;
 			gate->init_inputs(gate_id + i_gate,

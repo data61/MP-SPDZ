@@ -24,6 +24,8 @@ class FHE_SK
 
   public:
 
+  static false_type optimized_packing;
+
   static int size() { return 0; }
 
   const FHE_Params& get_params() const { return *params; }

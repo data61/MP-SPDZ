@@ -371,14 +371,14 @@ void Rep4<T>::randoms(T& res, int n_bits)
 
 template<class T>
 template<int>
-void Rep4<T>::trunc_pr(const vector<int>&, int, SubProcessor<T>&, true_type)
+void Rep4<T>::trunc_pr(const ArgVector&, int, SubProcessor<T>&, true_type)
 {
     throw runtime_error("only implemented for integer-like domains");
 }
 
 template<class T>
 template<int>
-void Rep4<T>::trunc_pr(const vector<int>& regs, int size,
+void Rep4<T>::trunc_pr(const ArgVector& regs, int size,
 		SubProcessor<T>& proc, false_type)
 {
     CODE_LOCATION
@@ -524,7 +524,7 @@ void Rep4<T>::trunc_pr(const vector<int>& regs, int size,
 
 template<class T>
 template<class U>
-void Rep4<T>::split(StackedVector<T>& dest, const vector<int>& regs, int n_bits,
+void Rep4<T>::split(StackedVector<T>& dest, const ArgVector& regs, int n_bits,
         const U* source, int n_inputs)
 {
     CODE_LOCATION

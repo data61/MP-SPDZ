@@ -136,6 +136,7 @@ class gfp_ : public ValueInterface
 
   static const true_type invertible;
   static const true_type prime_field;
+  static const true_type optimized_packing;
 
   static gfp_ Mul(gfp_ a, gfp_ b) { return a * b; }
 
@@ -291,6 +292,9 @@ class gfp_ : public ValueInterface
    */
   void pack(octetStream& o, int n = -1) const
     { (void) n; a.pack(o); }
+  template<int LL>
+  void pack(octetStream& o) const
+    { a.template pack<LL>(o); }
   /**
    * Read from buffer in native format
    * @param o buffer
@@ -298,6 +302,9 @@ class gfp_ : public ValueInterface
    */
   void unpack(octetStream& o, int n = -1)
     { (void) n; a.unpack(o); }
+  template<int LL>
+  void unpack(octetStream& o)
+    { a.template unpack<LL>(o); }
 
   void convert_destroy(bigint& x) { a.convert_destroy(x, ZpD); }
 
@@ -323,6 +330,8 @@ gfp_<X, L> gfp_<X, L>::two;
 
 template<int X, int L>
 const true_type gfp_<X, L>::prime_field;
+template<int X, int L>
+const true_type gfp_<X, L>::optimized_packing;
 
 template<int X, int L>
 thread_local vector<gfp_<X, L>> gfp_<X, L>::powers;

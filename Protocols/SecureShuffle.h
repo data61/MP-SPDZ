@@ -36,7 +36,23 @@ public:
 };
 
 template<class T>
-class SecureShuffle
+class SecureShuffleBase
+{
+public:
+    void shuffle_job(StackedVector<T>&, const vector<ShuffleTuple<T>>&, int, int,
+            Player&, ThreadQueues*)
+    {
+        throw runtime_error("multithreaded shuffling not implemented");
+    }
+
+    void inverse_permutation(StackedVector<T>&, size_t, size_t, size_t)
+    {
+        throw runtime_error("inverse permutation not implemented");
+    }
+};
+
+template<class T>
+class SecureShuffle : public SecureShuffleBase<T>
 {
 public:
     typedef vector<vector<vector<T>>> shuffle_type;

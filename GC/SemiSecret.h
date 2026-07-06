@@ -40,6 +40,8 @@ public:
 
     static const bool symmetric = V::symmetric;
 
+    static false_type is_clear;
+
     static bool real_shares(const Player& P)
     {
         return V::real_shares(P);
@@ -49,7 +51,7 @@ public:
     static string phase_name() { return "Binary computation"; }
 
     static void trans(Processor<T>& processor, int n_outputs,
-            const vector<int>& args);
+            const ArgVector& args);
 
     static size_t maximum_size()
     {
@@ -76,8 +78,8 @@ public:
 
     void load_clear(int n, const Integer& x);
 
-    void bitcom(StackedVector<T>& S, const vector<int>& regs);
-    void bitdec(StackedVector<T>& S, const vector<int>& regs) const;
+    void bitcom(StackedVector<T>& S, const ArgVector& regs);
+    void bitdec(StackedVector<T>& S, const ArgVector& regs) const;
 
     void xor_(int n, const T& x, const T& y)
     { *this = BitVec(x ^ y).mask(n); }
@@ -108,7 +110,7 @@ public:
     static MC* new_mc(typename SemiShare<BitVec>::mac_key_type);
 
     static void andrsvec(Processor<SemiSecret>& processor,
-            const vector<int>& args);
+            const ArgVector& args);
 
     SemiSecret()
     {
@@ -146,9 +148,12 @@ public:
     {
     }
 };
-
 template<class T, class V>
 const int SemiSecretBase<T, V>::default_length;
+
+
+template<class T, class V>
+false_type SemiSecretBase<T, V>::is_clear;
 
 } /* namespace GC */
 

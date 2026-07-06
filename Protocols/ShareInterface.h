@@ -12,6 +12,7 @@
 using namespace std;
 
 #include "Tools/Exceptions.h"
+#include "Processor/Instruction.h"
 
 class Player;
 class Instruction;
@@ -62,6 +63,8 @@ public:
 
     static const bool semi_honest_option = false;
 
+    static const false_type is_clear;
+
     static string type_short() { throw runtime_error("shorthand undefined"); }
 
     static string alt() { return ""; }
@@ -69,7 +72,7 @@ public:
     static bool real_shares(const Player&) { return true; }
 
     template<class T, class U>
-    static void split(StackedVector<U>&, vector<int>, int, T*, int,
+    static void split(StackedVector<U>&, ArgVector, int, T*, int,
             typename U::Protocol&)
     { throw runtime_error("split not implemented"); }
 

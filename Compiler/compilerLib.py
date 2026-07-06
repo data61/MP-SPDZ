@@ -4,12 +4,14 @@ import re
 import sys
 import tempfile
 import subprocess
+import time
 from optparse import OptionParser
 
 from Compiler.exceptions import CompilerError
 
 from .GC import types as GC_types
 from .program import Program, defaults
+from .cost import expected_communication
 
 
 class Compiler:
@@ -269,6 +271,12 @@ class Compiler:
             dest="papers",
             help="output recommended reading",
         )
+        parser.add_option(
+            "--variable-cost",
+            action="store_true",
+            dest="variable_cost",
+            help="output cost with variable number of players and integer domain length",
+        )
         if self.execute:
             parser.add_option(
                 "-E",
@@ -319,6 +327,9 @@ class Compiler:
                     print('hostfile %s not found' % self.options.hostfile,
                           file=sys.stderr)
                     exit(1)
+        if self.options.variable_cost and not self.options.execute:
+            print("Use '-E <protocol>' for variable cost", file=sys.stderr)
+            sys.exit(1)
         if self.options.execute:
             self.options.execute = re.sub(r"-party\.x$", "",
                                           self.options.execute)
@@ -351,7 +362,7 @@ class Compiler:
                 if self.options.ring:
                     raise CompilerError(
                         "ring option not compatible with %s" % protocol)
-            if protocol == "emulate":
+            if protocol == "emulate" and not self.options.keep_cisc:
                 self.options.keep_cisc = ''
             if protocol.find("bmr") >= 0 or protocol == "yao":
                 self.options.garbled = True
@@ -522,7 +533,9 @@ class Compiler:
         sys.path.insert(0, "%s/Compiler" % self.root)
         # create the tapes
         try:
+            self.prog.timeout = time.time() + 5 * 60
             exec(compile(infile.read(), infile.name, "exec"), self.VARS)
+            self.prog.timeout = None
         except UnboundLocalError:
             raise CompilerError(
                 "The above error might mean that you attempted to assign "
@@ -538,6 +551,11 @@ class Compiler:
                     "such as regint. Use Array or MultiArray instead.")
             else:
                 raise
+        except MemoryError:
+            raise Exception(
+                "Ran out of memory during compilation. See "
+                "https://mp-spdz.readthedocs.io/en/latest/troubleshooting.html#compile-py-takes-too-long-or-runs-out-of-memory"
+                " for possible solutions")
 
         if changed and not self.options.debug:
             os.unlink(infile.name)
@@ -593,6 +611,15 @@ class Compiler:
                 "Expected communication is %g MB online and %g MB offline." % \
                 (comm[0] / 1e6, comm[1] / 1e6))
 
+        if self.prog.options.variable_cost:
+            from sympy import Symbol, simplify
+            comm = expected_communication(self.options.execute, self.prog.req_num,
+                                          length=Symbol('L') / 8, n_parties=Symbol('N'))
+            print(
+                "Expected communication is %s bits online and %s bits offline, "
+                "where L denotes the bit length of the domain and "
+                "N the number of parties." % tuple(simplify(x * 8) for x in comm))
+
         return self.prog
 
     match = {
@@ -635,7 +662,7 @@ class Compiler:
                     "Note that compilation requires a few GB of RAM.")
         vm = "%s/Scripts/%s.sh" % (self.root, self.options.execute)
         sys.stdout.flush()
-        print("Compilation finished, running program...", file=sys.stderr)
+        print("Running program...", file=sys.stderr)
         sys.stderr.flush()
         os.execl(vm, vm, self.prog.name, *args)
 

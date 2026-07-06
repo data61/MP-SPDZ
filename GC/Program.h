@@ -55,6 +55,9 @@ class Program
 
     template<class T, class U>
     BreakType execute(Processor<T>& Proc, U& dynamic_memory, int PC = -1) const;
+    template<class T, class U>
+    BreakType execute_with_errors(Processor<T>& Proc, U& dynamic_memory, int PC =
+            -1) const;
 };
 
 

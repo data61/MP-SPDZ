@@ -96,7 +96,7 @@ void RealGarbleWire<T>::XOR(const RealGarbleWire<T>& left, const RealGarbleWire<
 template<class T>
 void RealGarbleWire<T>::inputb(
 		GC::Processor<GC::Secret<RealGarbleWire>>& processor,
-		const vector<int>& args)
+		const ArgVector& args)
 {
 	GarbleInputter<T> inputter;
 	processor.inputb(inputter, processor, args,
@@ -106,7 +106,7 @@ void RealGarbleWire<T>::inputb(
 template<class T>
 void RealGarbleWire<T>::inputbvec(
 		GC::Processor<GC::Secret<RealGarbleWire>>& processor,
-		ProcessorBase& input_processor, const vector<int>& args)
+		ProcessorBase& input_processor, const ArgVector& args)
 {
 	GarbleInputter<T> inputter;
 	processor.inputbvec(inputter, input_processor, args,

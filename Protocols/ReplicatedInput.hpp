@@ -54,6 +54,26 @@ inline void ReplicatedInput<T>::add_mine(const typename T::open_type& input, int
 }
 
 template<class T>
+void ReplicatedInput<T>::add_mine(const span<T>& shares,
+        const span<const typename T::clear>& inputs)
+{
+    assert(shares.size() == inputs.size());
+    auto& o = os[1];
+    o.reserve(T::open_type::size() * inputs.size());
+    auto share = shares.begin();
+    for (auto& input : inputs)
+    {
+        T& my_share = *share;
+        share++;
+        my_share[0].randomize(protocol.shared_prngs[0]);
+        my_share[1] = input - my_share[0];
+        o.append_no_resize((octet*) my_share[1].get_ptr(), T::open_type::size());
+    }
+    this->values_input += inputs.size();
+    to_send = &o;
+}
+
+template<class T>
 void ReplicatedInput<T>::add_other(int player, int)
 {
     expect[player] = true;
@@ -149,6 +169,39 @@ T ReplicatedInput<T>::finalize_offset(int offset)
         res[1].randomize(protocol.shared_prngs[1]);
     }
     return res;
+}
+
+template<class T>
+void ReplicatedInput<T>::finalize_vector_sum(const vector<int>& players,
+        const span<T>& target)
+{
+    assert(players.size() == 2);
+    bool im_in = P.my_num() == players[0] or P.my_num() == players[1];
+
+    if (P.get_offset(players[0]) == 1 or P.get_offset(players[1]) == 1)
+    {
+        auto values = new char[target.size() * sizeof(typename T::open_type)];
+        auto i_value = (typename T::open_type*) values;
+        dest.unserialize(i_value, target.size());
+        if (im_in)
+            for (auto& x : target)
+                x[0] += *i_value++;
+        else
+            for (auto& x : target)
+                x[0] = *i_value++;
+        delete[] values;
+    }
+
+    if (P.get_offset(players[0]) == 2 or P.get_offset(players[1]) == 2)
+    {
+        auto& G = protocol.shared_prngs[1];
+        if (im_in)
+            for (auto& x : target)
+                x[1] += G.get<typename T::open_type>();
+        else
+            for (auto& x : target)
+                x[1] = G.get<typename T::open_type>();
+    }
 }
 
 template<class T>

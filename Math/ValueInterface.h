@@ -22,6 +22,8 @@ public:
     static const false_type prime_field;
     static const false_type invertible;
     static const false_type binary;
+    static const false_type optimized_packing;
+    static const true_type is_clear;
 
     template<class T>
     static void init(bool mont = true) { (void) mont; }

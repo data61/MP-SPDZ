@@ -91,6 +91,16 @@ void PRNG::SetSeed(PRNG& G)
 
 void PRNG::InitSeed()
 {
+  if (not (OnlineOptions::singleton.has_option("allow_zero_seed") or
+      OnlineOptions::singleton.has_option("zero_seed")))
+    {
+      bool all_zero = true;
+      for (int i = 0; i < SEED_SIZE; i++)
+        all_zero &= seed[i] == 0;
+      if (all_zero)
+        throw runtime_error("seed is all zero");
+    }
+
   initialized = true;
   #ifdef USE_AES
      if (useC)
@@ -174,17 +184,6 @@ void PRNG::next()
 }
 
 
-unsigned int PRNG::get_uint()
-{
-  // We need four bytes of randomness
-  if (cnt>RAND_SIZE-4) { next(); }
-  unsigned int a0=random[cnt],a1=random[cnt+1],a2=random[cnt+2],a3=random[cnt+3];
-  cnt=cnt+4;
-  unsigned int ans=(a0+(a1<<8)+(a2<<16)+(a3<<24));
-  // print_state(); cout << " UINT " << ans << endl;
-  return ans;
-}
-
 unsigned int PRNG::get_uint(int upper)
 {
 	// adopting Java 7 implementation of bounded nextInt here
@@ -199,10 +198,16 @@ unsigned int PRNG::get_uint(int upper)
 	// not power of 2
 	unsigned int r, reduced;
 	bool use_char = upper <= 128;
-	do {
-		r = use_char ? get_uchar() : get_uint();
-		reduced = r % upper;
-	} while (int(r - reduced + (upper - 1)) > (use_char ? 256 : 0));
+	if (use_char)
+		do {
+			r = get_uchar();
+			reduced = r % upper;
+		} while (int(r - reduced + (upper - 1)) > 256);
+	else
+		do {
+			r = get_uint();
+			reduced = r % upper;
+		} while (int(r - reduced + (upper - 1)) > 0);
 	return reduced;
 }
 

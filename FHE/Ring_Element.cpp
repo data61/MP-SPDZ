@@ -144,6 +144,12 @@ void sub(Ring_Element& ans,const Ring_Element& a,const Ring_Element& b)
       ans -= b;
       return;
     }
+  else if (&ans == &b)
+    {
+      ans.negate();
+      ans += a;
+      return;
+    }
 
   ans.prepare(a);
   for (int i=0; i<(*ans.FFTD).phi_m(); i++)

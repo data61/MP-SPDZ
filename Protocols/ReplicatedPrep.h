@@ -108,7 +108,14 @@ public:
     static bool bits_from_triples() { return false; }
     static bool dabits_from_bits() { return false; }
 
-    static typename T::mac_key_type get_mac_key(Player&) { return {}; }
+    static typename T::mac_key_type get_mac_key(Player&, bool = false)
+    { return {}; }
+    static void adjust_mac_key(Player&) {}
+
+    static string get_full_secrets_filename(const Player&)
+    {
+        throw runtime_error("secrets filename not available");
+    }
 
     BufferPrep(DataPositions& usage);
     virtual ~BufferPrep();
@@ -119,7 +126,7 @@ public:
     void get_two_no_count(Dtype dtype, T& a, T& b);
     void get_one_no_count(Dtype dtype, T& a);
     void get_input_no_count(T& a, typename T::open_type& x, int i);
-    void get_no_count(StackedVector<T>& S, DataTag tag, const vector<int>& regs,
+    void get_no_count(StackedVector<T>& S, DataTag tag, const ArgVector& regs,
             int vector_size);
 
     virtual void get_dabit_no_count(T& a, typename T::bit_type& b);

@@ -51,16 +51,19 @@ def maskField(a, k):
     return c, r
 
 @instructions_base.ret_cisc
-def EQZ(a, k):
+def EQZ(a, k, maybe_mixed=False):
     prog = program.Program.prog
     if prog.use_split():
         prog.reading('equality', 'ABY3')
         from Compiler.GC.types import sbitvec
         v = sbitvec(a, k).v
         bit = util.tree_reduce(operator.and_, (~b for b in v))
-        return types.sintbit.conv(bit)
+        if maybe_mixed:
+            return bit
+        else:
+            return types.sintbit.conv(bit)
     prog.reading('equality', 'CdH10', 'Protocol 3.7')
-    return prog.non_linear.eqz(a, k)
+    return prog.non_linear.eqz(a, k, maybe_mixed=maybe_mixed)
 
 def bits(a,m):
     """ Get the bits of an int """
@@ -750,7 +753,7 @@ def BitDecFull(a, n_bits=None, maybe_mixed=False):
         else:
             for j in range(a.size):
                 for i in range(bit_length):
-                    movs(bbits[i][j], tbits[j][i])
+                    movs(bbits[i].vec[j], tbits[j][i])
             b = sint.bit_compose(bbits)
     c = (a-b).reveal(False)
     cmodp = c

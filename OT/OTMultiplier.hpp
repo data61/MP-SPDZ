@@ -391,7 +391,13 @@ void TinierMultiplier<T>::init_authenticator(const BitVector& keyBits,
     auto tmpReceiverOutput = receiverOutput;
     tmpReceiverOutput.resize(128);
     for (auto& y : tmpReceiverOutput)
-        y.resize_zero(128);
+    {
+        if (y.size() == 0)
+        {
+            y.resize(128);
+            y.randomize(G);
+        }
+    }
     auth_ot_ext.init(tmpBits, tmpSenderOutput, tmpReceiverOutput);
 }
 

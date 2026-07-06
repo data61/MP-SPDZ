@@ -41,6 +41,15 @@ class TreeSum
 
   virtual void post_add_process(vector<T>&) {}
 
+  void pack(vector<T>& values);
+  template<bool ADD>
+  void unpack(vector<T>& values, octetStream& os);
+
+  template<bool PACK, bool ADD>
+  void pack_or_unpack(vector<T>& values, octetStream& os, false_type);
+  template<bool PACK, bool ADD>
+  void pack_or_unpack(vector<T>& values, octetStream& os, true_type);
+
 protected:
   int base_player;
   int opening_sum;
@@ -118,6 +127,8 @@ Coordinator* Tree_MAC_Check<U>::coordinator = 0;
 template<class U>
 class MAC_Check_ : public virtual Tree_MAC_Check<U>
 {
+  void reset();
+
 public:
   MAC_Check_(const typename U::mac_key_type::Scalar& ai, int opening_sum = 10,
       int max_broadcast = 10, int send_player = 0);
@@ -271,6 +282,71 @@ size_t TreeSum<T>::report_size(ReportType type)
 }
 
 template<class T>
+void TreeSum<T>::pack(vector<T>& values)
+{
+  os.reset_write_head();
+  pack_or_unpack<true, false>(values, os, T::optimized_packing);
+  os.append(0);
+}
+
+template<class T>
+template<bool ADD>
+void TreeSum<T>::unpack(vector<T>& values, octetStream& os)
+{
+  pack_or_unpack<false, ADD>(values, os, T::optimized_packing);
+  assert(not os.left());
+}
+
+template<class T>
+template<bool PACK, bool ADD>
+void TreeSum<T>::pack_or_unpack(vector<T>& values, octetStream& os, false_type)
+{
+  bool use_lengths = lengths.size() == values.size();
+  T tmp = values.at(0);
+  for (unsigned int i = 0; i < values.size(); i++)
+    if (PACK)
+      values[i].pack(os, use_lengths ? lengths[i] : -1);
+    else
+      {
+        tmp.unpack(os, use_lengths ? lengths[i] : -1);
+        if (ADD)
+          values[i] += tmp;
+        else
+          values[i] = tmp;
+      }
+}
+
+template<class T>
+template<bool PACK, bool ADD>
+void TreeSum<T>::pack_or_unpack(vector<T>& values, octetStream& os, true_type)
+{
+  for (auto length : lengths)
+    if (length > 0)
+      return pack_or_unpack<PACK, ADD>(values, os, false_type());
+
+  T tmp = values.at(0);
+  switch (DIV_CEIL(T::length(), 8))
+    {
+#define X(N) case N: for (auto& x : values) \
+      if (PACK) \
+        x.template pack<N>(os); \
+      else \
+        { \
+          tmp.template unpack<N>(os); \
+          if (ADD) \
+            x += tmp; \
+          else \
+            x = tmp; \
+        } \
+        break;
+  X(1) X(2) X(3) X(4) X(5) X(6) X(7)
+#undef X
+    default:
+      return pack_or_unpack<PACK, ADD>(values, os, false_type());
+    }
+}
+
+template<class T>
 void TreeSum<T>::add_openings(vector<T>& values, const Player& P,
     int sum_players, int last_sum_players, int send_player)
 {
@@ -280,7 +356,6 @@ void TreeSum<T>::add_openings(vector<T>& values, const Player& P,
   oss.resize(P.num_players());
   vector<int> senders;
   senders.reserve(P.num_players());
-  bool use_lengths = values.size() == lengths.size();
 
   for (int relative_sender = positive_modulo(P.my_num() - send_player, P.num_players()) + sum_players;
       relative_sender < last_sum_players; relative_sender += sum_players)
@@ -299,12 +374,7 @@ void TreeSum<T>::add_openings(vector<T>& values, const Player& P,
       P.wait_receive(sender, oss[j]);
       MC.player_timers[sender].stop();
       MC.timers[SUM].start();
-      T tmp = values.at(0);
-      for (unsigned int i=0; i<values.size(); i++)
-        {
-          tmp.unpack(oss[j], use_lengths ? lengths[i] : -1);
-          values[i] += tmp;
-        }
+      unpack<true>(values, oss[j]);
       post_add_process(values);
       MC.timers[SUM].stop();
     }
@@ -319,10 +389,8 @@ void TreeSum<T>::start(vector<T>& values, const Player& P)
   if (max_broadcast < 2)
     max_broadcast = P.num_players();
 
-  os.reset_write_head();
   int sum_players = P.num_players();
   int my_relative_num = positive_modulo(P.my_num() - base_player, P.num_players());
-  bool use_lengths = values.size() == lengths.size();
   while (true)
     {
       // summing phase
@@ -333,9 +401,7 @@ void TreeSum<T>::start(vector<T>& values, const Player& P)
       if (my_relative_num >= sum_players && my_relative_num < last_sum_players)
         {
           // send to the player up the tree
-          for (unsigned int i=0; i<values.size(); i++)
-            values[i].pack(os, use_lengths ? lengths[i] : -1);
-          os.append(0);
+          pack(values);
           int receiver = positive_modulo(base_player + my_relative_num % sum_players, P.num_players());
           timers[SEND].start();
           P.send_to(receiver,os);
@@ -354,11 +420,7 @@ void TreeSum<T>::start(vector<T>& values, const Player& P)
   if (P.my_num() == base_player)
     {
       // send from the root player
-      os.reset_write_head();
-      size_t n = values.size();
-      for (unsigned int i=0; i<n; i++)
-        values[i].pack(os, use_lengths ? lengths[i] : -1);
-      os.append(0);
+      pack(values);
       timers[BCAST].start();
       for (int i = 1; i < max_broadcast && i < P.num_players(); i++)
         {
@@ -404,9 +466,7 @@ void TreeSum<T>::ReceiveValues(vector<T>& values, const Player& P, int sender)
   timers[RECV_SUM].start();
   P.receive_player(sender, os);
   timers[RECV_SUM].stop();
-  bool use_lengths = values.size() == lengths.size();
-  for (unsigned int i = 0; i < values.size(); i++)
-    values[i].unpack(os, use_lengths ? lengths[i] : -1);
+  unpack<false>(values, os);
   AddToValues(values);
 }
 

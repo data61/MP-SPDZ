@@ -31,7 +31,7 @@ void YaoGarbleWire::public_input(bool value)
 }
 
 void YaoGarbleWire::and_(GC::Processor<GC::Secret<YaoGarbleWire> >& processor,
-		const vector<int>& args, bool repeat)
+		const ArgVector& args, bool repeat)
 {
 #ifdef YAO_TIMINGS
 	auto& garbler = YaoGarbler::s();
@@ -42,7 +42,7 @@ void YaoGarbleWire::and_(GC::Processor<GC::Secret<YaoGarbleWire> >& processor,
 }
 
 void YaoGarbleWire::and_multithread(GC::Processor<GC::Secret<YaoGarbleWire> >& processor,
-		const vector<int>& args, bool repeat)
+		const ArgVector& args, bool repeat)
 {
 	YaoGarbler& party = YaoGarbler::s();
 	int total = processor.check_args(args, 4);
@@ -79,7 +79,7 @@ void YaoGarbleWire::and_multithread(GC::Processor<GC::Secret<YaoGarbleWire> >& p
 }
 
 void YaoGarbleWire::and_singlethread(GC::Processor<GC::Secret<YaoGarbleWire> >& processor,
-		const vector<int>& args, bool repeat)
+		const ArgVector& args, bool repeat)
 {
 	int total_ands = processor.check_args(args, 4);
 	if (total_ands < 10)
@@ -96,13 +96,13 @@ void YaoGarbleWire::and_singlethread(GC::Processor<GC::Secret<YaoGarbleWire> >& 
 }
 
 void YaoGarbleWire::and_(StackedVector<GC::Secret<YaoGarbleWire> >& S,
-		const vector<int>& args, size_t start, size_t end, size_t,
+		const ArgVector& args, size_t start, size_t end, size_t,
 		YaoGate* gate, long& counter, PRNG& prng, map<string, Timer>& timers,
 		bool repeat, YaoGarbler& garbler)
 {
 	(void)timers;
 	const Key& delta = garbler.get_delta();
-	int dl = GC::Secret<YaoGarbleWire>::default_length;
+	size_t dl = GC::Secret<YaoGarbleWire>::default_length;
 	Key left_delta = delta.doubling(1);
 	Key right_delta = delta.doubling(2);
 	Key labels[4];
@@ -159,7 +159,7 @@ void YaoGarbleWire::and_(StackedVector<GC::Secret<YaoGarbleWire> >& S,
 
 
 void YaoGarbleWire::inputb(GC::Processor<GC::Secret<YaoGarbleWire>>& processor,
-        const vector<int>& args)
+        const ArgVector& args)
 {
 	auto& garbler = YaoGarbler::s();
 	YaoGarbleInput input;
@@ -167,7 +167,7 @@ void YaoGarbleWire::inputb(GC::Processor<GC::Secret<YaoGarbleWire>>& processor,
 }
 
 void YaoGarbleWire::inputbvec(GC::Processor<GC::Secret<YaoGarbleWire>>& processor,
-        ProcessorBase& input_processor, const vector<int>& args)
+        ProcessorBase& input_processor, const ArgVector& args)
 {
     auto& garbler = YaoGarbler::s();
     YaoGarbleInput input;
@@ -209,7 +209,7 @@ void YaoGarbleWire::convcbit(Integer& dest, const GC::Clear& source,
 	}
 }
 
-void YaoGarbleWire::reveal_inst(Processor& processor, const vector<int>& args)
+void YaoGarbleWire::reveal_inst(Processor& processor, const ArgVector& args)
 {
 	auto &garbler = YaoGarbler::s();
 	if (garbler.continuous())
@@ -247,7 +247,7 @@ void YaoGarbleWire::convcbit2s(GC::Processor<whole_type>& processor,
 	}
 }
 
-void YaoGarbleWire::run_tapes(const vector<int>& args)
+void YaoGarbleWire::run_tapes(const ArgVector& args)
 {
 	auto& garbler = YaoGarbler::s();
 	if (garbler.continuous())

@@ -28,16 +28,19 @@ template<int L> class fixint;
 template <int K>
 class Z2 : public ValueInterface
 {
+
 protected:
 	template <int L>
 	friend class Z2;
 	friend class bigint;
 
+	typedef typename conditional<K <= 32, uint32_t, mp_limb_t>::type limb_type;
+
 	static const int N_WORDS = ((K + 7) / 8 + sizeof(mp_limb_t) - 1)
 			/ sizeof(mp_limb_t);
-	static const int N_LIMB_BITS = 8 * sizeof(mp_limb_t);
+	static const int N_LIMB_BITS = 8 * sizeof(limb_type);
 
-	mp_limb_t a[N_WORDS];
+	limb_type a[N_WORDS];
 
 
 public:
@@ -86,6 +89,7 @@ public:
 	Z2(mp_limb_t x) : Z2() { a[0] = x; }
 	Z2(__m128i x) : Z2() { avx_memcpy(a, &x, min(N_BYTES, 16)); }
 	Z2(int x) : Z2(long(x)) { a[N_WORDS - 1] &= UPPER_MASK; }
+	Z2(unsigned x) : Z2(mp_limb_t(x)) {}
 	Z2(long x) : Z2(mp_limb_t(x)) { if (K > 64 and x < 0) memset(&a[1], -1, N_BYTES - 8); }
 	Z2(long long x) : Z2(long(x)) {}
 	template<class T>
@@ -121,7 +125,7 @@ public:
 	bool get_bit(int i) const;
 
 	const void* get_ptr() const { return a; }
-	const mp_limb_t* get() const { return a; }
+	const limb_type* get() const { return a; }
 
 	void convert_destroy(bigint& a) { *this = a; }
 	
@@ -180,7 +184,7 @@ public:
 	bool msb() const
 	{
         return this->a[this->N_WORDS - 1]
-                & 1ll << ((K - 1) % (8 * sizeof(mp_limb_t)));
+                & 1ll << ((K - 1) % (8 * sizeof(limb_type)));
 	}
 
 	/**
@@ -425,7 +429,7 @@ Z2<K> Z2<K>::operator<<(unsigned long i) const
 	    res.a[0] <<= n_inside_shift;
 	else
 	    if (n_inside_shift > 0)
-	        mpn_lshift(res.a, res.a, N_WORDS, n_inside_shift);
+	        mpn_lshift_fixed<limb_type, N_WORDS>(res.a, res.a, n_inside_shift);
 	res.a[N_WORDS - 1] &= UPPER_MASK;
 	return res;
 }
@@ -444,13 +448,13 @@ Z2<K> Z2<K>::operator>>(unsigned long i) const
 {
 	Z2<K> res;
 	auto n_limb_shift = i / N_LIMB_BITS;
-	for (unsigned long j = 0; j < N_WORDS - n_limb_shift; j++)
-		res.a[j] = a[j + n_limb_shift];
+	for (int j = n_limb_shift; j < N_WORDS; j++)
+		res.a[j - n_limb_shift] = a[j];
 	int n_inside_shift = i % N_LIMB_BITS;
 	if (N_WORDS == 1)
 		res.a[0] >>= n_inside_shift;
 	else if (n_inside_shift > 0)
-		mpn_rshift(res.a, res.a, N_WORDS, n_inside_shift);
+		mpn_rshift_fixed<limb_type, N_WORDS>(res.a, res.a, n_inside_shift);
 	return res;
 }
 

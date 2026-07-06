@@ -9,7 +9,7 @@
 #include "YaoWire.h"
 
 template<class T>
-void YaoWire::xors(GC::Processor<T>& processor, const vector<int>& args)
+void YaoWire::xors(GC::Processor<T>& processor, const ArgVector& args)
 {
 	size_t threshold = 1024;
 	if (args.size() / 4 < threshold)
@@ -40,7 +40,7 @@ void YaoWire::xors(GC::Processor<T>& processor, const vector<int>& args)
 }
 
 template<class T>
-void YaoWire::xors(GC::Processor<T>& processor, const vector<int>& args,
+void YaoWire::xors(GC::Processor<T>& processor, const ArgVector& args,
 		size_t start, size_t end)
 {
 	processor.xors(args, start, end);

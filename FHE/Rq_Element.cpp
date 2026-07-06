@@ -208,6 +208,12 @@ void Rq_Element::Scale(const bigint& p)
 {
   if (lev==0) { return; }
 
+  if (a[0].is_zero() and a[1].is_zero())
+  {
+      lev = 0;
+      return;
+  }
+
   CODE_LOCATION_NO_SCOPE
 
   if (n_mults() == 0) {

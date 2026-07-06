@@ -61,7 +61,7 @@ public:
   bool operator!=(const PartSetup<FD>& other);
 
   void secure_init(Player& P, MachineBase& machine, int plaintext_length,
-      int sec);
+      int sec, bool read_only = false);
   void generate(Player& P, MachineBase& machine, int plaintext_length,
       int sec);
   void check(Player& P, MachineBase& machine);
@@ -89,6 +89,9 @@ public:
 
   template <class FD>
   PartSetup<FD>& part();
+
+  template <class FD>
+  PartSetup<FD>& get_setup() { return part<FD>(); }
 };
 
 template<> inline PartSetup<FFT_Data>& DataSetup::part<FFT_Data>() { return setup_p; }

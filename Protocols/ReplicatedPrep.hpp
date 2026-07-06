@@ -108,7 +108,8 @@ BufferPrep<T>::~BufferPrep()
 
     for (auto& x : this->edabits)
     {
-        this->print_left_edabits(x.second.size(), x.second[0].size(),
+        this->print_left_edabits(x.second.size(),
+                x.second.empty() ? 0 : x.second[0].size(),
                 x.first.first, x.first.second, this->usage.edabits[x.first],
                 T::malicious);
     }
@@ -1325,7 +1326,7 @@ void BufferPrep<T>::buffer_edabits_with_queues(bool strict, int n_bits)
 template<class T>
 template<int>
 void Preprocessing<T>::get_edabits(bool strict, size_t size, T* a,
-        StackedVector<typename T::bit_type>& Sb, const vector<int>& regs, false_type)
+        StackedVector<typename T::bit_type>& Sb, const ArgVector& regs, false_type)
 {
     int n_bits = regs.size();
     edabit<T> eb;
@@ -1420,7 +1421,7 @@ void BufferPrep<T>::buffer_inputs_as_usual(int player, SubProcessor<T>* proc)
 
 template<class T>
 void BufferPrep<T>::get_no_count(StackedVector<T>& S, DataTag tag,
-        const vector<int>& regs, int vector_size)
+        const ArgVector& regs, int vector_size)
 {
     (void) S, (void) tag, (void) regs, (void) vector_size;
     throw not_implemented();

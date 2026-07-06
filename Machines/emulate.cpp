@@ -46,7 +46,7 @@ int main(int argc, const char** argv)
 
     X(64)
 #ifndef FEWER_RINGS
-    X(128) X(256) X(192) X(384) X(512)
+    X(32) X(128) X(256) X(192) X(384) X(512)
 #endif
 #ifdef RING_SIZE
     X(RING_SIZE)

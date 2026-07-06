@@ -215,10 +215,13 @@ void OTExtensionWithMatrix::soft_sender(size_t n)
     // Send the messages.
     sender.send(gsl::span(sendMessages.get(), n), prng, *channel);
 
-    for (size_t i = 0; i < n; i++)
-        for (int j = 0; j < 2; j++)
-            senderOutputMatrices[j].squares.at(i / 128).rows[i % 128] =
-                    sendMessages[i][j];
+    for (int j = 0; j < 2; j++)
+      for (int i = 0; i < DIV_CEIL(n, 128); i++)
+      {
+          auto& square = senderOutputMatrices[j].squares.at(i);
+          for (size_t k = 0; k < min(128lu, n - 128 * i); k++)
+              square.rows[k] = sendMessages[i * 128 + k][j];
+      }
 }
 
 void OTExtensionWithMatrix::soft_receiver(size_t n,
@@ -244,19 +247,18 @@ void OTExtensionWithMatrix::soft_receiver(size_t n,
     recver.setBaseOts(inputs, prng, *channel);
 
     // Choose which messages should be received.
-    osuCrypto::BitVector choices(n);
+    osuCrypto::BitVector choices(newReceiverInput.get_ptr(), n);
     assert (n == newReceiverInput.size());
-
-    for (size_t i = 0; i < n; i++)
-        choices[i] = newReceiverInput.get_bit(i);
 
     // Receive the messages
     std::vector<osuCrypto::block, osuCrypto::AlignedBlockAllocator> messages(n);
     recver.receive(choices, messages, prng, *channel);
 
-    for (size_t i = 0; i < n; i++)
+    for (int i = 0; i < DIV_CEIL(n, 128); i++)
     {
-        receiverOutputMatrix.squares.at(i / 128).rows[i % 128] = messages[i];
+        auto& square = receiverOutputMatrix.squares.at(i);
+        for (size_t j = 0; j < min(128lu, n - 128 * i); j++)
+            square.rows[j] = messages[128 * i + j];
     }
 }
 #endif

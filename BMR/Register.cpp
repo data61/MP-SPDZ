@@ -152,7 +152,7 @@ void Register::print_input(int id)
 
 template <>
 void EvalRegister::andrs(GC::Processor<GC::Secret<EvalRegister> >& processor,
-		const vector<int>& args)
+		const ArgVector& args)
 {
 	ProgramParty& party = ProgramParty::s();
 	int total = 0;
@@ -172,14 +172,14 @@ void EvalRegister::andrs(GC::Processor<GC::Secret<EvalRegister> >& processor,
 	for (size_t j = 0; j < args.size(); j += 4)
 	{
 		AndJob& and_job = party.and_jobs[i_thread];
-		int dl = GC::Clear::N_BITS;
-		for (int i = 0; i < args[j]; i += dl)
+		size_t dl = GC::Clear::N_BITS;
+		for (size_t i = 0; i < args[j]; i += dl)
 		{
 			GC::Secret<EvalRegister>& dest = processor.S[args[j + 1] + i / dl];
 			dest.resize_regs(min(args[j] - i, dl));
 		}
 		processor.complexity += args[j];
-		for (int i = 0; i < args[j]; i++)
+		for (size_t i = 0; i < args[j]; i++)
 		{
 			and_job.gates[i_gate].unserialize(party.garbled_circuit,
 					party.get_n_parties());
@@ -565,7 +565,7 @@ public:
 
 template <>
 void EvalRegister::inputb(GC::Processor<GC::Secret<EvalRegister> >& processor,
-		const vector<int>& args)
+		const ArgVector& args)
 {
 	auto& party = ProgramParty::s();
 	vector<octetStream> oss(party.get_n_parties());

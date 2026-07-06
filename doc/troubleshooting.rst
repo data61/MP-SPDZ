@@ -46,7 +46,7 @@ You can also use :py:func:`~Compiler.types.sint.iadd` instead of ``+=``.
 
 If you use Python loops (``for``), they are unrolled at compile-time,
 resulting in potentially too much virtual machine code. Consider using
-:py:func:`~Compiler.library.for_range` or similar. You can also use
+:py:func:`~Compiler.library.for_range_opt` or similar. You can also use
 ``-l`` when compiling, which will replace simple loops by an optimized
 version.
 

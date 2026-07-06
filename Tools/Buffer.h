@@ -73,7 +73,7 @@ public:
 };
 
 template<class T>
-octetStream file_signature(const typename T::mac_type& mac_key = {})
+octetStream file_signature(const typename T::mac_type& mac_key)
 {
     octetStream res(T::type_string());
     T::specification(res);
@@ -88,6 +88,38 @@ octetStream file_signature(const typename T::mac_type& mac_key = {})
             mac_key.pack(res);
     }
     return res;
+}
+
+template<class T>
+octetStream file_signature(true_type)
+{
+    octetStream res(T::type_string());
+    T::specification(res);
+    return res;
+}
+
+template<class T>
+octetStream file_signature(false_type)
+{
+    return file_signature<T>(typename T::mac_type());
+}
+
+template<class T>
+octetStream file_signature()
+{
+    return file_signature<T>(T::is_clear);
+}
+
+template<class T>
+bool has_mac(true_type)
+{
+    return false;
+}
+
+template<class T>
+bool has_mac(false_type)
+{
+    return T::has_mac;
 }
 
 template<class T>
@@ -116,7 +148,7 @@ octetStream check_file_signature(ifstream& file, const string& filename)
             pprint_bytes("found   ", file_spec.get_data(), file_spec.get_length());
             pprint_bytes("expected", exp.get_data(), exp.get_length());
         }
-        throw signature_mismatch(filename, T::has_mac);
+        throw signature_mismatch(filename, has_mac<T>(T::is_clear));
     }
     return file_spec;
 }

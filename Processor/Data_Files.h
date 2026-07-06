@@ -34,7 +34,7 @@ class DataTag
 
 public:
   // assume that tag is three integers
-  DataTag(const int* tag)
+  DataTag(const unsigned* tag)
   {
     strncpy((char*)t, (char*)tag, 3 * sizeof(int));
     t[3] = 0;
@@ -120,10 +120,10 @@ protected:
 
   template<int>
   void get_edabits(bool strict, size_t size, T* a,
-      StackedVector<typename T::bit_type>& Sb, const vector<int>& regs, false_type);
+      StackedVector<typename T::bit_type>& Sb, const ArgVector& regs, false_type);
   template<int>
   void get_edabits(bool, size_t, T*, StackedVector<typename T::bit_type>&,
-      const vector<int>&, true_type)
+      const ArgVector&, true_type)
   { throw not_implemented(); }
 
   void fill(edabitvec<T>& res, bool strict, int n_bits);
@@ -172,7 +172,7 @@ public:
   virtual void get_one_no_count(Dtype, T&) { throw not_implemented(); }
   virtual void get_input_no_count(T&, typename T::open_type&, int)
   { throw not_implemented() ; }
-  virtual void get_no_count(StackedVector<T>&, DataTag, const vector<int>&, int)
+  virtual void get_no_count(StackedVector<T>&, DataTag, const ArgVector&, int)
   { throw not_implemented(); }
 
   void get(Dtype dtype, T* a);
@@ -180,7 +180,7 @@ public:
   void get_two(Dtype dtype, T& a, T& b);
   void get_one(Dtype dtype, T& a);
   void get_input(T& a, typename T::open_type& x, int i);
-  void get(StackedVector<T>& S, DataTag tag, const vector<int>& regs, int vector_size);
+  void get(StackedVector<T>& S, DataTag tag, const ArgVector& regs, int vector_size);
 
   /// Get fresh random multiplication triple
   virtual array<T, 3> get_triple(int n_bits);
@@ -195,7 +195,7 @@ public:
   virtual void get_dabit(T& a, typename T::bit_type& b);
   virtual void get_dabit_no_count(T&, typename T::bit_type&) { throw runtime_error("no daBit"); }
   virtual void get_edabits(bool strict, size_t size, T* a,
-          StackedVector<typename T::bit_type>& Sb, const vector<int>& regs)
+          StackedVector<typename T::bit_type>& Sb, const ArgVector& regs)
   { get_edabits<0>(strict, size, a, Sb, regs, T::clear::characteristic_two); }
   virtual void get_edabit_no_count(bool, int, edabit<T>&)
   { throw runtime_error("no edaBits"); }
@@ -212,6 +212,8 @@ public:
   virtual Preprocessing<typename T::part_type>& get_part() { throw runtime_error("no part"); }
 
   virtual int minimum_batch() { return 0; }
+
+  TimerWithComm total_time();
 };
 
 template<class T>
@@ -307,7 +309,7 @@ public:
   }
 
   void setup_extended(const DataTag& tag, int tuple_size = 0);
-  void get_no_count(StackedVector<T>& S, DataTag tag, const vector<int>& regs, int vector_size);
+  void get_no_count(StackedVector<T>& S, DataTag tag, const ArgVector& regs, int vector_size);
   void get_dabit_no_count(T& a, typename T::bit_type& b);
 
   part_type& get_part();
@@ -421,7 +423,7 @@ inline void Preprocessing<T>::get_input(T& a, typename T::open_type& x, int i)
 
 template<class T>
 inline void Preprocessing<T>::get(StackedVector<T>& S, DataTag tag,
-    const vector<int>& regs, int vector_size)
+    const ArgVector& regs, int vector_size)
 {
   usage.count(T::clear::field_type(), tag, vector_size);
   get_no_count(S, tag, regs, vector_size);

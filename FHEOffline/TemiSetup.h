@@ -25,7 +25,7 @@ public:
 
     TemiSetup();
 
-    void secure_init(Player& P, MachineBase&, int plaintext_length, int);
+    void secure_init(Player& P, MachineBase&, int plaintext_length, int, bool);
     void generate(Player& P, MachineBase&, int plaintext_length, int sec);
 
     void key_and_mac_generation(Player& P, MachineBase&, int, true_type);

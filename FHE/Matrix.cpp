@@ -1,6 +1,7 @@
 
 #include "FHE/Matrix.h"
 #include "Tools/Exceptions.h"
+#include "Processor/OnlineOptions.h"
 
 #include "Math/modp.hpp"
 
@@ -258,10 +259,15 @@ void pinv(imatrix& Ai,const imatrix& B)
 
   int r=0,c=0;
   bool flag=true;
-  cout << "In inverse " << nr << " x " << nc << endl;
+
+  bool verbose = OnlineOptions::singleton.has_option("verbose_he_setup");
+
+  if (verbose)
+    cout << "In inverse " << nr << " x " << nc << endl;
   while (flag)
     { //cout << "Inv step r=" << r << " c=" << c << endl; 
-      if ((c%100)==0) { cout << "Inv: " << c << " out of " << nc << endl; }
+      if ((c%100)==0 and verbose)
+        cout << "Inv: " << c << " out of " << nc << endl;
       // Find pivot
       int k=r;
       while (A[k][c]==0) { k++; }

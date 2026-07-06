@@ -47,15 +47,17 @@ public:
     int values_input;
 
     template<class U>
-    static void input(SubProcessor<T>& Proc, const vector<int>& args, int size);
+    static void input(SubProcessor<T>& Proc, const ArgVector& args, int size);
 
     static int get_player(SubProcessor<T>& Proc, int arg, bool player_from_arg);
-    static void input_mixed(SubProcessor<T>& Proc, const vector<int>& args,
+    static void input_mixed(SubProcessor<T>& Proc, const ArgVector& args,
             int size, bool player_from_reg);
     template<class U>
-    static void prepare(SubProcessor<T>& Proc, int player, const int* params, int size);
+    static void prepare(SubProcessor<T>& Proc, int player,
+            const ArgVector::value_type* params, int size);
     template<class U>
-    static void finalize(SubProcessor<T>& Proc, int player, const int* params, int size);
+    static void finalize(SubProcessor<T>& Proc, int player,
+            const ArgVector::value_type* params, int size);
 
     InputBase(ArithmeticProcessor* proc = 0);
     InputBase(SubProcessor<T>* proc);
@@ -81,7 +83,7 @@ public:
     /// Get share for next input from ``player``
     virtual T finalize(int player, int n_bits = -1);
 
-    void raw_input(SubProcessor<T>& proc, const vector<int>& args, int size);
+    void raw_input(SubProcessor<T>& proc, const ArgVector& args, int size);
 };
 
 template<class T>

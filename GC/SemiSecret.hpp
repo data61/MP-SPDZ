@@ -38,7 +38,7 @@ DealerSecret::MC* DealerSecret::new_mc(
 
 template<class T, class V>
 void SemiSecretBase<T, V>::trans(Processor<T>& processor, int n_outputs,
-        const vector<int>& args)
+        const ArgVector& args)
 {
     int N_BITS = default_length;
     for (int j = 0; j < DIV_CEIL(n_outputs, N_BITS); j++)
@@ -63,7 +63,7 @@ void SemiSecretBase<T, V>::trans(Processor<T>& processor, int n_outputs,
 
 inline
 void SemiSecret::andrsvec(Processor<SemiSecret>& processor,
-        const vector<int>& args)
+        const ArgVector& args)
 {
     int N_BITS = default_length;
     auto protocol = ShareThread<SemiSecret>::s().protocol;
@@ -138,7 +138,7 @@ void SemiSecretBase<T, V>::load_clear(int n, const Integer& x)
 }
 
 template<class T, class V>
-void SemiSecretBase<T, V>::bitcom(StackedVector<T>& S, const vector<int>& regs)
+void SemiSecretBase<T, V>::bitcom(StackedVector<T>& S, const ArgVector& regs)
 {
     *this = 0;
     for (unsigned int i = 0; i < regs.size(); i++)
@@ -147,7 +147,7 @@ void SemiSecretBase<T, V>::bitcom(StackedVector<T>& S, const vector<int>& regs)
 
 template<class T, class V>
 void SemiSecretBase<T, V>::bitdec(StackedVector<T>& S,
-        const vector<int>& regs) const
+        const ArgVector& regs) const
 {
     for (unsigned int i = 0; i < regs.size(); i++)
         S[regs[i]] = (*this >> i) & 1;

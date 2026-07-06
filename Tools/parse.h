@@ -33,14 +33,14 @@ inline int64_t get_long(istream& s)
 }
 
 // Read several integers
-inline void get_ints(int* res, istream& s, int count)
+inline void get_ints(unsigned* res, istream& s, int count)
 {
   s.read((char*) res, 4 * count);
   for (int i = 0; i < count; i++)
     res[i] = be32toh(res[i]);
 }
 
-inline void get_vector(unsigned m, vector<int>& start, istream& s)
+inline void get_vector(unsigned m, vector<unsigned>& start, istream& s)
 {
   if (s.fail())
     throw runtime_error("error when parsing vector");

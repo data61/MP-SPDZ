@@ -27,7 +27,7 @@ public:
     int filter_stride_h = 1;
     int filter_stride_w = 1;
 
-    Conv2dTuple(const vector<int>& args, int start);
+    Conv2dTuple(const ArgVector& args, int start);
 
     array<int, 3> matrix_dimensions();
 

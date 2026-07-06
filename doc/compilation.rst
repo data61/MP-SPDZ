@@ -1,7 +1,8 @@
 Compilation Process
 -------------------
 
-The easiest way of using MP-SPDZ is using ``compile.py`` as
+The easiest way of using MP-SPDZ is using ``compile.py`` or
+``Scripts/compile-run.py`` as
 described below. If you would like to run compilation directly from
 Python, see :ref:`direct-compilation`.
 
@@ -16,6 +17,29 @@ The arguments ``<progname> [args]`` are accessible as list under
 ``program.args`` within ``progname.[mpc|py]``, with ``<progname>`` as
 ``program.args[0]``. The resulting program for the virtual machine
 will be called ``<progname>[-<arg0>[-<arg1>...]``.
+
+A common use case for an argument would be setting a loop size::
+
+  @for_range_opt(int(program.args[1]))
+  def _(i):
+    ...
+
+This can be compiled and run using
+
+.. code-block:: bash
+
+   ./compile.py <progname> <n_loops>
+   Scripts/<protocol>.sh <progname>-<n_loops>
+
+or
+
+.. code-block:: bash
+
+   Scripts/compile-run.py <protocol> <progname> <n_loops>
+
+
+Compiler options
+~~~~~~~~~~~~~~~~
 
 The following options influence the computation domain:
 

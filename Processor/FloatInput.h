@@ -7,6 +7,7 @@
 #define PROCESSOR_FLOATINPUT_H_
 
 #include "Math/bigint.h"
+#include "Instruction.h"
 
 #include <iostream>
 
@@ -21,7 +22,7 @@ public:
 
     long items[N_DEST];
 
-    void read(std::istream& in, const int* params);
+    void read(std::istream& in, const ArgVector::value_type* params);
 };
 
 #endif /* PROCESSOR_FLOATINPUT_H_ */

@@ -36,6 +36,9 @@ FieldMachine<T, V, W, X>::FieldMachine(int argc, const char** argv,
     assert(nplayers or T<gfpvar>::variable_players);
     W machine(argc, argv, opt, online_opts, X(), nplayers);
     int n_limbs = online_opts.prime_limbs();
+    cerr << "Trying to run " << online_opts.prime_length()
+            << "-bit computation (" << n_limbs * 64 << "-bit representation)"
+            << endl;
     switch (n_limbs)
     {
 #undef X

@@ -36,9 +36,9 @@ template <class T>
 class Machine;
 
 template<class T, class U>
-void plain_bitcom(T& res, StackedVector<U>& S, const vector<int>& regs);
+void plain_bitcom(T& res, StackedVector<U>& S, const ArgVector& regs);
 template<class T, class U>
-void plain_bitdec(const T& res, StackedVector<U>& S, const vector<int>& regs);
+void plain_bitdec(const T& res, StackedVector<U>& S, const ArgVector& regs);
 
 template<class U>
 class ShareSecret
@@ -67,20 +67,20 @@ public:
     static void load(vector< ReadAccess<U> >& accesses, const Memory<U>& mem);
     static void store(Memory<U>& mem, vector< WriteAccess<U> >& accesses);
 
-    static void andrs(Processor<U>& processor, const vector<int>& args)
+    static void andrs(Processor<U>& processor, const ArgVector& args)
     { and_(processor, args, true); }
-    static void ands(Processor<U>& processor, const vector<int>& args)
+    static void ands(Processor<U>& processor, const ArgVector& args)
     { and_(processor, args, false); }
-    static void and_(Processor<U>& processor, const vector<int>& args, bool repeat);
-    static void andrsvec(Processor<U>& processor, const vector<int>& args);
-    static void xors(Processor<U>& processor, const vector<int>& args);
-    static void inputb(Processor<U>& processor, const vector<int>& args)
+    static void and_(Processor<U>& processor, const ArgVector& args, bool repeat);
+    static void andrsvec(Processor<U>& processor, const ArgVector& args);
+    static void xors(Processor<U>& processor, const ArgVector& args);
+    static void inputb(Processor<U>& processor, const ArgVector& args)
     { inputb(processor, processor, args); }
     static void inputb(Processor<U>& processor, ProcessorBase& input_processor,
-            const vector<int>& args);
+            const ArgVector& args);
     static void inputbvec(Processor<U>& processor, ProcessorBase& input_processor,
-            const vector<int>& args);
-    static void reveal_inst(Processor<U>& processor, const vector<int>& args);
+            const ArgVector& args);
+    static void reveal_inst(Processor<U>& processor, const ArgVector& args);
 
     template<class T>
     static void convcbit(Integer& dest, const Clear& source, T&) { dest = source; }
@@ -93,7 +93,7 @@ public:
 
     static BitVec get_mask(int n) { return n >= 64 ? -1 : ((1L << n) - 1); }
 
-    static void run_tapes(const vector<int>& args)
+    static void run_tapes(const ArgVector& args)
     { Thread<U>::s().master.machine.run_tapes(args); }
 
     void check_length(int n, const Integer& x);
@@ -142,6 +142,8 @@ public:
     static const bool randoms_for_opens = false;
     static const bool function_dependent = false;
 
+    static const false_type is_clear;
+
     static string type_string() { return "replicated secret"; }
     static string phase_name() { return "Replicated computation"; }
 
@@ -153,7 +155,7 @@ public:
     }
 
     static void trans(Processor<U>& processor, int n_outputs,
-            const vector<int>& args);
+            const ArgVector& args);
 
     template<class T>
     static void generate_mac_key(mac_key_type, T)
@@ -193,8 +195,8 @@ public:
     {
     }
 
-    void bitcom(StackedVector<U>& S, const vector<int>& regs);
-    void bitdec(StackedVector<U>& S, const vector<int>& regs) const;
+    void bitcom(StackedVector<U>& S, const ArgVector& regs);
+    void bitdec(StackedVector<U>& S, const ArgVector& regs) const;
 
     This operator&(const Clear& other)
     { return super::operator&(BitVec(other)); }

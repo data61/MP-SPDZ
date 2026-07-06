@@ -43,7 +43,7 @@ public:
     }
 
     template<class U>
-    static void split(StackedVector<U>& dest, const vector<int>& regs, int n_bits,
+    static void split(StackedVector<U>& dest, const ArgVector& regs, int n_bits,
             const Rep4Share2* source, int n_inputs, Rep4<U>& protocol)
     {
         int n_split = regs.size() / n_bits;
@@ -54,7 +54,7 @@ public:
     }
 
     template<class U>
-    static void split(StackedVector<U>& dest, const vector<int>& regs, int n_bits,
+    static void split(StackedVector<U>& dest, const ArgVector& regs, int n_bits,
             const Rep4Share2* source, int n_inputs, Player& P)
     {
         int my_num = P.my_num();

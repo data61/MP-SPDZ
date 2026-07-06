@@ -8,8 +8,11 @@
 #include "GC/square64.h"
 
 template<class T>
+false_type FakeShare<T>::is_clear;
+
+template<class T>
 void FakeShare<T>::split(StackedVector<bit_type>& dest,
-        const vector<int>& regs, int n_bits, const This* source, int n_inputs,
+        const ArgVector& regs, int n_bits, const This* source, int n_inputs,
         GC::FakeSecret::Protocol&)
 {
     assert(n_bits <= 64);

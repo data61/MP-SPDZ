@@ -335,6 +335,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       //   start_file_posn (read), end_file_posn(write) var1, var2, ...
       case READFILESHARE:
       case GREADFILESHARE:
+      case READFILECLEAR:
       case CALL_TAPE:
         num_var_args = get_int(s) - 2;
         r[0] = get_int(s);
@@ -405,6 +406,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case SEDABIT:
       case WRITEFILESHARE:
       case GWRITEFILESHARE:
+      case WRITEFILECLEAR:
       case CONCATS:
       case UNSPLIT:
           num_var_args = get_int(s) - 1;
@@ -543,7 +545,7 @@ bool Instruction::get_offline_data_usage(DataPositions& usage)
       usage.edabits[{r[0], r[1]}] = n;
       return long(n) >= 0;
     case USE_MATMUL:
-      usage.matmuls[{{r[0], r[1], r[2]}}] = n;
+      usage.matmuls[{{int(r[0]), int(r[1]), int(r[2])}}] = n;
       return long(n) >= 0;
     case USE_PREP:
       usage.extended[DATA_INT][r] = n;
@@ -646,6 +648,7 @@ int BaseInstruction::get_reg_type() const
     case READSOCKETC:
     case PRIVATEOUTPUT:
     case FIXINPUT:
+    case READFILECLEAR:
       return CINT;
     case CALL_ARG:
       return n;
@@ -674,6 +677,7 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
   int size_offset = 0;
   int size = this->size;
   bool n_prefix = 0;
+  unsigned res = 0;
 
   // special treatment for instructions writing to different types
   switch (opcode)
@@ -718,12 +722,23 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
           return 0;
   case CALL_TAPE:
   {
-      int res = 0;
       for (auto it = start.begin(); it < start.end(); it += 5)
-          if (it[1] == reg_type)
+          if (int(it[1]) == reg_type)
               res = max(res, (*it ? it[3] : it[4]) + it[2]);
       return res;
   }
+  case READFILESHARE:
+  case GREADFILESHARE:
+  case READFILECLEAR:
+      if (reg_type == INT)
+          return r[1];
+      else if (reg_type == get_reg_type())
+      {
+          skip = 1;
+          break;
+      }
+      else
+          return 0;
   default:
       if (get_reg_type() != reg_type)
           return 0;
@@ -733,7 +748,6 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
   {
   case CISC:
   {
-      int res = 0;
       for (auto it = start.begin(); it < start.end(); it += *it)
       {
           bytecode_assert(it + *it <= start.end());
@@ -749,7 +763,6 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
       break;
   case DOTPRODS:
   {
-      int res = 0;
       auto it = start.begin();
       while (it != start.end())
       {
@@ -774,7 +787,6 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
   case MATMULSM:
   case GMATMULSM:
   {
-      int res = 0;
       for (auto it = start.begin(); it < start.end(); it += 12)
       {
           res = max(res, *it + *(it + 3) * *(it + 5));
@@ -783,7 +795,6 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
   }
   case CONV2DS:
   {
-      unsigned res = 0;
       for (size_t i = 0; i < start.size(); i += 15)
       {
           unsigned tmp = start[i]
@@ -864,11 +875,15 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
   case WRITESOCKETINT:
       size = n;
       break;
+  case APPLYSHUFFLE:
+      skip = 6;
+      offset = 1;
+      size_offset = -1;
+      break;
   }
 
   if (n_prefix > 0)
   {
-      int res = 0;
       auto it = start.begin();
       while (it < start.end())
       {
@@ -899,7 +914,6 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
       return m;
   }
 
-  unsigned res = 0;
   for (auto x : start)
     res = max(res, (unsigned)x);
   for (auto x : r)
@@ -974,7 +988,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
       return;
   }
 
-  int r[3] = {this->r[0], this->r[1], this->r[2]};
+  unsigned r[3] = {this->r[0], this->r[1], this->r[2]};
   int64_t n = this->n;
   for (int i = 0; i < size; i++) 
   { switch (opcode)
@@ -999,7 +1013,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
               auto source = S.begin() + *(j + 1);
               bytecode_assert(dest + *j <= S.end());
               bytecode_assert(source + *j <= S.end());
-              for (int k = 0; k < *j; k++)
+              for (size_t k = 0; k < *j; k++)
                 *dest++ = *source++;
             }
           return;
@@ -1284,11 +1298,11 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc.machine.time();
 	break;
       case START:
-        Proc.machine.set_thread_comm(Proc.P.total_comm());
+        Proc.machine.set_thread_stats({Proc.P.total_comm(), Proc.stats});
         Proc.machine.start(n);
         break;
       case STOP:
-        Proc.machine.set_thread_comm(Proc.P.total_comm());
+        Proc.machine.set_thread_stats({Proc.P.total_comm(), Proc.stats});
         Proc.machine.stop(n);
         break;
       case RUN_TAPE:
@@ -1390,21 +1404,29 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         break;
       case WRITEFILESHARE:
         // Write shares to file system
-        Procp.write_shares_to_file(Proc.read_Ci(r[0]), start, size);
+        Procp.binary_file_io.write(Procp.get_S(), Proc.get_Ci(), Proc.P, *this);
         return;
       case READFILESHARE:
         // Read shares from file system
-        Procp.read_shares_from_file(Proc.read_Ci(r[0]), r[1], start, size,
-            Proc);
+        Procp.binary_file_io.read(Procp.get_S(), Proc.get_Ci(), Proc.P, *this);
         return;
       case GWRITEFILESHARE:
         // Write shares to file system
-        Proc2.write_shares_to_file(Proc.read_Ci(r[0]), start, size);
+        Proc2.binary_file_io.write(Proc2.get_S(), Proc.get_Ci(), Proc.P, *this);
         return;
       case GREADFILESHARE:
         // Read shares from file system
-        Proc2.read_shares_from_file(Proc.read_Ci(r[0]), r[1], start, size,
-            Proc);
+        Proc2.binary_file_io.read(Proc2.get_S(), Proc.get_Ci(), Proc.P, *this);
+        return;
+      case WRITEFILECLEAR:
+        // Write shares to file system
+        Procp.binary_file_io_clear.write(Procp.get_C(), Proc.get_Ci(), Proc.P,
+            *this);
+        return;
+      case READFILECLEAR:
+        // Write shares to file system
+        Procp.binary_file_io_clear.read(Procp.get_C(), Proc.get_Ci(), Proc.P,
+            *this);
         return;
       case PUBINPUT:
         Proc.get_Cp_ref(r[0]) = Proc.template
@@ -1438,7 +1460,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc2.DataF.get(Proc.Proc2.get_S(), r, start, size);
         return;
       case CISC:
-        Procp.protocol.cisc(Procp, *this);
+        Procp.protocol.cisc(Procp, Proc.get_Ci(), *this);
         return;
       default:
         throw invalid_opcode(opcode);
@@ -1501,6 +1523,13 @@ void Program::execute_with_errors(Processor<sint, sgf2n>& Proc) const
   auto& processor = Proc.Procb;
   auto& Ci = Proc.get_Ci();
 
+  bool time_stats = OnlineOptions::singleton.has_option("time_stats");
+  (void) time_stats;
+
+#ifdef TIME_INSTRUCTIONS
+  time_stats = true;
+#endif
+
   while (Proc.PC<size)
     {
       Proc.last_PC = Proc.PC;
@@ -1512,12 +1541,12 @@ void Program::execute_with_errors(Processor<sint, sgf2n>& Proc) const
       (void) start;
 
 #ifdef COUNT_INSTRUCTIONS
-#ifdef TIME_INSTRUCTIONS
-      RunningTimer timer;
+      Timer timer;
       int PC = Proc.PC;
-#else
-      Proc.stats[p[Proc.PC].get_opcode()]++;
-#endif
+      if (time_stats)
+          timer.start();
+      else
+          Proc.stats[p[PC].get_opcode()]++;
 #endif
 
 #ifdef OUTPUT_INSTRUCTIONS
@@ -1548,8 +1577,9 @@ void Program::execute_with_errors(Processor<sint, sgf2n>& Proc) const
           instruction.execute(Proc);
         }
 
-#if defined(COUNT_INSTRUCTIONS) and defined(TIME_INSTRUCTIONS)
-      Proc.stats[p[PC].get_opcode()] += timer.elapsed() * 1e9;
+#if defined(COUNT_INSTRUCTIONS)
+      if (time_stats)
+          Proc.stats[p[PC].get_opcode()] += timer.elapsed() * 1e9;
 #endif
     }
 }

@@ -17,6 +17,8 @@ namespace GC
 
 const int FakeSecret::default_length;
 
+false_type FakeSecret::is_clear;
+
 void FakeSecret::load_clear(int n, const Integer& x)
 {
 	if ((size_t)n < 8 * sizeof(x) and abs(x.get()) >= (1LL << n))
@@ -24,14 +26,14 @@ void FakeSecret::load_clear(int n, const Integer& x)
 	*this = x;
 }
 
-void FakeSecret::bitcom(StackedVector<FakeSecret>& S, const vector<int>& regs)
+void FakeSecret::bitcom(StackedVector<FakeSecret>& S, const ArgVector& regs)
 {
     *this = 0;
     for (unsigned int i = 0; i < regs.size(); i++)
         *this ^= (S[regs[i]] << i);
 }
 
-void FakeSecret::bitdec(StackedVector<FakeSecret>& S, const vector<int>& regs) const
+void FakeSecret::bitdec(StackedVector<FakeSecret>& S, const ArgVector& regs) const
 {
     for (unsigned int i = 0; i < regs.size(); i++)
         S[regs[i]] = (*this >> i) & 1;
@@ -59,13 +61,13 @@ void FakeSecret::store_clear_in_dynamic(Memory<DynamicType>& mem,
 }
 
 void FakeSecret::ands(Processor<FakeSecret>& processor,
-        const vector<int>& regs)
+        const ArgVector& regs)
 {
 	processor.ands(regs);
 }
 
 void FakeSecret::trans(Processor<FakeSecret>& processor, int n_outputs,
-        const vector<int>& args)
+        const ArgVector& args)
 {
 	square64 square;
 	for (size_t i = n_outputs; i < args.size(); i++)
@@ -90,7 +92,7 @@ FakeSecret FakeSecret::input(int from, word input, int n_bits)
 }
 
 void FakeSecret::inputbvec(Processor<FakeSecret>& processor,
-        ProcessorBase& input_processor, const vector<int>& args)
+        ProcessorBase& input_processor, const ArgVector& args)
 {
     Input input;
     input.reset_all(*ShareThread<FakeSecret>::s().P);
@@ -122,7 +124,7 @@ void FakeSecret::finalize_input(Input& inputter, int from, int n_bits)
     *this = inputter.finalize(from, n_bits);
 }
 
-void FakeSecret::run_tapes(const vector<int>& args)
+void FakeSecret::run_tapes(const ArgVector& args)
 {
     Thread<FakeSecret>::s().master.machine.run_tapes(args);
 }

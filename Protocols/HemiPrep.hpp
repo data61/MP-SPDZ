@@ -80,14 +80,13 @@ vector<Multiplier<typename T::clear::FD>*>& HemiPrep<T>::get_multipliers()
     auto& P = this->proc->P;
 
     lock.lock();
-    if (pairwise_machine == 0 or pairwise_machine->enc_alphas.empty())
+    if (pairwise_machine == 0 or pairwise_machine->other_pks.empty())
     {
         PlainPlayer P(this->proc->P.N, "Hemi" + T::type_string());
         if (pairwise_machine == 0)
             basic_setup(P);
         pairwise_machine->setup<FD>().covert_key_generation(P,
                 *pairwise_machine, 1);
-        pairwise_machine->enc_alphas.resize(1, pairwise_machine->pk);
         BaseMachine::add_one_off(P.total_comm());
     }
     lock.unlock();

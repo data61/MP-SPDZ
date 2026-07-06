@@ -355,7 +355,7 @@ void Sub_Data_Files<T>::setup_extended(const DataTag& tag, int tuple_size)
 }
 
 template<class T>
-void Sub_Data_Files<T>::get_no_count(StackedVector<T>& S, DataTag tag, const vector<int>& regs, int vector_size)
+void Sub_Data_Files<T>::get_no_count(StackedVector<T>& S, DataTag tag, const ArgVector& regs, int vector_size)
 {
   setup_extended(tag, regs.size());
   for (int j = 0; j < vector_size; j++)
@@ -425,10 +425,16 @@ typename Sub_Data_Files<T>::part_type& Sub_Data_Files<T>::get_part()
 template<class sint, class sgf2n>
 TimerWithComm Data_Files<sint, sgf2n>::total_time()
 {
-  auto res = DataFp.prep_timer + DataF2.prep_timer + DataFb.prep_timer;
+  return DataFp.total_time() + DataF2.total_time() + DataFb.total_time();
+}
+
+template<class T>
+TimerWithComm Preprocessing<T>::total_time()
+{
+  auto res = prep_timer;
   try
   {
-    res += DataFb.get_part().prep_timer;
+    res += get_part().prep_timer;
   }
   catch (...)
   {

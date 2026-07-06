@@ -214,7 +214,7 @@ public:
 
     template<class U, class V>
     static void split(StackedVector<U>& dest,
-            const vector<int>& regs, int n_bits, const V* source,
+            const ArgVector& regs, int n_bits, const V* source,
             int n_inputs, typename U::Protocol& protocol)
     {
         switch (regs.size() / n_bits)
@@ -233,7 +233,7 @@ public:
 
     template<class U, class V>
     static void split2(StackedVector<U>& dest,
-            const vector<int>& regs, int n_bits, const V* source,
+            const ArgVector& regs, int n_bits, const V* source,
             int n_inputs, typename U::Protocol& protocol)
     {
         assert(regs.size() / n_bits == 2);
@@ -410,7 +410,7 @@ public:
 
     template<class U, class V>
     static void split2(StackedVector<U>& dest,
-            const vector<int>& regs, int n_bits, const V* source,
+            const ArgVector& regs, int n_bits, const V* source,
             int n_inputs, typename U::Protocol& protocol)
     {
         assert(regs.size() / n_bits == 2);

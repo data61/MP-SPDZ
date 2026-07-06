@@ -47,7 +47,7 @@ void* run_ot_thread(void* ptr)
 
 template<class T>
 typename OTTripleGenerator<T>::mac_key_type OTTripleGenerator<T>::get_mac_key(
-        Player& P)
+        Player& P, bool)
 {
     if (mac_key == 0)
     {
@@ -142,6 +142,7 @@ OTTripleGenerator<T>::OTTripleGenerator(const OTTripleSetup& setup,
     baseReceiverInput.resize(nbase);
     baseReceiverOutputs = setup.baseReceiverOutputs;
     baseSenderInputs = setup.baseSenderInputs;
+    assert(size_t(nbase) == baseSenderInputs.at(0).size());
     players.resize(n-1);
 
     // copy base OT inputs + outputs
@@ -306,6 +307,10 @@ void NPartyTripleGenerator<W>::generateInputs(int player)
             input.add_mine(secrets[j]);
         }
     input.exchange();
+    bool debug = OnlineOptions::singleton.has_option("debug_mac");
+    if (debug)
+        cerr << "MAC key: " << mac_key << endl;
+
     for (int j = 0; j < toCheck; j++)
     {
         T share;
@@ -325,8 +330,15 @@ void NPartyTripleGenerator<W>::generateInputs(int player)
         inputs[j] = {{share, mac_sum}, secrets[j]};
         auto r = G.get<typename W::input_check_type::share_type>();
         check_sum += typename W::input_check_type(r * share, r * mac_sum);
+
+        if (debug)
+            cerr << "share=" << inputs[j].share << " value=" << inputs[j].value
+                    << endl;
     }
     inputs.resize(nTriplesPerLoop);
+
+    if (debug)
+        cerr << "check=" << check_sum << endl;
 
     typename W::input_check_type::MAC_Check MC(mac_key);
     // use zero element because all is perfectly randomized

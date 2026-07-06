@@ -47,11 +47,8 @@ void Reshare(Plaintext<T,FD,S>& m,Ciphertext& cc,
  
   // Step 5
   if (NewCiphertext)
-    { unsigned char sd[SEED_SIZE] = { 0 };
-      PRNG G;
-      G.SetSeed(sd);
+    {
       Random_Coins rc(params);
-      rc.generate(G);
       pk.encrypt(cc,mf,rc);
       // And again
       if (cf.level()==0) { cc.Scale(m.get_field().get_prime()); }

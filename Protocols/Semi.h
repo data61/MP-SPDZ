@@ -35,7 +35,7 @@ public:
     }
 
     template<int = 0>
-    void trunc_pr(const vector<int>& regs, int size,
+    void trunc_pr(const ArgVector& regs, int size,
             SubProcessor<T>& proc, false_type)
     {
         if (this->P.num_players() > 2)

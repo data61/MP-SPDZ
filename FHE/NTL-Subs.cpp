@@ -512,6 +512,8 @@ void init(P2Data& P2D,const Ring& Rg)
       throw invalid_params();
     }
 
+  bool verbose = OnlineOptions::singleton.has_option("verbose_he_setup");
+
   int max_tries = 10;
   for (int seed = 0;; seed++)
     { QGrp.assign(Rg.m(),seed);       // QGrp encodes the the quotient group Z_m^*/<2>
@@ -527,7 +529,7 @@ void init(P2Data& P2D,const Ring& Rg)
               cerr << "abort after " << max_tries << " tries" << endl;
               throw invalid_params();
             }
-          else
+          else if (verbose)
             cout << "Group order wrong, need to repeat the Haf-Mc algorithm"
                 << endl;
         }
@@ -546,14 +548,17 @@ void init(P2Data& P2D,const Ring& Rg)
   GF2EX Ga=to_GF2EX(G);     // represent G as a polynomial over the extension field
   Rts[0]=rep(FindRoot(Ga)); // Find a roof of G in this field
 
-  cout << "Fixing field ordering and the maps (Need to count to " << Gord << " here)\n\t";
+  if (verbose)
+    cout << "Fixing field ordering and the maps (Need to count to " << Gord << " here)\n\t";
   GF2E::init(G);
   GF2X g;
   vector<int> used(facts.length());
   for (int i=0; i<facts.length(); i++) { used[i]=0; }
   used[0]=1;
   for (int i=0; i<Gord; i++)
-    { cout << i << " " << flush;
+    {
+      if (verbose)
+        cout << i << " " << flush;
       if (i!=0)
         { int hpow=QGrp.nth_element(i);
           Rts[i]=Subs_PowX_Mod(Rts[0],hpow,Rg.m(),F);
@@ -586,7 +591,8 @@ void init(P2Data& P2D,const Ring& Rg)
      GF2X tei=InvMod(te%Fi[i],Fi[i]);
      u[i]=MulMod(te,tei,F); // u[i] = \prod_{j!=i} F[j]*(F[j]^{-1} mod F[i])
    }
-  cout << endl;
+  if (verbose)
+    cout << endl;
 
   // Make the forward matrix
   //   This is a deg(F) x (deg(G)*Gord)  matrix which maps elements
@@ -691,9 +697,11 @@ void Parameters::SPDZ_Data_Setup(FHE_Params& params, P2Data& P2D)
   int lg2pi[2][9]
              = {  {70,70,70,70,70,70,70,70,70},
                   {70,75,75,75,75,80,80,80,80}
-               };
 
-  cout << "Setting up parameters\n";
+  };
+  bool verbose = OnlineOptions::singleton.has_option("verbose_he_setup");
+  if (verbose)
+    cout << "Setting up parameters\n";
   if ((n<2 || n>10) and sec == -1) { throw invalid_params(); }
 
   int m,lg2p0,lg2p1,ex;
@@ -714,7 +722,8 @@ void Parameters::SPDZ_Data_Setup(FHE_Params& params, P2Data& P2D)
   if (NoiseBounds::min_phi_m(lg2p0 + lg2p1, params) * 2 > m)
     throw runtime_error("number of slots too small");
 
-  cout << "m = " << m << endl;
+  if (verbose)
+    cout << "m = " << m << endl;
   init(R,m);
 
   if (lg2p0==0 || lg2p1==0) { throw invalid_params(); }
@@ -729,16 +738,21 @@ void Parameters::SPDZ_Data_Setup(FHE_Params& params, P2Data& P2D)
   ex=lg2p0-2*lg2m;
   pr0=1; pr0=(pr0<<ex)*step+1;
   while (!probPrime(pr0)) { pr0=pr0+step; }
-  cout << "\t pr0 = " << pr0 << "  :   " << numBits(pr0) << endl;
+  if (verbose)
+    cout << "\t pr0 = " << pr0 << "  :   " << numBits(pr0) << endl;
 
   ex=lg2p1-2*lg2m;
   pr1=1; pr1=(pr1<<ex)*step+1;
   while (!probPrime(pr1) || pr1==pr0) { pr1=pr1+step; }
-  cout << "\t pr1 = " << pr1 << "  :   " << numBits(pr1) <<  endl;
 
-  cout << "\t\tFollowing should be both 1" << endl;
-  cout << "\t\tpr1 mod m = " << pr1%m << endl;
-  cout << "\t\tpr1 mod 2^lg2m = " << pr1%(1<<lg2m) << endl;
+  if (verbose)
+    {
+      cout << "\t pr1 = " << pr1 << "  :   " << numBits(pr1) <<  endl;
+
+      cout << "\t\tFollowing should be both 1" << endl;
+      cout << "\t\tpr1 mod m = " << pr1%m << endl;
+      cout << "\t\tpr1 mod 2^lg2m = " << pr1%(1<<lg2m) << endl;
+    }
 
   gf2n_short::init_field(lg2);
   load_or_generate(P2D, R);

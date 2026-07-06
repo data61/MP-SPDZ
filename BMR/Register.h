@@ -240,24 +240,24 @@ public:
 	{ throw no_dynamic_memory(); }
 
 	template <class T>
-	static void andrs(T& processor, const vector<int>& args) { processor.andrs(args); }
+	static void andrs(T& processor, const ArgVector& args) { processor.andrs(args); }
 	template <class T>
-	static void ands(T& processor, const vector<int>& args) { processor.ands(args); }
+	static void ands(T& processor, const ArgVector& args) { processor.ands(args); }
 	template <class T>
-	static void andrsvec(T& processor, const vector<int>& args)
+	static void andrsvec(T& processor, const ArgVector& args)
 	{ processor.andrsvec(args); }
 	template <class T>
-	static void xors(T& processor, const vector<int>& args) { processor.xors(args); }
+	static void xors(T& processor, const ArgVector& args) { processor.xors(args); }
 	template <class T>
-	static void inputb(T& processor, const vector<int>& args) { processor.input(args); }
+	static void inputb(T& processor, const ArgVector& args) { processor.input(args); }
 	template <class T>
-	static void inputbvec(T&, ProcessorBase&, const vector<int>&)
+	static void inputbvec(T&, ProcessorBase&, const ArgVector&)
 	{ throw not_implemented(); }
 	template <class T>
 	static T get_input(int from, GC::Processor<T>& processor, int n_bits)
 	{ return T::input(from, processor.get_input(n_bits), n_bits); }
 	template<class U>
-	static void reveal_inst(GC::Processor<U>& processor, const vector<int>& args)
+	static void reveal_inst(GC::Processor<U>& processor, const ArgVector& args)
 	{ processor.reveal(args); }
 
 	template<class T>
@@ -305,7 +305,7 @@ public:
 
 	template <class T>
 	static void inputbvec(T& processor, ProcessorBase& input_processor,
-			const vector<int>& args);
+			const ArgVector& args);
 
     template<class U>
     static void convcbit2s(GC::Processor<U>&, const BaseInstruction&)
@@ -314,7 +314,7 @@ public:
     static void andm(GC::Processor<U>&, const BaseInstruction&)
     { throw runtime_error("andm not implemented"); }
 
-    static void run_tapes(const vector<int>&)
+    static void run_tapes(const ArgVector&)
     { throw runtime_error("multi-threading not implemented"); }
 
 	// most BMR phases don't need actual input
@@ -395,12 +395,12 @@ public:
     		const GC::Memory<U>& source);
 
 	template <class T>
-	static void andrs(T& processor, const vector<int>& args);
+	static void andrs(T& processor, const ArgVector& args);
 	template <class T>
-	static void inputb(T& processor, const vector<int>& args);
+	static void inputb(T& processor, const ArgVector& args);
 	template <class T>
 	static void inputbvec(T& processor, ProcessorBase& input_processor,
-			const vector<int>& args);
+			const ArgVector& args);
 
 	template <class T>
 	static T get_input(GC::Processor<T>& processor, const InputArgs& args)

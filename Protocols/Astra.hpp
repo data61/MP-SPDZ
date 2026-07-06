@@ -596,7 +596,7 @@ void AstraPrepProtocol<T>::randoms_inst(StackedVector<T>& S,
 
 template<class T>
 template<int>
-void AstraOnlineBase<T>::trunc_pr(const vector<int>& regs, int size,
+void AstraOnlineBase<T>::trunc_pr(const ArgVector& regs, int size,
         SubProcessor<T>& proc, false_type)
 {
     TruncPrTupleList<T> infos(regs, proc.get_S(), size);
@@ -609,7 +609,7 @@ void AstraOnlineBase<T>::trunc_pr(const vector<int>& regs, int size,
 
 template<class T>
 template<int>
-void AstraPrepProtocol<T>::trunc_pr(const vector<int>& regs, int size,
+void AstraPrepProtocol<T>::trunc_pr(const ArgVector& regs, int size,
         SubProcessor<T>& proc, false_type)
 {
     TruncPrTupleList<T> infos(regs, proc.get_S(), size);

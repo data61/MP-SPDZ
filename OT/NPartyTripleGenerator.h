@@ -110,7 +110,7 @@ public:
     typename T::MAC_Check* MC;
 
     static complete_mac_key_type& get_mac_key() { return mac_key; }
-    static mac_key_type get_mac_key(Player& P);
+    static mac_key_type get_mac_key(Player& P, bool = false);
     static void reset_mac_key();
 
     OTTripleGenerator(const OTTripleSetup& setup, const Names& names,

@@ -33,7 +33,7 @@ void YaoEvalWire::public_input(bool value)
 
 template<bool repeat>
 void YaoEvalWire::and_(GC::Processor<GC::Secret<YaoEvalWire> >& processor,
-		const vector<int>& args)
+		const ArgVector& args)
 {
 	YaoEvaluator& party = YaoEvaluator::s();
 	int total = processor.check_args(args, 4);
@@ -63,7 +63,7 @@ void YaoEvalWire::and_(GC::Processor<GC::Secret<YaoEvalWire> >& processor,
 
 template<bool repeat>
 void YaoEvalWire::and_singlethread(GC::Processor<GC::Secret<YaoEvalWire> >& processor,
-		const vector<int>& args, int total_ands)
+		const ArgVector& args, int total_ands)
 {
 	if (total_ands < 10)
 		return processor.and_(args, repeat);
@@ -80,11 +80,11 @@ void YaoEvalWire::and_singlethread(GC::Processor<GC::Secret<YaoEvalWire> >& proc
 }
 
 void YaoEvalWire::and_(StackedVector<GC::Secret<YaoEvalWire> >& S,
-		const vector<int>& args, size_t start, size_t end, size_t,
+		const ArgVector& args, size_t start, size_t end, size_t,
 		YaoGate* gates, long& gate_id, PRNG&, map<string, Timer>&,
 		bool repeat, YaoEvaluator& evaluator)
 {
-	int dl = GC::Secret<YaoEvalWire>::default_length;
+	size_t dl = GC::Secret<YaoEvalWire>::default_length;
 	MMO& mmo = evaluator.mmo;
 	for (auto it = args.begin() + start; it < args.begin() + end; it += 4)
 	{
@@ -166,7 +166,7 @@ void YaoEvalWire::finalize_input(T& inputter, int from, int n_bits)
 }
 
 void YaoEvalWire::inputb(GC::Processor<GC::Secret<YaoEvalWire> >& processor,
-        const vector<int>& args)
+        const ArgVector& args)
 {
 	YaoEvalInput inputter;
 	processor.inputb(inputter, processor, args, inputter.evaluator.P->my_num());
@@ -174,7 +174,7 @@ void YaoEvalWire::inputb(GC::Processor<GC::Secret<YaoEvalWire> >& processor,
 }
 
 void YaoEvalWire::inputbvec(GC::Processor<GC::Secret<YaoEvalWire> >& processor,
-        ProcessorBase& input_processor, const vector<int>& args)
+        ProcessorBase& input_processor, const ArgVector& args)
 {
     YaoEvalInput inputter;
     processor.inputbvec(inputter, input_processor, args,
@@ -226,7 +226,7 @@ void YaoEvalWire::convcbit(Integer& dest, const GC::Clear& source,
 	}
 }
 
-void YaoEvalWire::reveal_inst(Processor& processor, const vector<int>& args)
+void YaoEvalWire::reveal_inst(Processor& processor, const ArgVector& args)
 {
 	processor.reveal(args);
 	auto &evaluator = YaoEvaluator::s();
@@ -258,7 +258,7 @@ void YaoEvalWire::convcbit2s(GC::Processor<whole_type>& processor,
 	}
 }
 
-void YaoEvalWire::run_tapes(const vector<int>& args)
+void YaoEvalWire::run_tapes(const ArgVector& args)
 {
 	auto& party = YaoEvaluator::s();
 	party.master.machine.run_tapes(args);
@@ -268,7 +268,7 @@ void YaoEvalWire::run_tapes(const vector<int>& args)
 
 template void YaoEvalWire::and_<false>(
         GC::Processor<GC::Secret<YaoEvalWire> >& processor,
-        const vector<int>& args);
+        const ArgVector& args);
 template void YaoEvalWire::and_<true>(
         GC::Processor<GC::Secret<YaoEvalWire> >& processor,
-        const vector<int>& args);
+        const ArgVector& args);

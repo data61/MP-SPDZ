@@ -105,10 +105,14 @@ endif
 
 BOOST = -lboost_thread $(MY_BOOST)
 
-CFLAGS += $(ARCH) $(MY_CFLAGS) $(GDEBUG) -Wextra -Wall $(OPTIM) -I$(ROOT) -I$(ROOT)/deps -pthread $(PROF) $(DEBUG) $(MOD) $(GF2N_LONG) $(PREP_DIR) $(SSL_DIR) $(SECURE) -std=c++17 -Werror
+CFLAGS += $(ARCH) $(MY_CFLAGS) $(GDEBUG) -Wextra -Wall $(OPTIM) -I$(ROOT) -I$(ROOT)/deps -pthread $(PROF) $(DEBUG) $(MOD) $(GF2N_LONG) $(PREP_DIR) $(SSL_DIR) $(SECURE) -std=c++20 -Werror -Wno-overloaded-virtual
 CFLAGS += $(BREW_CFLAGS)
 CPPFLAGS = $(CFLAGS)
 LD = $(CXX)
+
+ifndef OTE_CXX
+OTE_CXX = $(CXX)
+endif
 
 ifeq ($(OS), Darwin)
 # for boost with OpenSSL 3
@@ -120,6 +124,4 @@ endif
 
 ifeq ($(USE_KOS),1)
 CFLAGS += -DUSE_KOS
-else
-CFLAGS += -std=c++17
 endif

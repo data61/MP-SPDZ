@@ -86,7 +86,15 @@ void HighGearKeyGen<L, M>::run(PartSetup<FD>& setup, MachineBase& machine)
 
     DataPositions prep_usage;
     BT::LivePrep preprocessing(prep_usage);
-    GC::ShareThread<BT> thread(preprocessing, P, BT::LivePrep::get_mac_key(P));
+
+    bool have_singleton = GC::ShareThread<BT>::has_singleton();
+
+    if (not have_singleton)
+    {
+        auto tmp = new GC::ShareThread<BT>(preprocessing, P,
+                BT::LivePrep::get_mac_key(P));
+        assert(tmp == &GC::ShareThread<BT>::s());
+    }
 
     GlobalPRNG global_prng(P);
     auto& fftd = params.FFTD();
@@ -191,4 +199,7 @@ void HighGearKeyGen<L, M>::run(PartSetup<FD>& setup, MachineBase& machine)
         assert(d.element(i) == dd);
     cerr << "Revealed MAC key for check" << endl;
 #endif
+
+    if (not have_singleton)
+        delete &GC::ShareThread<BT>::s();
 }

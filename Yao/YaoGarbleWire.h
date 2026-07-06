@@ -31,42 +31,42 @@ public:
 	static string name() { return "YaoGarbleWire"; }
 
 	static void andrs(GC::Processor<GC::Secret<YaoGarbleWire>>& processor,
-			const vector<int>& args)
+			const ArgVector& args)
 	{
 		and_(processor, args, true);
 	}
 	static void ands(GC::Processor<GC::Secret<YaoGarbleWire>>& processor,
-			const vector<int>& args)
+			const ArgVector& args)
 	{
 		and_(processor, args, false);
 	}
 
 	static void and_(GC::Processor<GC::Secret<YaoGarbleWire>>& processor,
-			const vector<int>& args, bool repeat);
+			const ArgVector& args, bool repeat);
 	static void and_multithread(
 			GC::Processor<GC::Secret<YaoGarbleWire>>& processor,
-			const vector<int>& args, bool repeat);
+			const ArgVector& args, bool repeat);
 	static void and_singlethread(
 			GC::Processor<GC::Secret<YaoGarbleWire>>& processor,
-			const vector<int>& args, bool repeat);
+			const ArgVector& args, bool repeat);
 	static void and_(StackedVector<GC::Secret<YaoGarbleWire>>& S,
-			const vector<int>& args, size_t start, size_t end,
+			const ArgVector& args, size_t start, size_t end,
 			size_t total_ands, YaoGate* gate, long& counter, PRNG& prng,
 			map<string, Timer>& timers, bool repeat, YaoGarbler& garbler);
 
 	static void inputb(GC::Processor<GC::Secret<YaoGarbleWire>>& processor,
-			const vector<int>& args);
+			const ArgVector& args);
 	static void inputbvec(Processor& processor, ProcessorBase& input_processor,
-			const vector<int>& args);
+			const ArgVector& args);
 
 	static void convcbit(Integer& dest, const GC::Clear& source,
 			GC::Processor<GC::Secret<YaoGarbleWire>>&);
-	static void reveal_inst(Processor& processor, const vector<int>& args);
+	static void reveal_inst(Processor& processor, const ArgVector& args);
 
 	static void convcbit2s(GC::Processor<whole_type>& processor,
 			const BaseInstruction& instruction);
 
-	static void run_tapes(const vector<int>& args);
+	static void run_tapes(const ArgVector& args);
 
 	void randomize(PRNG& prng);
 	void set(Key key, bool mask);

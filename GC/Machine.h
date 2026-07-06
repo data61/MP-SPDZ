@@ -58,7 +58,7 @@ public:
     void stop_timer() { timer[0].stop(); }
     void reset_timer() { timer[0].reset(); }
 
-    void run_tapes(const vector<int>& args);
+    void run_tapes(const ArgVector& args);
     void run_tape(int thread_number, int tape_number, int arg);
     void join_tape(int thread_numer);
 };

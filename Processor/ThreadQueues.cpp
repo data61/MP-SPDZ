@@ -8,13 +8,38 @@
 #include <assert.h>
 #include <math.h>
 
+thread_local int ThreadQueues::counter = 0;
+
+ThreadQueues::ThreadQueues() :
+        sync_point(0)
+{
+}
+
 int ThreadQueues::distribute(ThreadJob job, int n_items, int base,
         int granularity)
 {
     if (find_available() > 0)
-        return distribute_no_setup(job, n_items, base, granularity);
+        return distribute_no_setup(job, n_items, base, granularity, 0);
     else
         return base;
+}
+
+int ThreadQueues::distribute_with_sync(ThreadJob job, int n_items)
+{
+    if (find_available() == 0)
+        return 0;
+
+    auto res = get_n_per_thread(n_items) * get_n_threads(n_items);
+    auto n_threads = get_n_threads(n_items) + (res != n_items);
+    if (OnlineOptions::singleton.has_option("debug_sync"))
+        cerr << "sync " << n_threads << ", res " << res << "/" << n_items
+                << endl;
+    if (n_threads > 1)
+    {
+        assert(not sync_point);
+        sync_point = new barrier(n_threads);
+    }
+    return distribute_no_setup(job, n_items);
 }
 
 int ThreadQueues::find_available()
@@ -40,6 +65,18 @@ int ThreadQueues::get_n_per_thread(int n_items, int granularity)
     return n_per_thread;
 }
 
+int ThreadQueues::get_n_threads(int n_items, int base, int granularity)
+{
+    if (n_items == 0)
+        return available.size();
+
+    size_t per_thread = get_n_per_thread(n_items, granularity);
+    if (per_thread)
+        return min(available.size(), (n_items - base) / per_thread);
+    else
+        return 0;
+}
+
 int ThreadQueues::distribute_no_setup(ThreadJob job, int n_items, int base,
         int granularity, const vector<void*>* supplies)
 {
@@ -48,9 +85,15 @@ int ThreadQueues::distribute_no_setup(ThreadJob job, int n_items, int base,
 #endif
 
     int n_per_thread = get_n_per_thread(n_items, granularity);
+    size_t n_threads = get_n_threads(n_items, base, granularity);
+
+    if (OnlineOptions::singleton.has_option("debug_sync"))
+        cerr << n_per_thread << " per thread" << ", " << n_threads << " threads"
+                << ", " << available.size() << " available" << endl;
 
     if (n_items and (n_per_thread == 0 or base + n_per_thread > n_items))
     {
+        assert(n_threads == 0);
         available.clear();
         return base;
     }
@@ -61,6 +104,7 @@ int ThreadQueues::distribute_no_setup(ThreadJob job, int n_items, int base,
         {
             assert(i);
             available.resize(i);
+            assert(n_threads == i);
             return base + i * n_per_thread;
         }
         if (supplies)
@@ -69,7 +113,30 @@ int ThreadQueues::distribute_no_setup(ThreadJob job, int n_items, int base,
         job.end = base + (i + 1) * n_per_thread;
         at(available[i])->schedule(job);
     }
+    assert(available.size() == n_threads);
     return base + available.size() * n_per_thread;
+}
+
+void ThreadQueues::sync()
+{
+    bool debug = OnlineOptions::singleton.has_option("debug_sync");
+
+    if (sync_point)
+    {
+        if (debug)
+        {
+            fprintf(stderr, "%d wait\n", counter);
+            fprintf(stderr, "wait thread %lx\n", long(pthread_self()));
+        }
+        sync_point->arrive_and_wait();
+        if (debug)
+        {
+            fprintf(stderr, "%d continue\n", counter++);
+            fprintf(stderr, "continue thread %lx\n", long(pthread_self()));
+        }
+    }
+    else if (debug)
+        fprintf(stderr, "skip sync %lx\n", long(pthread_self()));
 }
 
 void ThreadQueues::wrap_up(ThreadJob job)
@@ -84,6 +151,14 @@ void ThreadQueues::wrap_up(ThreadJob job)
         assert(result.type == job.type);
     }
     available.clear();
+
+    if (sync_point)
+    {
+        if (OnlineOptions::singleton.has_option("debug_sync"))
+            cerr << "stopping sync" << endl;
+        delete sync_point;
+        sync_point = 0;
+    }
 }
 
 TimerWithComm ThreadQueues::sum(const string& phase)
@@ -119,11 +194,11 @@ void ThreadQueues::print_breakdown()
     }
 }
 
-NamedCommStats ThreadQueues::total_comm()
+ThreadStats ThreadQueues::total_stats()
 {
-    NamedCommStats res;
+    ThreadStats res;
     for (auto& queue : *this)
-      res += queue->get_comm_stats();
+      res += queue->get_stats();
     return res;
 }
 

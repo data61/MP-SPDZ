@@ -36,6 +36,8 @@ public:
     static void init(int nid = NID_X9_62_prime256v1);
     static void finish();
 
+    static void specification(octetStream& os);
+
     P256Element();
     P256Element(const P256Element& other);
     P256Element(const Scalar& other);

@@ -726,6 +726,7 @@ class picks(base.VectorInstruction):
     __slots__ = []
     code = base.opcodes['PICKS']
     arg_format = ['sw','s','int','int']
+    read_after_write = True
 
     def __init__(self, *args):
         super(picks, self).__init__(*args)
@@ -744,6 +745,7 @@ class concats(base.VectorInstruction):
     __slots__ = []
     code = base.opcodes['CONCATS']
     arg_format = tools.chain(['sw'], tools.cycle(['int','s']))
+    read_after_write = True
 
     def __init__(self, *args):
         super(concats, self).__init__(*args)
@@ -764,6 +766,7 @@ class zips(base.Instruction):
     code = base.opcodes['ZIPS']
     arg_format = ['sw','s','s']
     is_vec = lambda self: True
+    read_after_write = True
 
     def __init__(self, *args):
         super(zips, self).__init__(*args)
@@ -1782,6 +1785,7 @@ class cond_print_plain(base.IOInstruction):
     def get_code(self):
         return base.Instruction.get_code(self, self.size)
 
+@base.vectorize
 class print_int(base.IOInstruction):
     """ Output clear integer register.
 
@@ -2015,8 +2019,28 @@ class closeclientconnection(base.IOInstruction):
     code = base.opcodes['CLOSECLIENTCONNECTION']
     arg_format = ['ci']
 
+class file_base(base.VectorInstruction, base.IOInstruction):
+    def has_var_args(self):
+        return True
+
 @base.gf2n
-class writesharestofile(base.VectorInstruction, base.IOInstruction):
+class writefileclear(file_base):
+    """ Write to ``Persistence/Transactions-clear-P<playerno>.data``
+    (appending at the end).
+
+    :param: number of arguments to follow / number of shares plus one (int)
+    :param: position (regint, -1 for appending)
+    :param: source (sint)
+    :param: (repeat from source)...
+
+    """
+    __slots__ = []
+    code = base.opcodes['WRITEFILECLEAR']
+    arg_format = tools.chain(['ci'], tools.cycle(['c']))
+    vector_index = 1
+
+@base.gf2n
+class writesharestofile(file_base):
     """ Write shares to ``Persistence/Transactions-P<playerno>.data``
     (appending at the end).
 
@@ -2031,11 +2055,8 @@ class writesharestofile(base.VectorInstruction, base.IOInstruction):
     arg_format = tools.chain(['ci'], tools.cycle(['s']))
     vector_index = 1
 
-    def has_var_args(self):
-        return True
-
 @base.gf2n
-class readsharesfromfile(base.VectorInstruction, base.IOInstruction):
+class readsharesfromfile(file_base):
     """ Read shares from ``Persistence/Transactions-P<playerno>.data``.
 
     :param: number of arguments to follow / number of shares plus two (int)
@@ -2049,8 +2070,20 @@ class readsharesfromfile(base.VectorInstruction, base.IOInstruction):
     arg_format = tools.chain(['ci', 'ciw'], tools.cycle(['sw']))
     vector_index = 2
 
-    def has_var_args(self):
-        return True
+@base.gf2n
+class readfileclear(file_base):
+    """ Read from ``Persistence/Transactions-data-P<playerno>.data``.
+
+    :param: number of arguments to follow / number of shares plus two (int)
+    :param: starting position in number of shares from beginning (regint)
+    :param: destination for final position, -1 for eof reached, or -2 for file not found (regint)
+    :param: destination for share (sint)
+    :param: (repeat from destination for share)...
+    """
+    __slots__ = []
+    code = base.opcodes['READFILECLEAR']
+    arg_format = tools.chain(['ci', 'ciw'], tools.cycle(['cw']))
+    vector_index = 2
 
 @base.gf2n
 @base.vectorize
@@ -2187,6 +2220,7 @@ class bitdecint(base.Instruction):
     __slots__ = []
     code = base.opcodes['BITDECINT']
     arg_format = tools.chain(['ci'], itertools.repeat('ciw'))
+    read_after_write = True
 
 class incint(base.VectorInstruction):
     """ Create incremental clear integer vector. For example, vector size 10,
@@ -2464,7 +2498,7 @@ class muls(mul_base, base.Ciscable):
                 assert args[i + j + 1].size == args[i]
 
     def get_repeat(self):
-        return sum(self.args[::4])
+        return sum(x or 0 for x in self.args[::4])
 
     # def expand(self):
     #     s = [program.curr_block.new_reg('s') for i in range(9)]
@@ -2694,8 +2728,8 @@ class conv2ds(base.DataInstruction, base.VarArgsInstruction, base.Mergeable):
 
     """
     code = base.opcodes['CONV2DS']
-    arg_format = itertools.cycle(['sw','s','s','int','int','int','int','int',
-                                  'int','int','int','int','int','int','int'])
+    arg_format = tools.cycle(['sw','s','s','int','int','int','int','int',
+                              'int','int','int','int','int','int','int'])
     data_type = 'triple'
     is_vec = lambda self: True
 
@@ -2732,6 +2766,8 @@ class trunc_pr(base.VarArgsInstruction):
     __slots__ = []
     code = base.opcodes['TRUNC_PR']
     arg_format = tools.cycle(['sw','s','int','int'])
+    # Rep3 truncation uses the destination as storage
+    read_after_write = True
 
     def add_usage(self, req_node):
         req_node.increment(('modp', 'probabilistic truncation'),
@@ -2760,12 +2796,19 @@ class shuffle_base(base.DataInstruction):
         logn = cls.logn(n)
         return logn * 2 ** logn - 2 ** logn + 1
 
+    def is_malicious(malicious):
+        malicious = malicious or program.malicious_protocol()
+        if malicious is None:
+            malicious = True
+        return malicious
+
     @classmethod
-    def add_gen_usage(self, req_node, n, add_shuffles=True, malicious=True,
+    def add_gen_usage(self, req_node, n, add_shuffles=True, malicious=None,
                       n_relevant_parties=None):
         # hack for unknown usage
         req_node.increment(('bit', 'inverse'), float('inf'))
         # minimal usage with two relevant parties
+        malicious = self.is_malicious(malicious)
         logn = self.logn(n)
         n_switches = self.n_swaps(n)
         n_relevant_parties = n_relevant_parties or self.n_relevant_parties
@@ -2780,10 +2823,12 @@ class shuffle_base(base.DataInstruction):
 
     @classmethod
     def add_apply_usage(self, req_node, n, record_size, add_shuffles=True,
-                        malicious=True, n_relevant_parties=None):
+                        malicious=None, n_relevant_parties=None):
         req_node.increment(('bit', 'inverse'), float('inf'))
+        malicious = self.is_malicious(malicious)
         logn = self.logn(n)
-        n_switches = self.n_swaps(n) * \
+        assert n % record_size == 0
+        n_switches = self.n_swaps(n // record_size) * \
             (n_relevant_parties or self.n_relevant_parties)
         real_record_size = record_size
         if n != 2 ** logn and malicious:
@@ -2841,7 +2886,7 @@ class applyshuffle(shuffle_base, base.Mergeable):
     """
     __slots__ = []
     code = base.opcodes['APPLYSHUFFLE']
-    arg_format = itertools.cycle(['int', 'sw','s','int','ci','int'])
+    arg_format = tools.cycle(['int', 'sw','s','int','ci','int'])
     is_vec = lambda self: True # Ensures dead-code elimination works.
 
     def __init__(self, *args, **kwargs):
@@ -2858,6 +2903,9 @@ class applyshuffle(shuffle_base, base.Mergeable):
 
     def handles(self):
         return self.args[::4]
+
+    def get_repeat(self):
+        return sum(self.args[::6])
 
 class delshuffle(base.Instruction):
     """ Delete secure shuffle.
@@ -2991,6 +3039,7 @@ class cisc:
 
     """
     code = base.opcodes['CISC']
+    get_usage = lambda *args: {}
 
 # hack for circular dependency
 from Compiler import comparison

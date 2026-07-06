@@ -270,7 +270,7 @@ void Processor<sint, sgf2n>::unsplit(const Instruction& instruction)
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::write_socket(const RegType reg_type,
     bool send_macs, int socket_id, int message_type,
-    const vector<int>& registers, int size)
+    const ArgVector& registers, int size)
 {
   int m = registers.size();
   socket_stream.reset_write_head();
@@ -332,7 +332,7 @@ void Processor<sint, sgf2n>::write_socket(const RegType reg_type,
 // Receive vector of 64-bit clear ints
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::read_socket_ints(int client_id,
-    const vector<int>& registers, int size)
+    const ArgVector& registers, int size)
 {
   int m = registers.size();
   socket_stream.reset_write_head();
@@ -350,7 +350,7 @@ void Processor<sint, sgf2n>::read_socket_ints(int client_id,
 // Receive vector of public field elements
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::read_socket_vector(int client_id,
-    const vector<int>& registers, int size)
+    const ArgVector& registers, int size)
 {
   int m = registers.size();
   socket_stream.reset_write_head();
@@ -370,7 +370,7 @@ void Processor<sint, sgf2n>::read_socket_vector(int client_id,
 // Receive vector of field element shares over private channel
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::read_socket_private(int client_id,
-    const vector<int>& registers, int size, bool read_macs)
+    const ArgVector& registers, int size, bool read_macs)
 {
   int m = registers.size();
   socket_stream.reset_write_head();
@@ -400,22 +400,26 @@ void Processor<sint, sgf2n>::read_socket_private(int client_id,
 // file_pos_register is written with new file position (-1 is eof).
 // Tolerent to no file if no shares yet persisted.
 template<class T>
-template<class U>
-void SubProcessor<T>::read_shares_from_file(long start_file_posn,
-    int end_file_pos_register, const vector<int>& data_registers,
-    size_t vector_size, U& Proc)
+void Binary_File_IO<T>::read(StackedVector<T>& S, StackedVector<Integer>& Ci,
+    const Player& P, const BaseInstruction& instruction)
 {
-  if (not T::real_shares(P))
+  if (not real_shares(P, T::is_clear))
     return;
+
+  auto data_registers = instruction.get_start();
+  auto& binary_file_io = *this;
 
   string filename;
   filename = binary_file_io.filename(P.my_num());
 
   unsigned int size = data_registers.size();
 
+  size_t vector_size = instruction.get_size();
   PointerVector<T> outbuf(size * vector_size);
 
+  long start_file_posn = Ci[instruction.get_r(0)].get();
   auto end_file_posn = start_file_posn;
+  auto end_file_pos_register = instruction.get_r(1);
 
   try {
     binary_file_io.read_from_file(filename, outbuf, start_file_posn, end_file_posn);
@@ -423,38 +427,43 @@ void SubProcessor<T>::read_shares_from_file(long start_file_posn,
     for (unsigned int i = 0; i < size; i++)
     {
       for (size_t j = 0; j < vector_size; j++)
-        get_S_ref(data_registers[i] + j) = outbuf.next();
+        S[data_registers[i] + j] = outbuf.next();
     }
 
-    Proc.write_Ci(end_file_pos_register, (long)end_file_posn);
+    Ci[end_file_pos_register] = end_file_posn;
   }
   catch (file_missing& e) {
     if (OnlineOptions::singleton.has_option("verbose_persistence"))
       cerr << "Got file missing error, will return -2. " << e.what() << endl;
-    Proc.write_Ci(end_file_pos_register, (long)-2);
+    Ci[end_file_pos_register] = -2;
   }
 }
 
 // Append share data in data_registers to end of file. Expects Persistence directory to exist.
 template<class T>
-void SubProcessor<T>::write_shares_to_file(long start_pos,
-    const vector<int>& data_registers, size_t vector_size)
+void Binary_File_IO<T>::write(const StackedVector<T>& S,
+    const StackedVector<Integer>& Ci, const Player& P,
+    const BaseInstruction& instruction)
 {
-  if (not T::real_shares(P))
+  if (not real_shares(P, T::is_clear))
     return;
 
-  string filename = binary_file_io.filename(P.my_num());
+  auto& binary_file_io = *this;
 
+  string filename = binary_file_io.filename(P.my_num());
+  auto data_registers = instruction.get_start();
   unsigned int size = data_registers.size();
 
+  size_t vector_size = instruction.get_size();
   PointerVector<T> inpbuf(size * vector_size);
 
   for (unsigned int i = 0; i < size; i++)
   {
     for (size_t j = 0; j < vector_size; j++)
-      inpbuf.next() = get_S_ref(data_registers[i] + j);
+      inpbuf.next() = S[data_registers[i] + j];
   }
 
+  auto start_pos = Ci[instruction.get_r(0)].get();
   binary_file_io.write_to_file(filename, inpbuf, start_pos);
 }
 
@@ -495,7 +504,7 @@ void SubProcessor<T>::POpen(const Instruction& inst)
 }
 
 template<class T>
-void SubProcessor<T>::muls(const vector<int>& reg)
+void SubProcessor<T>::muls(const ArgVector& reg)
 {
     assert(reg.size() % 4 == 0);
 
@@ -507,14 +516,14 @@ void SubProcessor<T>::muls(const vector<int>& reg)
             assert(proc.S.begin() + *(it + j) <= proc.S.end());
         auto x = proc.S.begin() + *(it + 2);
         auto y = proc.S.begin() + *(it + 3);
-        for (int j = 0; j < *it; j++)
+        for (size_t j = 0; j < *it; j++)
             protocol.prepare_mul(*x++, *y++);
     }
     protocol.exchange();
     for (auto it = reg.begin(); it < reg.end(); it += 4)
     {
         auto z = proc.S.begin() + *(it + 1);
-        for (int j = 0; j < *it; j++)
+        for (size_t j = 0; j < *it; j++)
             *z++ = protocol.finalize_mul();
         protocol.counter += *it;
     }
@@ -523,7 +532,7 @@ void SubProcessor<T>::muls(const vector<int>& reg)
 }
 
 template<class T>
-void SubProcessor<T>::mulrs(const vector<int>& reg)
+void SubProcessor<T>::mulrs(const ArgVector& reg)
 {
     assert(reg.size() % 4 == 0);
     int n = reg.size() / 4;
@@ -531,7 +540,7 @@ void SubProcessor<T>::mulrs(const vector<int>& reg)
     SubProcessor<T>& proc = *this;
     protocol.init_mul();
     for (int i = 0; i < n; i++)
-        for (int j = 0; j < reg[4 * i]; j++)
+        for (size_t j = 0; j < reg[4 * i]; j++)
         {
             auto& x = proc.S[reg[4 * i + 2] + j];
             auto& y = proc.S[reg[4 * i + 3]];
@@ -540,7 +549,7 @@ void SubProcessor<T>::mulrs(const vector<int>& reg)
     protocol.exchange();
     for (int i = 0; i < n; i++)
     {
-        for (int j = 0; j < reg[4 * i]; j++)
+        for (size_t j = 0; j < reg[4 * i]; j++)
         {
             proc.S[reg[4 * i + 1] + j] = protocol.finalize_mul();
         }
@@ -551,7 +560,7 @@ void SubProcessor<T>::mulrs(const vector<int>& reg)
 }
 
 template<class T>
-void SubProcessor<T>::dotprods(const vector<int>& reg, int size)
+void SubProcessor<T>::dotprods(const ArgVector& reg, int size)
 {
     protocol.init_dotprod();
     for (int i = 0; i < size; i++)
@@ -602,10 +611,10 @@ void SubProcessor<T>::matmuls(const StackedVector<T>& source,
         assert(A + dim[0] * dim[1] <= source.end());
         assert(B + dim[1] * dim[2] <= source.end());
 
-        for (int i = 0; i < dim[0]; i++)
-            for (int j = 0; j < dim[2]; j++)
+        for (size_t i = 0; i < dim[0]; i++)
+            for (size_t j = 0; j < dim[2]; j++)
             {
-                for (int k = 0; k < dim[1]; k++)
+                for (size_t k = 0; k < dim[1]; k++)
                     protocol.prepare_dotprod(*(A + i * dim[1] + k),
                             *(B + k * dim[2] + j));
                 protocol.next_dotprod();
@@ -619,8 +628,8 @@ void SubProcessor<T>::matmuls(const StackedVector<T>& source,
         auto C = S.begin() + *it;
         auto dim = it + 3;
         assert(C + dim[0] * dim[2] <= S.end());
-        for (int i = 0; i < dim[0]; i++)
-            for (int j = 0; j < dim[2]; j++)
+        for (size_t i = 0; i < dim[0]; i++)
+            for (size_t j = 0; j < dim[2]; j++)
                 *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
     }
 
@@ -630,7 +639,7 @@ void SubProcessor<T>::matmuls(const StackedVector<T>& source,
 
 template<class T>
 void SubProcessor<T>::matmulsm(const MemoryPart<T>& source,
-        const vector<int>& start)
+        const ArgVector& start)
 {
     assert(Proc);
 
@@ -643,9 +652,9 @@ void SubProcessor<T>::matmulsm(const MemoryPart<T>& source,
         auto output = S.begin() + matmulArgs[0];
         size_t firstFactorBase  = Proc->get_Ci().at(matmulArgs[1]).get();
         size_t secondFactorBase = Proc->get_Ci().at(matmulArgs[2]).get();
-        auto resultNumberOfRows = matmulArgs[3];
+        int resultNumberOfRows = matmulArgs[3];
         auto usedNumberOfFirstFactorColumns = matmulArgs[4];
-        auto resultNumberOfColumns = matmulArgs[5];
+        int resultNumberOfColumns = matmulArgs[5];
         auto firstFactorTotalNumberOfColumns = matmulArgs[10];
         auto secondFactorTotalNumberOfColumns = matmulArgs[11];
 
@@ -728,14 +737,14 @@ void SubProcessor<T>::matmulsm(const MemoryPart<T>& source,
 }
 
 template<class T>
-void SubProcessor<T>::matmulsm_finalize_batch(vector<int>::const_iterator startMatmul, int startI, int startJ,
-    vector<int>::const_iterator endMatmul, int endI, int endJ) {
+void SubProcessor<T>::matmulsm_finalize_batch(ArgVector::const_iterator startMatmul, int startI, int startJ,
+    ArgVector::const_iterator endMatmul, int endI, int endJ) {
 
     for (auto matmulArgs = startMatmul; matmulArgs <= endMatmul; matmulArgs += 12) {
         auto output = S.begin() + matmulArgs[0];
         auto resultNumberOfRows = matmulArgs[3];
         auto usedNumberOfFirstFactorColumns = matmulArgs[4];
-        auto resultNumberOfColumns = matmulArgs[5];
+        int resultNumberOfColumns = matmulArgs[5];
 
         assert(output + resultNumberOfRows * resultNumberOfColumns <= S.end());
 
@@ -837,7 +846,7 @@ void SubProcessor<T>::conv2ds(const Instruction& instruction)
 }
 
 inline
-Conv2dTuple::Conv2dTuple(const vector<int>& arguments, int start)
+Conv2dTuple::Conv2dTuple(const ArgVector& arguments, int start)
 {
     assert(arguments.size() >= start + 15ul);
     auto args = arguments.data() + start + 3;
@@ -987,7 +996,7 @@ void SubProcessor<T>::inverse_permutation(const Instruction& instruction) {
 }
 
 template<class T>
-void SubProcessor<T>::input_personal(const vector<int>& args)
+void SubProcessor<T>::input_personal(const ArgVector& args)
 {
   input.reset_all(P);
   for (size_t i = 0; i < args.size(); i += 4)
@@ -1000,7 +1009,7 @@ void SubProcessor<T>::input_personal(const vector<int>& args)
           input.add_mine(*it);
       }
     else
-      for (int j = 0; j < args[i]; j++)
+      for (size_t j = 0; j < args[i]; j++)
         input.add_other(args[i + 1]);
   input.exchange();
   for (size_t i = 0; i < args.size(); i += 4)
@@ -1024,33 +1033,33 @@ void SubProcessor<T>::input_personal(const vector<int>& args)
  * // TODO: When would there be multiple sets of arguments? (for ... i < args.size(); i += 4 ... )
  */
 template<class T>
-void SubProcessor<T>::private_output(const vector<int>& args)
+void SubProcessor<T>::private_output(const ArgVector& args)
 {
   typename T::PrivateOutput output(*this);
   for (size_t i = 0; i < args.size(); i += 4)
-    for (int j = 0; j < args[i]; j++)
+    for (size_t j = 0; j < args[i]; j++)
       {
         int player = args[i + 1];
         output.prepare_sending(S.at(args[i + 3] + j), player);
       }
   output.exchange();
   for (size_t i = 0; i < args.size(); i += 4)
-    for (int j = 0; j < args[i]; j++)
+    for (size_t j = 0; j < args[i]; j++)
       C.at(args[i + 2] + j) = output.finalize(args[i + 1]);
 }
 
 template<class T>
-void SubProcessor<T>::send_personal(const vector<int>& args)
+void SubProcessor<T>::send_personal(const ArgVector& args)
 {
   octetStreams to_send(P), to_receive(P);
   for (size_t i = 0; i < args.size(); i += 5)
-    if (args[i + 3] == P.my_num())
-        for (int j = 0; j < args[i]; j++)
+    if (int(args[i + 3]) == P.my_num())
+        for (size_t j = 0; j < args[i]; j++)
           C[args[i + 4] + j].pack(to_send[args[i + 1]]);
   P.send_receive_all(to_send, to_receive);
   for (size_t i = 0; i < args.size(); i += 5)
-    if (args[i + 1] == P.my_num())
-        for (int j = 0; j < args[i]; j++)
+    if (int(args[i + 1]) == P.my_num())
+        for (size_t j = 0; j < args[i]; j++)
           C[args[i + 2] + j].unpack(to_receive[args[i + 3]]);
 }
 
@@ -1171,7 +1180,7 @@ void SubProcessor<T>::push_stack()
 }
 
 template<class T>
-void SubProcessor<T>::push_args(const vector<int>& args)
+void SubProcessor<T>::push_args(const ArgVector& args)
 {
   auto char2 = T::clear::characteristic_two;
   S.push_args(args, char2 ? SGF2N : SINT);
@@ -1179,7 +1188,7 @@ void SubProcessor<T>::push_args(const vector<int>& args)
 }
 
 template<class T>
-void SubProcessor<T>::pop_stack(const vector<int>& results)
+void SubProcessor<T>::pop_stack(const ArgVector& results)
 {
   auto char2 = T::clear::characteristic_two;
   S.pop_stack(results, char2 ? SGF2N : SINT);
@@ -1188,7 +1197,7 @@ void SubProcessor<T>::pop_stack(const vector<int>& results)
 
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::call_tape(int tape_number, int arg,
-    const vector<int>& args)
+    const ArgVector& args)
 {
   PC_stack.push_back(PC);
   arg_stack.push_back(this->arg);

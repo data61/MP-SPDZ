@@ -20,7 +20,7 @@ template<class T>
 class YaoAndJob
 {
 	GC::Processor< GC::Secret<T> >* processor;
-	const vector<int>* args;
+	const ArgVector* args;
 	size_t start, end, n_gates;
 	YaoGate* gate;
 	long counter;
@@ -49,7 +49,7 @@ public:
 	}
 
 	void dispatch(YaoJobType type,
-			GC::Processor<GC::Secret<T> >& processor, const vector<int>& args,
+			GC::Processor<GC::Secret<T> >& processor, const ArgVector& args,
 			size_t start, size_t end, size_t n_gates,
 			YaoGate* gate, long counter, bool repeat)
 	{

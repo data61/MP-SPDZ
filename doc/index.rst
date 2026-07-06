@@ -47,6 +47,7 @@ If you're new to MP-SPDZ, consider the following:
    add-instruction
    homomorphic-encryption
    ecdsa
+   security-fixes
    troubleshooting
 
 

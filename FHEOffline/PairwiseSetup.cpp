@@ -52,9 +52,10 @@ void PairwiseSetup<FD>::init(const Player& P, int sec, int plaintext_length,
 }
 
 template <class FD>
-void PairwiseSetup<FD>::secure_init(Player& P, PairwiseMachine& machine, int plaintext_length, int sec)
+void PairwiseSetup<FD>::secure_init(Player& P, PairwiseMachine& machine,
+        int plaintext_length, int sec, bool read_only)
 {
-    ::secure_init(*this, P, machine, plaintext_length, sec, params);
+    ::secure_init(*this, P, machine, plaintext_length, sec, params, read_only);
     alpha = FieldD;
     machine.sk = FHE_SK(params, FieldD.get_prime());
     for (auto& pk : machine.other_pks)
@@ -63,7 +64,8 @@ void PairwiseSetup<FD>::secure_init(Player& P, PairwiseMachine& machine, int pla
 
 template <class T, class U>
 void secure_init(T& setup, Player& P, U& machine,
-        int plaintext_length, int sec, FHE_Params& params)
+        int plaintext_length, int sec,
+        FHE_Params& params, bool read_only)
 {
     assert(sec >= 0);
     machine.sec = sec;
@@ -103,7 +105,7 @@ void secure_init(T& setup, Player& P, U& machine,
 
     if (not reason.empty())
     {
-        if (OnlineOptions::singleton.has_option("expect_setup"))
+        if (OnlineOptions::singleton.has_option("expect_setup") or read_only)
             throw runtime_error("error in setup: " + reason);
 
         if (OnlineOptions::singleton.verbose)
@@ -249,8 +251,8 @@ void PairwiseSetup<FD>::set_alphai(T alphai)
 template class PairwiseSetup<FFT_Data>;
 template class PairwiseSetup<P2Data>;
 
-template void secure_init(PartSetup<FFT_Data>&, Player&, MachineBase&, int, int, FHE_Params& params);
-template void secure_init(PartSetup<P2Data>&, Player&, MachineBase&, int, int, FHE_Params& params);
+template void secure_init(PartSetup<FFT_Data>&, Player&, MachineBase&, int, int, FHE_Params& params, bool);
+template void secure_init(PartSetup<P2Data>&, Player&, MachineBase&, int, int, FHE_Params& params, bool);
 
-template void secure_init(TemiSetup<FFT_Data>&, Player&, MachineBase&, int, int, FHE_Params& params);
-template void secure_init(TemiSetup<P2Data>&, Player&, MachineBase&, int, int, FHE_Params& params);
+template void secure_init(TemiSetup<FFT_Data>&, Player&, MachineBase&, int, int, FHE_Params& params, bool);
+template void secure_init(TemiSetup<P2Data>&, Player&, MachineBase&, int, int, FHE_Params& params, bool);

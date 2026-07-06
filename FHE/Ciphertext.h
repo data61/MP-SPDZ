@@ -30,6 +30,8 @@ class Ciphertext
 
   public:
 
+  static const false_type optimized_packing;
+
   const FHE_Params& get_params() const { return *params; }
 
   Ciphertext(const FHE_Params& p)

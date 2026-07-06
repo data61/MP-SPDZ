@@ -20,9 +20,9 @@ public:
 	static int threshold(int) { return 1; }
 
 	template<class T>
-	static void xors(GC::Processor<T>& processor, const vector<int>& args);
+	static void xors(GC::Processor<T>& processor, const ArgVector& args);
 	template<class T>
-	static void xors(GC::Processor<T>& processor, const vector<int>& args,
+	static void xors(GC::Processor<T>& processor, const ArgVector& args,
 			size_t start, size_t end);
 
 	template<class T>

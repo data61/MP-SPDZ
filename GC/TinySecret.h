@@ -90,7 +90,7 @@ public:
     }
 
     template<class U>
-    static void reveal_inst(U& processor, const vector<int>& args)
+    static void reveal_inst(U& processor, const ArgVector& args)
     {
         T::reveal_inst(processor, args);
     }

@@ -38,8 +38,6 @@ class SubProcessor
   DataPositions bit_usage;
   NamedStats stats;
 
-  Binary_File_IO<T> binary_file_io;
-
   void resize(size_t size)       { C.resize(size); S.resize(size); }
 
   void matmulsm_prep(int ii, int j, const MemoryPart<T>& source,
@@ -72,6 +70,9 @@ public:
 
   typename T::Protocol::Shuffler shuffler;
 
+  Binary_File_IO<T> binary_file_io;
+  Binary_File_IO<typename T::clear> binary_file_io_clear;
+
   SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& MC,
       Preprocessing<T>& DataF, Player& P);
   SubProcessor(typename T::MAC_Check& MC, Preprocessing<T>& DataF, Player& P,
@@ -83,14 +84,14 @@ public:
   // Access to PO (via calls to POpen start/stop)
   void POpen(const Instruction& inst);
 
-  void muls(const vector<int>& reg);
-  void mulrs(const vector<int>& reg);
-  void dotprods(const vector<int>& reg, int size);
+  void muls(const ArgVector& reg);
+  void mulrs(const ArgVector& reg);
+  void dotprods(const ArgVector& reg, int size);
   void matmuls(const StackedVector<T>& source, const Instruction& instruction);
-  void matmulsm(const MemoryPart<T>& source, const vector<int>& args);
+  void matmulsm(const MemoryPart<T>& source, const ArgVector& args);
 
-  void matmulsm_finalize_batch(vector<int>::const_iterator startMatmul, int startI, int startJ,
-                               vector<int>::const_iterator endMatmul,
+  void matmulsm_finalize_batch(ArgVector::const_iterator startMatmul, int startI, int startJ,
+                               ArgVector::const_iterator endMatmul,
                                int endI, int endJ);
 
   void conv2ds(const Instruction& instruction);
@@ -101,9 +102,9 @@ public:
   void apply_shuffle(const Instruction& instruction, ShuffleStore& shuffle_store);
   void inverse_permutation(const Instruction& instruction);
 
-  void input_personal(const vector<int>& args);
-  void send_personal(const vector<int>& args);
-  void private_output(const vector<int>& args);
+  void input_personal(const ArgVector& args);
+  void send_personal(const ArgVector& args);
+  void private_output(const ArgVector& args);
 
   StackedVector<T>& get_S()
   {
@@ -128,14 +129,14 @@ public:
   void inverse_permutation(const Instruction &instruction, int handle);
 
   void push_stack();
-  void push_args(const vector<int>& args);
-  void pop_stack(const vector<int>& results);
+  void push_args(const ArgVector& args);
+  void pop_stack(const ArgVector& results);
 
   // Read and write secret numeric data to file (name hardcoded at present)
   template<class U>
   void read_shares_from_file(long start_file_pos, int end_file_pos_register,
-      const vector<int>& data_registers, size_t vector_size, U& Proc);
-  void write_shares_to_file(long start_pos, const vector<int>& data_registers,
+      const ArgVector& data_registers, size_t vector_size, U& Proc);
+  void write_shares_to_file(long start_pos, const ArgVector& data_registers,
       size_t vector_size);
 };
 
@@ -288,14 +289,14 @@ class Processor : public ArithmeticProcessor
   void unsplit(const Instruction& instruction);
 
   // Access to external client sockets for reading clear/shared data
-  void read_socket_ints(int client_id, const vector<int>& registers, int size);
+  void read_socket_ints(int client_id, const ArgVector& registers, int size);
 
   void write_socket(const RegType reg_type, bool send_macs, int socket_id,
-      int message_type, const vector<int>& registers, int size);
+      int message_type, const ArgVector& registers, int size);
 
-  void read_socket_vector(int client_id, const vector<int>& registers,
+  void read_socket_vector(int client_id, const ArgVector& registers,
       int size);
-  void read_socket_private(int client_id, const vector<int>& registers,
+  void read_socket_private(int client_id, const ArgVector& registers,
       int size, bool send_macs);
 
   cint get_inverse2(unsigned m);
@@ -308,7 +309,7 @@ class Processor : public ArithmeticProcessor
   ofstream& get_public_output();
   ofstream& get_binary_output();
 
-  void call_tape(int tape_number, int arg, const vector<int>& results);
+  void call_tape(int tape_number, int arg, const ArgVector& results);
 
   TimerWithComm prep_time();
 

@@ -34,6 +34,8 @@
 
 #include "GC/VectorProtocol.hpp"
 
+#include "OT/NPartyTripleGenerator.hpp"
+
 #include "Math/gfp.hpp"
 
 #endif /* MACHINES_SPDZ_HPP_ */

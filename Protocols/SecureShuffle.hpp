@@ -40,6 +40,16 @@ public:
         if (stored.first != size / unit_size)
             throw runtime_error("wrong shuffle size");
     }
+
+    size_t begin(long x) const
+    {
+        return x > 0 ? x : 0;
+    }
+
+    size_t end(long x) const
+    {
+        return x > 0 ? x : size / unit_size;
+    }
 };
 
 template<class T>

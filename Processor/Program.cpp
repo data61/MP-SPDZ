@@ -28,6 +28,16 @@ void Program::compute_constants()
               p[i].get_mem(RegType(reg_type)));
         }
       writes_persistence |= (p[i].opcode & 0xFF) == WRITEFILESHARE;
+      writes_persistence |= (p[i].opcode & 0xFF) == WRITEFILECLEAR;
+    }
+
+
+  if (not p.empty() and OnlineOptions::singleton.has_option("verbose_alloc"))
+    {
+      cerr << "Register usage in " << name << ":" << endl;
+      for (int reg_type = 0; reg_type < MAX_REG_TYPE; reg_type++)
+        if (max_reg[reg_type])
+          cerr << "\tType " << reg_type << ": " << max_reg[reg_type] << endl;
     }
 }
 

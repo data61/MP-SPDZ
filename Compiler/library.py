@@ -3,7 +3,7 @@ This module defines functions directly available in high-level programs,
 in particularly providing flow control and output.
 """
 
-from Compiler.types import cint,sint,cfix,sfix,sfloat,MPCThread,Array,MemValue,cgf2n,sgf2n,_number,_mem,_register,regint,Matrix,_types, cfloat, _single, localint, personal, copy_doc, _vec, SubMultiArray, _secret
+from Compiler.types import cint,sint,cfix,sfix,sfloat,MPCThread,Array,MemValue,cgf2n,sgf2n,_number,_mem,_register,regint,Matrix,_types, cfloat, _single, localint, personal, copy_doc, _vec, SubMultiArray, _secret, _vectorizable
 from Compiler.instructions import *
 from Compiler.util import tuplify,untuplify,is_zero
 from Compiler.allocator import RegintOptimizer, AllocPool
@@ -926,7 +926,7 @@ def _range_prep(start, stop, step):
     stop = type(stop)(stop)
     return start, stop, step
 
-def range_loop(loop_body, start, stop=None, step=None):
+def range_loop(loop_body, start, stop=None, step=None, **kwargs):
     start, stop, step = _range_prep(start, stop, step)
     def loop_fn(i):
         res = loop_body(i)
@@ -939,7 +939,7 @@ def range_loop(loop_body, start, stop=None, step=None):
     else:
         b = step > 0
         condition = lambda x: b * (x < stop) + (1 - b) * (x > stop)
-    while_loop(loop_fn, condition, start, g=loop_body.__globals__)
+    while_loop(loop_fn, condition, start, g=loop_body.__globals__, **kwargs)
     if isinstance(start, int) and isinstance(stop, int) \
             and isinstance(step, int):
         # known loop count
@@ -947,7 +947,7 @@ def range_loop(loop_body, start, stop=None, step=None):
             get_block().req_node.children[-1].aggregator = \
                 lambda x: int(ceil(((stop - start) / step))) * x[0]
 
-def for_range(start, stop=None, step=None):
+def for_range(start, stop=None, step=None, **kwargs):
     """
     Decorator to execute loop bodies consecutively.  Arguments work as
     in Python :py:func:`range`, but they can be any public
@@ -973,7 +973,7 @@ def for_range(start, stop=None, step=None):
     """
     def decorator(loop_body):
         get_tape().unused_decorators.pop(decorator)
-        range_loop(loop_body, start, stop, step)
+        range_loop(loop_body, start, stop, step, **kwargs)
         return loop_body
     get_tape().unused_decorators[decorator] = 'for_range'
     return decorator
@@ -986,6 +986,11 @@ def for_range_parallel(n_parallel, n_loops):
     In most cases, it is easier to use :py:func:`for_range_opt`.
     Using any other control flow instruction inside the loop breaks
     the optimization.
+
+    Increasing the optimization parameter increases the the
+    compilation time and memory usage (both during compilation and
+    execution), but it potentially decreases the number of networking
+    rounds.
 
     :param n_parallel: optimization parameter (int)
     :param n_loops: regint/cint/int or list of int
@@ -1011,7 +1016,7 @@ def for_range_parallel(n_parallel, n_loops):
         return for_range_multithread(None, n_parallel, n_loops)
     return map_reduce_single(n_parallel, n_loops)
 
-def for_range_opt(start, stop=None, step=None, budget=None):
+def for_range_opt(start, stop=None, step=None, budget=None, **kwargs):
     """ Execute loop bodies in parallel up to an optimization budget.
     This prevents excessive loop unrolling. The budget is respected
     even with nested loops. Note that the optimization is rather
@@ -1053,17 +1058,18 @@ def for_range_opt(start, stop=None, step=None, budget=None):
         def wrapper(loop_body):
             range_ = stop-start
             n_loops = ((range_% step) != 0) + range_ // step
-            @for_range_opt(n_loops, budget=budget)
+            @for_range_opt(n_loops, budget=budget, **kwargs)
             def _(i):
                 return loop_body(start + i * step)
         return wrapper
     n_loops = start
     if isinstance(n_loops, (list, tuple)):
         return for_range_opt_multithread(None, n_loops)
-    return map_reduce_single(None, n_loops, budget=budget)
+    return map_reduce_single(None, n_loops, budget=budget, **kwargs)
 
 def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
-                      reducer=lambda *x: [], mem_state=None, budget=None):
+                      reducer=lambda *x: [], mem_state=None, budget=None,
+                      disable_index_checks=False):
     budget = budget or get_program().budget
     if not (isinstance(n_parallel, int) or n_parallel is None):
         raise CompilerError('Number of parallel executions must be constant')
@@ -1079,6 +1085,8 @@ def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
         budget //= 10
         n_loops = regint(n_loops)
     def decorator(loop_body):
+        ci_bak = _vectorizable.check_indices
+        _vectorizable.check_indices &= not disable_index_checks
         my_n_parallel = n_parallel
         if isinstance(n_parallel, int):
             if isinstance(n_loops, int):
@@ -1178,6 +1186,8 @@ def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
             for j in range(loop_rounds * my_n_parallel, n_loops):
                 state = reducer(tuplify(loop_body(j)), state)
         else:
+            if n_parallel is None:
+                get_program().warn_about_slow_loop()
             done = regint(loop_rounds * my_n_parallel)
             for i in range(int(math.log(my_n_parallel, 2)), -1, -1):
                 N = 2 ** i
@@ -1201,10 +1211,11 @@ def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
         def returner():
             return untuplify(tuple(state))
         return returner
+        _vectorizable.check_indices = ci_bak
     return decorator
 
 def for_range_multithread(n_threads, n_parallel, n_loops, thread_mem_req={},
-                          budget=None):
+                          budget=None, **kwargs):
     """
     Execute :py:obj:`n_loops` loop bodies in up to :py:obj:`n_threads`
     threads, up to :py:obj:`n_parallel` in parallel per thread.
@@ -1215,9 +1226,9 @@ def for_range_multithread(n_threads, n_parallel, n_loops, thread_mem_req={},
     """
     return map_reduce(n_threads, n_parallel, n_loops, \
                           lambda *x: [], lambda *x: [], thread_mem_req,
-                      budget=budget)
+                      budget=budget, **kwargs)
 
-def for_range_opt_multithread(n_threads, n_loops, budget=None):
+def for_range_opt_multithread(n_threads, n_loops, budget=None, **kwargs):
     """
     Execute :py:obj:`n_loops` loop bodies in up to :py:obj:`n_threads`
     threads, in parallel up to an optimization budget per thread
@@ -1256,7 +1267,7 @@ def for_range_opt_multithread(n_threads, n_loops, budget=None):
             b = a + 1
 
     """
-    return for_range_multithread(n_threads, None, n_loops, budget=budget)
+    return for_range_multithread(n_threads, None, n_loops, budget=budget, **kwargs)
 
 def multithread(n_threads, n_items=None, max_size=None):
     """
@@ -1276,6 +1287,22 @@ def multithread(n_threads, n_items=None, max_size=None):
         @multithread(3, 25)
         def f(base, size):
             ...
+
+    This can be used for example to distribute multiplications across several
+    threads::
+
+        a = sint.Array(n)
+        b = sint.Array(n)
+        c = sint.Array(n)
+
+        @multithread(n_threads, n, max_size=max_batch_size)
+        def f(base, size):
+            c.assign_vector(a.get_vector(base=base, size=size) *
+                            b.get_vector(base=base, size=size), base=base)
+
+    This multiplies :py:obj:`a` and :py:obj:`b` across :py:obj:`n_threads`
+    threads in batches of size at most :py:obj:`max_batch_size`.
+
     """
     if n_items is None:
         n_items = n_threads
@@ -1296,7 +1323,7 @@ def multithread(n_threads, n_items=None, max_size=None):
         return wrapper
 
 def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
-                   thread_mem_req={}, looping=True, budget=None):
+                   thread_mem_req={}, looping=True, **kwargs):
     assert(n_threads != 0)
     if isinstance(n_loops, (list, tuple)):
         split = n_loops
@@ -1309,13 +1336,14 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
                     i //= n
                 return loop_body(*indices)
             return new_body
-        new_dec = map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, thread_mem_req)
+        new_dec = map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, thread_mem_req,
+                             **kwargs)
         return lambda loop_body: new_dec(decorator(loop_body))
     n_loops = MemValue.if_necessary(n_loops)
     if n_threads == None or util.is_one(n_loops):
         if not looping:
             return lambda loop_body: loop_body(0, n_loops)
-        dec = map_reduce_single(n_parallel, n_loops, initializer, reducer)
+        dec = map_reduce_single(n_parallel, n_loops, initializer, reducer, **kwargs)
         if thread_mem_req:
             thread_mem = Array(thread_mem_req[regint], regint)
             return lambda loop_body: dec(lambda i: loop_body(i, thread_mem))
@@ -1355,7 +1383,7 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
                                        args[get_arg()].address + 2)
             mem_state = Array(len(state), state_type, args[get_arg()][1])
             @map_reduce_single(n_parallel, thread_rounds + inc, \
-                                   initializer, reducer, mem_state)
+                                   initializer, reducer, mem_state, **kwargs)
             def f(i):
                 if thread_mem_req:
                     return loop_body(base + i, thread_mem)
@@ -1404,7 +1432,7 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
         return returner
     return decorator
 
-def map_sum(n_threads, n_parallel, n_loops, n_items, value_types):
+def map_sum(n_threads, n_parallel, n_loops, n_items, value_types, **kwargs):
     value_types = tuplify(value_types)
     if len(value_types) == 1:
         value_types *= n_items
@@ -1413,7 +1441,8 @@ def map_sum(n_threads, n_parallel, n_loops, n_items, value_types):
     initializer = lambda: [t(0) for t in value_types]
     def summer(x,y):
         return tuple(a + b for a,b in zip(x,y))
-    return map_reduce(n_threads, n_parallel, n_loops, initializer, summer)
+    return map_reduce(n_threads, n_parallel, n_loops, initializer, summer,
+                      **kwargs)
 
 def map_sum_opt(n_threads, n_loops, types):
     """ Multi-threaded sum reduction. The following computes a sum of
@@ -1433,7 +1462,7 @@ def map_sum_opt(n_threads, n_loops, types):
     """
     return map_sum(n_threads, None, n_loops, len(types), types)
 
-def map_sum_simple(n_threads, n_loops, type, size):
+def map_sum_simple(n_threads, n_loops, type, size, **kwargs):
     """ Vectorized multi-threaded sum reduction. The following computes a
     100 sums of ten squares in three threads::
 
@@ -1464,7 +1493,7 @@ def map_sum_simple(n_threads, n_loops, type, size):
             if isinstance(args[i], Array):
                 args[i] = args[i][:]
         return args[0] + args[1]
-    return map_reduce(n_threads, 1, n_loops, initializer, summer)
+    return map_reduce(n_threads, 1, n_loops, initializer, summer, **kwargs)
 
 def tree_reduce_multithread(n_threads, function, vector):
     """ Round-efficient reduction in several threads. The following code
@@ -1532,13 +1561,17 @@ def foreach_enumerate(a):
         return f
     return decorator
 
-def while_loop(loop_body, condition, arg=None, g=None):
+def while_loop(loop_body, condition, arg=None, g=None,
+               disable_index_checks=False):
     if not callable(condition):
         raise CompilerError('Condition must be callable')
     if arg is None:
         pre_condition = condition()
         def loop_fn():
+            ci_bak = _vectorizable.check_indices
+            _vectorizable.check_indices &= not disable_index_checks
             loop_body()
+            _vectorizable.check_indices = ci_bak
             return condition()
     else:
         pre_condition = condition(arg)
@@ -1550,7 +1583,8 @@ def while_loop(loop_body, condition, arg=None, g=None):
             arg.link(type(arg)(result))
             return condition(result)
     if not isinstance(pre_condition, (bool,int)) or pre_condition:
-        if_statement(pre_condition, lambda: do_while(loop_fn, g=g))
+        if_statement(pre_condition, lambda: do_while(loop_fn, g=g),
+                     in_loop=loop_fn)
 
 def while_do(condition, *args):
     """ While-do loop.
@@ -1646,7 +1680,7 @@ def break_loop():
     get_tape().loop_breaks[-1].append(get_block())
     break_point('break')
 
-def if_then(condition):
+def if_then(condition, in_loop=None, split_factor=None):
     class State: pass
     state = State()
     if callable(condition):
@@ -1660,8 +1694,12 @@ def if_then(condition):
         pass
     state.condition = regint.conv(condition)
     state.start_block = instructions.program.curr_block
-    state.req_child = get_tape().open_scope(lambda x: x[0].max(x[1]), \
-                                                   name='if-block')
+    if split_factor is None:
+        aggregate = lambda x: x[0].max(x[1])
+    else:
+        aggregate = lambda x: x[0] * split_factor + x[1] * (1 - split_factor)
+    state.req_child = get_tape().open_scope(aggregate, name='if-block')
+    state.in_loop = in_loop
     state.has_else = False
     state.closed_if = False
     state.caller = [frame[1:] for frame in inspect.stack()[1:]]
@@ -1704,7 +1742,7 @@ def end_if():
         # nothing to compute without else
         state.req_child.aggregator = lambda x: x[0]
 
-def if_statement(condition, if_fn, else_fn=None):
+def if_statement(condition, if_fn, else_fn=None, **kwargs):
     if condition is True or condition is False:
         # condition known at compile time
         if condition:
@@ -1712,7 +1750,7 @@ def if_statement(condition, if_fn, else_fn=None):
         elif else_fn is not None:
             else_fn()
     else:
-        state = if_then(condition)
+        state = if_then(condition, **kwargs)
         if_fn()
         if else_fn is not None:
             else_then()
@@ -1754,7 +1792,7 @@ def if_(condition):
             end_if()
     return decorator
 
-def if_e(condition):
+def if_e(condition, **kwargs):
     """
     Conditional execution with else block.
     Use :py:class:`~Compiler.types.MemValue` to assign values that
@@ -1784,7 +1822,7 @@ def if_e(condition):
             if condition:
                 _run_and_link(body)
         else:
-            if_then(condition)
+            if_then(condition, **kwargs)
             _run_and_link(body)
             get_tape().if_states[-1].closed_if = True
     return decorator
@@ -1850,6 +1888,22 @@ def stop_timer(timer_id=0):
     get_tape().start_new_basicblock(name='pre-stop-timer')
     stop(timer_id)
     get_tape().start_new_basicblock(name='post-stop-timer')
+
+class MultiTimer:
+    def __init__(self, timer_id):
+        self.timer_id = timer_id
+        if timer_id:
+            start_timer(timer_id)
+
+    def next(self):
+        if self.timer_id:
+            stop_timer(self.timer_id)
+            self.timer_id += 1
+            start_timer(self.timer_id)
+
+    def end(self):
+        if self.timer_id:
+            stop_timer(self.timer_id)
 
 def get_number_of_players():
     """

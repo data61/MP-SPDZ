@@ -85,7 +85,9 @@ class modp_
   void pack(octetStream& o,const Zp_Data& ZpD) const;
   void unpack(octetStream& o,const Zp_Data& ZpD);
 
+  template<int LL = L * sizeof(mp_limb_t)>
   void pack(octetStream& o) const;
+  template<int LL = L * sizeof(mp_limb_t)>
   void unpack(octetStream& o);
 
   bool operator==(const modp_& other) const { return 0 == mpn_cmp(x, other.x, L); }

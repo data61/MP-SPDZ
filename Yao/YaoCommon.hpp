@@ -6,7 +6,7 @@
 #include "YaoCommon.h"
 
 template<class T>
-vector<array<size_t, 2> > YaoCommon<T>::get_splits(const vector<int>& args,
+vector<array<size_t, 2> > YaoCommon<T>::get_splits(const ArgVector& args,
 		int threshold, int total)
 {
 	vector<array<size_t, 2>> res;

@@ -47,9 +47,10 @@ namespace GC
 class bigint : public mpz_class
 {
 public:
+  static const false_type optimized_packing;
+
   static thread_local bigint tmp, tmp2;
   static thread_local gmp_random random;
-
   // workaround for GCC not always initializing thread_local variables
   static void init_thread() { tmp = 0; tmp2 = 0; }
 
@@ -161,7 +162,8 @@ bigint::bigint(const Z2<K>& x)
 template<int K>
 bigint& bigint::operator=(const Z2<K>& x)
 {
-  mpz_import(get_mpz_t(), Z2<K>::N_WORDS, -1, sizeof(mp_limb_t), 0, 0, x.get_ptr());
+  mpz_import(get_mpz_t(), Z2<K>::N_WORDS, -1,
+      sizeof(typename Z2<K>::limb_type), 0, 0, x.get_ptr());
   return *this;
 }
 
@@ -174,7 +176,8 @@ bigint::bigint(const SignedZ2<K>& x)
 template<int K>
 bigint& bigint::operator=(const SignedZ2<K>& x)
 {
-  mpz_import(get_mpz_t(), Z2<K>::N_WORDS, -1, sizeof(mp_limb_t), 0, 0, x.get_ptr());
+  mpz_import(get_mpz_t(), Z2<K>::N_WORDS, -1,
+      sizeof(typename SignedZ2<K>::limb_type), 0, 0, x.get_ptr());
   if (x.negative())
   {
     bigint::tmp2 = 1;

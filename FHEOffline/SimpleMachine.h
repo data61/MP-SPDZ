@@ -69,6 +69,9 @@ public:
     virtual ~MultiplicativeMachineParams() {}
 
     virtual int get_covert() const { return 0; }
+
+    template<class FD>
+    PartSetup<FD>& get_setup() { return setup.part<FD>(); }
 };
 
 class MultiplicativeMachine : public MultiplicativeMachineParams

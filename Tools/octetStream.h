@@ -228,6 +228,8 @@ class octetStream
   void serialize(const T& x) { append((octet*)&x, sizeof(x)); }
   template <class T>
   void unserialize(T& x) { consume((octet*)&x, sizeof(x)); }
+  template <class T>
+  void unserialize(T* x, size_t n);
 
   /// Append vector of type implementing ``pack``
   template <class T>
@@ -512,13 +514,7 @@ inline void octetStream::Receive(T socket_num)
   resize_min(nlen);
   set_length(nlen);
 
-  size_t start = 0;
-  size_t chunk = 1 << 16l;
-  while (start < get_length())
-    {
-      receive(socket_num, data + start, min(chunk, get_length() - start));
-      start += chunk;
-    }
+  receive(socket_num,data,get_length());
   reset_read_head();
 }
 
@@ -619,6 +615,19 @@ void octetStream::get(array<T, L>& v)
 {
   for (auto& x : v)
     get(x);
+}
+
+template<class T>
+void octetStream::unserialize(T* x, size_t n)
+{
+    if (sizeof(T) == T::size())
+        consume((octet*) x, n * sizeof(T));
+    else
+        for (size_t i = 0; i < n; i++)
+        {
+            x[i] = {};
+            x[i].unpack(*this);
+        }
 }
 
 #endif

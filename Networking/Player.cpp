@@ -295,6 +295,9 @@ PlayerBase::~PlayerBase()
 void PlainPlayer::setup_sockets(const vector<string>& names,
         const vector<int>& ports, const string& id_base, ServerSocket& server)
 {
+    if (OnlineOptions::singleton.has_option("debug_connection_id"))
+        cerr << "Setting up connection " << id_base << endl;
+
     sockets.resize(nplayers);
     // Set up the client side
     for (int i=0; i<=player_no; i++) {
@@ -894,6 +897,14 @@ Timer& NamedCommStats::add_to_last_round(const string& name, size_t length)
       last = name;
       return (*this)[name].add(length);
     }
+}
+
+double NamedCommStats::total_time() const
+{
+  double res = 0;
+  for (auto& x : *this)
+    res += x.second.timer.elapsed();
+  return res;
 }
 
 Timer& CommStatsWithName::add_length_only(size_t length)

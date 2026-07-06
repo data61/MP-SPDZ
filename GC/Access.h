@@ -19,7 +19,7 @@ public:
     const Clear address;
     const int length;
 
-    ReadAccess(T& dest, Clear address, int length, size_t& complexity) :
+    ReadAccess(T& dest, Clear address, size_t length, size_t& complexity) :
         dest(dest), address(address), length(length)
     {
         complexity += length;

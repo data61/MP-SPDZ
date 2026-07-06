@@ -96,7 +96,6 @@ Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
   if (opts.live_prep)
     {
       sint::LivePrep::basic_setup(*P);
-      sgf2n::LivePrep::basic_setup(*P);
     }
 
   // Set the prime modulus if not done earlier
@@ -113,7 +112,7 @@ Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
   if (opts.live_prep)
     {
       alphapi = sint::LivePrep::get_mac_key(*P);
-      alpha2i = sgf2n::LivePrep::get_mac_key(*P);
+      alpha2i = sgf2n::LivePrep::get_mac_key(*P, true);
       alphabi = sint::bit_type::LivePrep::get_mac_key(*P);
     }
   else
@@ -164,6 +163,10 @@ void Machine<sint, sgf2n>::prepare(const string& progname_str)
   int old_n_threads = nthreads;
   progs.clear();
   load_schedule(progname_str);
+
+  if (opts.verbose)
+    suggest_optimizations();
+
   check_program();
 
   // keep preprocessing
@@ -176,6 +179,7 @@ void Machine<sint, sgf2n>::prepare(const string& progname_str)
         {
           Binary_File_IO<sint>::reset(my_number);
           Binary_File_IO<sgf2n>::reset(my_number);
+          Binary_File_IO<typename sint::clear>::reset(my_number);
           break;
         }
     }
@@ -246,7 +250,7 @@ size_t Machine<sint, sgf2n>::load_program(const string& threadname,
 }
 
 template<class sint, class sgf2n>
-DataPositions Machine<sint, sgf2n>::run_tapes(const vector<int>& args,
+DataPositions Machine<sint, sgf2n>::run_tapes(const ArgVector& args,
     Data_Files<sint, sgf2n>& DataF)
 {
   assert(args.size() % 3 == 0);
@@ -527,7 +531,9 @@ pair<DataPositions, NamedCommStats> Machine<sint, sgf2n>::stop_threads()
       pthread_join(threads[i],NULL);
     }
 
-  auto comm_stats = total_comm();
+  auto stats = total_stats();
+  comm_stats = stats.comm_stats;
+  this->stats = stats.exe_stats;
   max_comm = queues.max_comm();
 
   if (OnlineOptions::singleton.verbose)
@@ -646,7 +652,9 @@ void Machine<sint, sgf2n>::run(const string& progname)
         Mp.resize_s(max_size);
     }
 
-  if (sint::real_shares(*P) and not opts.has_option("no_memory_output"))
+  if (sint::real_shares(*P) and not opts.has_option("no_memory_output")
+      and (OnlineOptions::singleton.disk_memory.empty()
+          or opts.has_option("memory_output")))
     {
       RunningTimer timer;
       // Write out the memory to use next time
@@ -672,7 +680,7 @@ void Machine<sint, sgf2n>::run(const string& progname)
       and not progs[0].usage_unknown())
     throw runtime_error("computation used more preprocessing than expected");
 
-  if (not stats.empty())
+  if (not stats.empty() and opts.verbose)
     {
       stats.print();
     }
@@ -706,6 +714,12 @@ void Machine<sint, sgf2n>::run(const string& progname)
       nan_warning = false;
       mini_warning = 0;
     }
+
+#ifdef INSECURE
+  if (not opts.live_prep)
+    cerr << "WARNING: Preprocessing data in files left untouched. "
+        << "Next run will use the same randomness." << endl;
+#endif
 
 #ifdef VERBOSE
   cerr << "End of prog" << endl;

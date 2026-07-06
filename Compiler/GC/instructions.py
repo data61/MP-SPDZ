@@ -113,6 +113,7 @@ class xors(BinaryVectorInstruction):
     """
     code = opcodes['XORS']
     arg_format = tools.cycle(['int','sbw','sb','sb'])
+    read_after_write = True
 
 class xorm(NonVectorInstruction):
     """ Bitwise XOR of single secret and clear bit registers.
@@ -157,6 +158,7 @@ class andrs(BinaryVectorInstruction):
     """
     code = opcodes['ANDRS']
     arg_format = tools.cycle(['int','sbw','sb','sb'])
+    read_after_write = True
 
     def add_usage(self, req_node):
         req_node.increment(('bit', 'triple'), sum(self.args[::4]))
@@ -180,6 +182,7 @@ class andrsvec(base.VarArgsInstruction, base.Mergeable,
 
     """
     code = opcodes['ANDRSVEC']
+    read_after_write = True
 
     def __init__(self, *args, **kwargs):
         super(andrsvec, self).__init__(*args, **kwargs)
@@ -224,6 +227,7 @@ class ands(BinaryVectorInstruction):
     """
     code = opcodes['ANDS']
     arg_format = tools.cycle(['int','sbw','sb','sb'])
+    read_after_write = True
 
     def add_usage(self, req_node):
         req_node.increment(('bit', 'triple'), sum(self.args[::4]))
@@ -299,6 +303,7 @@ class bitdecs(NonVectorInstruction, base.VarArgsInstruction):
     """
     code = opcodes['BITDECS']
     arg_format = tools.chain(['sb'], itertools.repeat('sbw'))
+    read_after_write = True
 
 class bitcoms(NonVectorInstruction, base.VarArgsInstruction):
     """ Secret bit register decomposition.
@@ -310,6 +315,7 @@ class bitcoms(NonVectorInstruction, base.VarArgsInstruction):
     """
     code = opcodes['BITCOMS']
     arg_format = tools.chain(['sbw'], itertools.repeat('sb'))
+    read_after_write = True
 
 class bitdecc(NonVectorInstruction, base.VarArgsInstruction):
     """ Clear bit register decomposition.
@@ -321,6 +327,7 @@ class bitdecc(NonVectorInstruction, base.VarArgsInstruction):
     """
     code = opcodes['BITDECC']
     arg_format = tools.chain(['cb'], itertools.repeat('cbw'))
+    read_after_write = True
 
 class shrcbi(NonVectorInstruction):
     """ Right shift of clear bit register by immediate.
@@ -579,6 +586,7 @@ class trans(base.VarArgsInstruction, base.DynFormatInstruction):
     """
     code = opcodes['TRANS']
     is_vec = lambda self: True
+    read_after_write = True
 
     @classmethod
     def dynamic_arg_format(cls, args):

@@ -158,7 +158,11 @@ public:
     void randomize(PRNG& G, int n_bits = -1);
     void almost_randomize(PRNG& G);
 
+    template<int = -1>
     void pack(octetStream& os, int n_bits = -1) const;
+    void pack(octetStream& os, int n_bits = -1) const;
+    template<int = -1>
+    void unpack(octetStream& os, int n_bits = -1);
     void unpack(octetStream& os, int n_bits = -1);
 
     void output(ostream& o, bool human) const;
@@ -170,6 +174,9 @@ typedef gfpvar_<1, MAX_MOD_SZ> gfpvar1;
 typedef gfpvar_<2, MAX_MOD_SZ> gfpvar2;
 
 typedef gfpvar gfp;
+
+template<int X, int L>
+Zp_Data gfpvar_<X, L>::ZpD;
 
 template<int X, int L>
 const true_type gfpvar_<X, L>::invertible;
@@ -184,6 +191,20 @@ void gfpvar_<X, L>::generate_setup(string prep_data_prefix,
     int nplayers, int lgp)
 {
     generate_prime_setup<T>(prep_data_prefix, nplayers, lgp);
+}
+
+template<int X, int L>
+template<int>
+void gfpvar_<X, L>::pack(octetStream& os, int) const
+{
+    pack(os);
+}
+
+template<int X, int L>
+template<int>
+void gfpvar_<X, L>::unpack(octetStream& os, int)
+{
+    unpack(os);
 }
 
 template<int X, int L>

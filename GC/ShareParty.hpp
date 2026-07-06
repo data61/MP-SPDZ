@@ -132,10 +132,13 @@ Thread<T>* ShareParty<T>::new_thread(int i)
 template<class T>
 void ShareParty<T>::post_run()
 {
-    DataPositions usage;
-    for (auto thread : this->threads)
-        usage.increase(dynamic_cast<StandaloneShareThread<T>*>(thread)->usage);
-    usage.print_cost();
+    if (online_opts.verbose)
+    {
+        DataPositions usage;
+        for (auto thread : this->threads)
+            usage.increase(dynamic_cast<StandaloneShareThread<T>*>(thread)->usage);
+        usage.print_cost();
+    }
 }
 
 }

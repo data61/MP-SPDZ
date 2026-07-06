@@ -10,9 +10,6 @@
 #include "gfp.hpp"
 
 template<int X, int L>
-Zp_Data gfpvar_<X, L>::ZpD;
-
-template<int X, int L>
 string gfpvar_<X, L>::type_string()
 {
     return "gfp";

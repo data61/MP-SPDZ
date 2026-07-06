@@ -153,15 +153,15 @@ public:
         NoValue::fail();
     }
 
-    static void inputb(Processor<NoShare>&, const ArithmeticProcessor&, const vector<int>&) { fail(); }
-    static void inputbvec(Processor<NoShare>&, const ArithmeticProcessor&, const vector<int>&) { fail(); }
-    static void reveal_inst(Processor<NoShare>&, const vector<int>&) { fail(); }
-    static void xors(Processor<NoShare>&, const vector<int>&) { fail(); }
-    static void ands(Processor<NoShare>&, const vector<int>&) { fail(); }
-    static void andrs(Processor<NoShare>&, const vector<int>&) { fail(); }
-    static void andrsvec(Processor<NoShare>&, const vector<int>&) { fail(); }
+    static void inputb(Processor<NoShare>&, const ArithmeticProcessor&, const ArgVector&) { fail(); }
+    static void inputbvec(Processor<NoShare>&, const ArithmeticProcessor&, const ArgVector&) { fail(); }
+    static void reveal_inst(Processor<NoShare>&, const ArgVector&) { fail(); }
+    static void xors(Processor<NoShare>&, const ArgVector&) { fail(); }
+    static void ands(Processor<NoShare>&, const ArgVector&) { fail(); }
+    static void andrs(Processor<NoShare>&, const ArgVector&) { fail(); }
+    static void andrsvec(Processor<NoShare>&, const ArgVector&) { fail(); }
 
-    static void trans(Processor<NoShare>&, Integer, const vector<int>&) { fail(); }
+    static void trans(Processor<NoShare>&, Integer, const ArgVector&) { fail(); }
 
     static void andm(GC::Processor<NoShare>&, const BaseInstruction&) { fail(); }
 
@@ -174,8 +174,8 @@ public:
 
     void load_clear(Integer, Integer) { fail(); }
     void random_bit() { fail(); }
-    void bitdec(StackedVector<NoShare>&, const vector<int>&) const { fail(); }
-    void bitcom(StackedVector<NoShare>&, const vector<int>&) const { fail(); }
+    void bitdec(StackedVector<NoShare>&, const ArgVector&) const { fail(); }
+    void bitcom(StackedVector<NoShare>&, const ArgVector&) const { fail(); }
 
     void assign(const char*) { fail(); }
 

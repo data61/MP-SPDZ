@@ -197,9 +197,9 @@ bool PartSetup<FD>::operator!=(const PartSetup<FD>& other)
 
 template<class FD>
 void PartSetup<FD>::secure_init(Player& P, MachineBase& machine,
-    int plaintext_length, int sec)
+    int plaintext_length, int sec, bool read_only)
 {
-    ::secure_init(*this, P, machine, plaintext_length, sec, params);
+    ::secure_init(*this, P, machine, plaintext_length, sec, params, read_only);
 }
 
 template<class FD>

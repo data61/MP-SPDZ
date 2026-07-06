@@ -9,6 +9,7 @@
 const int ShareInterface::default_length;
 
 const false_type ShareInterface::triple_matmul;
+const false_type ShareInterface::is_clear;
 
 GC::NoValue ShareInterface::get_mac_key()
 {

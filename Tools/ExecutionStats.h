@@ -14,7 +14,9 @@ class ExecutionStats : public map<int, size_t>
 public:
     ExecutionStats& operator+=(const ExecutionStats& other);
 
-    void print();
+    ExecutionStats operator-(const ExecutionStats& other) const;;
+
+    void print() const;
 };
 
 #endif /* TOOLS_EXECUTIONSTATS_H_ */

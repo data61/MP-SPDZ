@@ -86,17 +86,25 @@ def require_ring_size(k, op, suffix='', slack=0):
     program.curr_tape.require_bit_length(k)
 
 @instructions_base.cisc
-def LTZ(s, a, k):
+def LTZ(s, a, k, **kwargs):
     """
     s = (a ?< 0)
 
     k: bit length of a
     """
-    program.curr_block.replace_last_reg(s, program.non_linear.ltz(a, k))
+    res = program.non_linear.ltz(a, k, **kwargs)
+    if s is None:
+        return res
+    else:
+        program.curr_block.replace_last_reg(s, res)
 
-def LtzRing(a, k):
-    from .types import sint
-    return sint.conv(LtzRingRaw(a, k))
+def LtzRing(a, k, maybe_mixed=False):
+    from .types import sintbit
+    res = LtzRingRaw(a, k)
+    if maybe_mixed:
+        return res
+    else:
+        return sintbit.conv(res)
 
 def LtzRingRaw(a, k):
     from .types import sint, _bitint
@@ -121,11 +129,14 @@ def LtzRingRaw(a, k):
         u = CarryOutRaw(a[::-1], b[::-1])
         return r_bin[m].bit_xor(c_prime >> m).bit_xor(u)
 
-def LessThanZero(a, k):
+def LessThanZero(a, k, maybe_mixed=False):
     from . import types
-    res = types.sint()
-    LTZ(res, a, k)
-    return res
+    if maybe_mixed:
+        return LTZ(None, a, k, maybe_mixed=True)
+    else:
+        res = types.sintbit()
+        LTZ(res, a, k)
+        return res
 
 @instructions_base.cisc
 def Trunc(d, a, k, m, signed):
@@ -365,8 +376,8 @@ def BitLTC1(u, a, b):
         a_bits = program.curr_block.new_reg('c', size=k)
         b_vec = program.curr_block.new_reg('s', size=k)
         for i in range(k):
-            movc(a_bits[i], a_[i])
-            movs(b_vec[i], b[i])
+            movc(a_bits.vec[i], a_[i])
+            movs(b_vec.vec[i], b[i])
         d = program.curr_block.new_reg('s', size=k)
         s = program.curr_block.new_reg('s', size=k)
         t = [program.curr_block.new_reg('s', size=k) for j in range(5)]
@@ -532,12 +543,12 @@ def PreMulC_with_inverses_and_vectors(p, a):
         vprep(k, 'PreMulC', r, z, w_tmp)
     for i in range(1,k):
         if do_precomp:
-            muls(w[i], r[i], z[i-1])
+            muls(w.vec[i], r[i], z[i-1])
         else:
-            movs(w[i], w_tmp[i])
-        movs(a_vec[i], a[i])
-    movs(w[0], r[0])
-    movs(a_vec[0], a[0])
+            movs(w.vec[i], w_tmp[i])
+        movs(a_vec.vec[i], a[i])
+    movs(w.vec[0], r[0])
+    movs(a_vec.vec[0], a[0])
     vmuls(k, t[0], w, a_vec)
     vasm_open(k, True, m, t[0])
     PreMulC_end(p, a, c, m, z)

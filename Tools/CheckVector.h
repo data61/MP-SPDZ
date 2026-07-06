@@ -7,6 +7,7 @@
 #define TOOLS_CHECKVECTOR_H_
 
 #include <vector>
+#include <span>
 using namespace std;
 
 #include "Math/Integer.h"
@@ -102,6 +103,12 @@ public:
         return res;
     }
 
+    span<T> span_for_size(size_t start, size_t size)
+    {
+        assert(start + size <= this->size());
+        return {begin() + start, begin() + start + size};
+    }
+
     void push_stack()
     {
         stack.push_back(start);
@@ -109,7 +116,7 @@ public:
         finish = start;
     }
 
-    void push_args(const vector<int>& args, RegType type)
+    void push_args(const ArgVector& args, RegType type)
     {
         for (auto it = args.begin(); it < args.end(); it += 5)
             if (it[1] == type and not it[0])
@@ -124,7 +131,7 @@ public:
             }
     }
 
-    void pop_stack(const vector<int>& results, RegType type)
+    void pop_stack(const ArgVector& results, RegType type)
     {
         assert(not stack.empty());
 

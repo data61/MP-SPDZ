@@ -18,13 +18,22 @@ ExecutionStats& ExecutionStats::operator+=(const ExecutionStats& other)
     return *this;
 }
 
-void ExecutionStats::print()
+ExecutionStats ExecutionStats::operator-(const ExecutionStats& other) const
+{
+    ExecutionStats res = *this;
+    for (auto it : other)
+        res[it.first] -= it.second;
+    return res;
+}
+
+void ExecutionStats::print() const
 {
     cerr << "Instruction statistics:" << endl;
     set<pair<size_t, int>> sorted_stats;
     for (auto& x : *this)
     {
-        sorted_stats.insert({x.second, x.first});
+        if (x.second)
+            sorted_stats.insert({x.second, x.first});
     }
     size_t total = 0;
     for (auto& x : sorted_stats)

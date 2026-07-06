@@ -23,7 +23,6 @@ class OTTripleSetup
     PRNG G;
     int nparties;
     int my_num;
-    int nbase;
 
 public:
     class SetupJob
@@ -52,17 +51,18 @@ public:
     BitVector base_receiver_inputs;
 
     int get_nparties() const { return nparties; }
-    int get_nbase() const { return nbase; }
+    int get_nbase() const { return base_receiver_inputs.size(); }
     int get_my_num() const { return my_num; }
     int get_base_receiver_input(int i) const { return base_receiver_inputs[i]; }
 
-    OTTripleSetup() : nparties(0), my_num(0), nbase(0)
+    OTTripleSetup() : nparties(0), my_num(0)
     {
     }
 
     OTTripleSetup(Player& N, bool real_OTs = true)
-        : nparties(N.num_players()), my_num(N.my_num()), nbase(128)
+        : nparties(N.num_players()), my_num(N.my_num())
     {
+        int nbase = 128;
         base_receiver_inputs.resize(nbase);
         baseOTs.resize(nparties - 1);
         baseSenderInputs.resize(nparties - 1);

@@ -87,6 +87,31 @@ template <class T, class U>
 BreakType Program::execute(Processor<T>& Proc, U& dynamic_memory,
         int PC) const
 {
+    if (OnlineOptions::singleton.has_option("throw_exceptions"))
+        return execute_with_errors(Proc, dynamic_memory, PC);
+    else
+    {
+        try
+        {
+            return execute_with_errors(Proc, dynamic_memory, PC);
+        }
+        catch (needs_cleaning& e)
+        {
+            throw e;
+        }
+        catch (exception& e)
+        {
+            cerr << "Fatal error at " << Proc.last_PC << " ("
+                    << p[Proc.last_PC].get_name() << "): " << e.what() << endl;
+            exit(1);
+        }
+    }
+}
+
+template <class T, class U>
+BreakType Program::execute_with_errors(Processor<T>& Proc, U& dynamic_memory,
+        int PC) const
+{
     if (PC != -1)
         Proc.PC = PC;
 #ifdef DEBUG_ROUNDS
@@ -112,6 +137,7 @@ BreakType Program::execute(Processor<T>& Proc, U& dynamic_memory,
 #ifdef COUNT_INSTRUCTIONS
         Proc.stats[p[Proc.PC].get_opcode()]++;
 #endif
+        Proc.last_PC = Proc.PC;
         auto& instruction = p[Proc.PC++];
         switch (instruction.get_opcode())
         {

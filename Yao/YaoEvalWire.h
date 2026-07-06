@@ -32,40 +32,40 @@ public:
 	typedef SwitchableOutput out_type;
 
 	static void andrs(GC::Processor<GC::Secret<YaoEvalWire>>& processor,
-			const vector<int>& args)
+			const ArgVector& args)
 	{
 		and_<true>(processor, args);
 	}
 	static void ands(GC::Processor<GC::Secret<YaoEvalWire>>& processor,
-			const vector<int>& args)
+			const ArgVector& args)
 	{
 		and_<false>(processor, args);
 	}
 	template<bool repeat>
 	static void and_(GC::Processor<GC::Secret<YaoEvalWire>>& processor,
-			const vector<int>& args);
+			const ArgVector& args);
 	template<bool repeat>
 	static void and_singlethread(
 			GC::Processor<GC::Secret<YaoEvalWire>>& processor,
-			const vector<int>& args, int total_ands);
+			const ArgVector& args, int total_ands);
 	static void and_(StackedVector<GC::Secret<YaoEvalWire>>& S,
-			const vector<int>& args, size_t start, size_t end,
+			const ArgVector& args, size_t start, size_t end,
 			size_t total_ands, YaoGate* gate, long& counter, PRNG& prng,
 			map<string, Timer>& timers, bool repeat, YaoEvaluator& garbler);
 
 	static void inputb(GC::Processor<GC::Secret<YaoEvalWire>>& processor,
-			const vector<int>& args);
+			const ArgVector& args);
 	static void inputbvec(Processor& processor, ProcessorBase& input_processor,
-			const vector<int>& args);
+			const ArgVector& args);
 
 	static void convcbit(Integer& dest, const GC::Clear& source,
 			GC::Processor<GC::Secret<YaoEvalWire>>&);
-	static void reveal_inst(Processor& processor, const vector<int>& args);
+	static void reveal_inst(Processor& processor, const ArgVector& args);
 
 	static void convcbit2s(GC::Processor<whole_type>& processor,
 			const BaseInstruction& instruction);
 
-	static void run_tapes(const vector<int>& args);
+	static void run_tapes(const ArgVector& args);
 
 	void set(const Key& key);
 	void set(Key key, bool external);

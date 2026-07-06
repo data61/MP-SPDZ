@@ -60,7 +60,7 @@ public:
     }
 
     template<class U>
-    static void split(StackedVector<U>& dest, const vector<int>& regs, int n_bits,
+    static void split(StackedVector<U>& dest, const ArgVector& regs, int n_bits,
             const super* source, int n_inputs,
             typename bit_type::Protocol& protocol)
     {

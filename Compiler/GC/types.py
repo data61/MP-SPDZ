@@ -47,6 +47,7 @@ class bits(Tape.Register, _structure, _bit, _binary):
     @classmethod
     def get_type(cls, length):
         """ Returns a fixed-length type. """
+        assert length != 0
         if length == 1:
             return cls.bit_type
         if length not in cls.types:
@@ -57,18 +58,18 @@ class bits(Tape.Register, _structure, _bit, _binary):
             bitsn.__name__ = cls.__name__ + str(length)
         return cls.types[length]
     @classmethod
-    def conv(cls, other):
+    def conv(cls, other, hard=False):
         if isinstance(other, cls) and cls.n == other.n:
             return other
-        elif isinstance(other, cls.vec) and len(other.v) == cls.n:
+        elif isinstance(other, cls.vec) and len(other.v) == cls.n and not hard:
             return other
         elif isinstance(other, MemValue):
-            return cls.conv(other.read())
+            return cls.conv(other.read(), hard=hard)
         else:
             res = cls()
             res.load_other(other)
             return res
-    hard_conv = conv
+    hard_conv = classmethod(lambda cls, *args: cls.conv(*args, hard=True))
     @classmethod
     def compose(cls, items, bit_length=1):
         return cls.bit_compose(sum([util.bit_decompose(item, bit_length) for item in items], []))
@@ -156,6 +157,7 @@ class bits(Tape.Register, _structure, _bit, _binary):
             raise Exception('invalid size for bit type: %s' % size)
         self.n = n or self.n
         size = math.ceil(self.n / self.unit) if self.n != None else None
+        assert size != 0
         Tape.Register.__init__(self, self.reg_type, Program.prog.curr_tape,
                                size=size)
         if value is not None:
@@ -207,6 +209,9 @@ class bits(Tape.Register, _structure, _bit, _binary):
         else:
             try:
                 bits = other.bit_decompose()
+                for bit in bits:
+                    if isinstance(bit, sbits):
+                        assert bit.n == 1
                 bits = bits[:self.n] + [self.bit_type(0)] * (self.n - len(bits))
                 other = self.bit_compose(bits)
                 assert(isinstance(other, type(self)))
@@ -871,7 +876,7 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
             def zero_if_not(self, condition):
                 return self.from_vec(x.zero_if_not(condition) for x in self.v)
             def __str__(self):
-                return 'sbitvec(%d)' % n
+                return 'sbitvec(%d/%s)' % (n, self.size)
             @classmethod
             def get_random_int(cls, n_bits):
                 assert instructions_base.get_global_vector_size() == 1
@@ -969,6 +974,8 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
         return util.if_else(self.v[0], x, y)
     def __iter__(self):
         return iter(self.elements())
+    def __len__(self):
+        return self.size
     @classmethod
     def conv(cls, other):
         if isinstance(other, cls):
@@ -1081,10 +1088,10 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
                             else x for x in v])
         return res
     def demux(self):
-        if len(self) == 1:
+        if len(self.v) == 1:
             return sbitvec.from_vec([self.v[0].bit_not(), self.v[0]])
-        a = sbitvec.from_vec(self.v[:len(self) // 2]).demux()
-        b = sbitvec.from_vec(self.v[len(self) // 2:]).demux()
+        a = sbitvec.from_vec(self.v[:len(self.v) // 2]).demux()
+        b = sbitvec.from_vec(self.v[len(self.v) // 2:]).demux()
         prod = [a * bb for bb in b.v]
         return sbitvec.from_vec(reduce(operator.add, (x.v for x in prod)))
     def reverse_bytes(self):

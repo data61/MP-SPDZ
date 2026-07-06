@@ -95,6 +95,7 @@ protected:
 
   static const true_type invertible;
   static const true_type characteristic_two;
+  static const true_type optimized_packing;
 
   static gf2n_ Mul(gf2n_ a, gf2n_ b) { return a * b; }
 
@@ -201,10 +202,12 @@ protected:
 
   // Pack and unpack in native format
   //   i.e. Dont care about conversion to human readable form
+  template<int LL = sizeof(U)>
   void pack(octetStream& o, int n = -1) const
-    { (void) n; o.append((octet*) &a,sizeof(U)); }
+    { (void) n; o.append((octet*) &a, LL); }
+  template<int LL = sizeof(U)>
   void unpack(octetStream& o, int n = -1)
-    { (void) n; o.consume((octet*) &a,sizeof(U)); }
+    { (void) n; o.consume((octet*) &a, LL); }
 };
 
 class gf2n_short : public gf2n_<word>
@@ -249,6 +252,8 @@ template<class U>
 const true_type gf2n_<U>::characteristic_two;
 template<class U>
 const true_type gf2n_<U>::invertible;
+template<class U>
+const true_type gf2n_<U>::optimized_packing;
 
 template<class U>
 int gf2n_<U>::n = 0;

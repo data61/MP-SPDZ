@@ -28,6 +28,9 @@ const int RepSecretBase<U, L>::N_BITS;
 template<class U, int L>
 const int RepSecretBase<U, L>::default_length;
 
+template<class U, int L>
+const false_type RepSecretBase<U, L>::is_clear;
+
 template<class U>
 void ShareSecret<U>::check_length(int n, const Integer& x)
 {
@@ -54,13 +57,13 @@ void ReplicatedSecret<U>::load_clear(int n, const Integer& x)
 }
 
 template<class U, int L>
-void RepSecretBase<U, L>::bitcom(StackedVector<U>& S, const vector<int>& regs)
+void RepSecretBase<U, L>::bitcom(StackedVector<U>& S, const ArgVector& regs)
 {
     plain_bitcom(*this, S, regs);
 }
 
 template<class T, class U>
-void plain_bitcom(T& res, StackedVector<U>& S, const vector<int>& regs)
+void plain_bitcom(T& res, StackedVector<U>& S, const ArgVector& regs)
 {
     res = 0;
     for (unsigned int i = 0; i < regs.size(); i++)
@@ -68,13 +71,13 @@ void plain_bitcom(T& res, StackedVector<U>& S, const vector<int>& regs)
 }
 
 template<class U, int L>
-void RepSecretBase<U, L>::bitdec(StackedVector<U>& S, const vector<int>& regs) const
+void RepSecretBase<U, L>::bitdec(StackedVector<U>& S, const ArgVector& regs) const
 {
     plain_bitdec(*this, S, regs);
 }
 
 template<class T, class U>
-void plain_bitdec(const T& source, StackedVector<U>& S, const vector<int>& regs)
+void plain_bitdec(const T& source, StackedVector<U>& S, const ArgVector& regs)
 {
     for (unsigned int i = 0; i < regs.size(); i++)
         S[regs[i]] = (source >> i) & 1;
@@ -133,7 +136,7 @@ void GC::ShareSecret<U>::finalize_input(T& inputter, int from,
 template<class U>
 void ShareSecret<U>::inputb(Processor<U>& processor,
         ProcessorBase& input_processor,
-        const vector<int>& args)
+        const ArgVector& args)
 {
     auto& party = ShareThread<U>::s();
     typename U::Input input(*party.MC, party.DataF, *party.P, party.protocol);
@@ -144,7 +147,7 @@ void ShareSecret<U>::inputb(Processor<U>& processor,
 template<class U>
 void ShareSecret<U>::inputbvec(Processor<U>& processor,
         ProcessorBase& input_processor,
-        const vector<int>& args)
+        const ArgVector& args)
 {
     auto& party = ShareThread<U>::s();
     typename U::Input input(*party.MC, party.DataF, *party.P, party.protocol);
@@ -154,13 +157,13 @@ void ShareSecret<U>::inputbvec(Processor<U>& processor,
 
 template <class T>
 void Processor<T>::inputb(typename T::Input& input, ProcessorBase& input_processor,
-        const vector<int>& args, int my_num)
+        const ArgVector& args, int my_num)
 {
     InputArgList a(args);
     complexity += a.n_input_bits();
     bool interactive = T::actual_inputs
             && a.n_interactive_inputs_from_me(my_num) > 0;
-    int dl = T::default_length;
+    size_t dl = T::default_length;
 
     for (auto x : a)
     {
@@ -204,7 +207,7 @@ void Processor<T>::inputb(typename T::Input& input, ProcessorBase& input_process
 
 template <class T>
 void Processor<T>::inputbvec(typename T::Input& input, ProcessorBase& input_processor,
-        const vector<int>& args, PlayerBase& P)
+        const ArgVector& args, PlayerBase& P)
 {
     int my_num = P.my_num();
     InputVecArgList a(args);
@@ -221,14 +224,14 @@ void Processor<T>::inputbvec(typename T::Input& input, ProcessorBase& input_proc
         {
             bigint whole_input = get_long_input<bigint>(x.params,
                     input_processor, interactive);
-            for (int i = 0; i < x.n_bits; i++)
+            for (size_t i = 0; i < x.n_bits; i++)
             {
                 auto& res = S[x.dest[i]];
                 res.my_input(input, bigint(whole_input >> (i)).get_si() & 1, 1);
             }
         }
         else
-            for (int i = 0; i < x.n_bits; i++)
+            for (size_t i = 0; i < x.n_bits; i++)
                 S[x.dest[i]].other_input(input, x.from, 1);
     }
 
@@ -251,7 +254,7 @@ void Processor<T>::inputbvec(typename T::Input& input, ProcessorBase& input_proc
 
 template<class U>
 void ShareSecret<U>::reveal_inst(Processor<U>& processor,
-        const vector<int>& args)
+        const ArgVector& args)
 {
     auto& party = ShareThread<U>::s();
     party.check();
@@ -293,34 +296,34 @@ BitVec ReplicatedSecret<U>::local_mul(const ReplicatedSecret& other) const
 
 template<class U>
 void ShareSecret<U>::and_(
-        Processor<U>& processor, const vector<int>& args,
+        Processor<U>& processor, const ArgVector& args,
         bool repeat)
 {
     ShareThread<U>::s().and_(processor, args, repeat);
 }
 
 template<class U>
-void ShareSecret<U>::andrsvec(Processor<U>& processor, const vector<int>& args)
+void ShareSecret<U>::andrsvec(Processor<U>& processor, const ArgVector& args)
 {
     ShareThread<U>::s().andrsvec(processor, args);
 }
 
 template<class U>
-void ShareSecret<U>::xors(Processor<U>& processor, const vector<int>& args)
+void ShareSecret<U>::xors(Processor<U>& processor, const ArgVector& args)
 {
     ShareThread<U>::s().xors(processor, args);
 }
 
 template<class U, int L>
 void RepSecretBase<U, L>::trans(Processor<U>& processor,
-        int n_outputs, const vector<int>& args)
+        int n_outputs, const ArgVector& args)
 {
     vec_trans(processor, n_outputs, args);
 }
 
 template<class U>
 void vec_trans(Processor<U>& processor,
-        int n_outputs, const vector<int>& args)
+        int n_outputs, const ArgVector& args)
 {
     int N_BITS = U::default_length;
     int L = U::vector_length;

@@ -15,7 +15,8 @@ class MachineBase;
 
 template <class T, class U>
 void secure_init(T& setup, Player& P, U& machine,
-        int plaintext_length, int sec, FHE_Params& params);
+        int plaintext_length, int sec,
+        FHE_Params& params, bool read_only = false);
 
 template <class FD>
 class PairwiseSetup
@@ -45,7 +46,8 @@ public:
    
     void init(const Player& P, int sec, int plaintext_length, int& extra_slack);
 
-    void secure_init(Player& P, PairwiseMachine& machine, int plaintext_length, int sec);
+    void secure_init(Player& P, PairwiseMachine& machine, int plaintext_length,
+            int sec, bool read_only = false);
     void generate(Player& P, MachineBase& machine, int plaintext_length, int sec);
     void check(Player& P, PairwiseMachine& machine);
     void covert_key_generation(Player& P, PairwiseMachine& machine, int num_runs);

@@ -9,15 +9,17 @@
 #include <vector>
 using namespace std;
 
+#include "Processor/Instruction.h"
+
 template <class T>
 class ArgIter
 {
-    vector<int>::const_iterator it;
-    vector<int>::const_iterator end;
+    ArgVector::const_iterator it;
+    ArgVector::const_iterator end;
 
 public:
-    ArgIter(const vector<int>::const_iterator it,
-            const vector<int>::const_iterator end) :
+    ArgIter(const ArgVector::const_iterator it,
+            const ArgVector::const_iterator end) :
                 it(it), end(end)
     {
     }
@@ -45,10 +47,10 @@ public:
 template <class T>
 class ArgList
 {
-    const vector<int>& args;
+    const ArgVector& args;
 
 public:
-    ArgList(const vector<int>& args) :
+    ArgList(const ArgVector& args) :
             args(args)
     {
     }
@@ -70,12 +72,12 @@ public:
     static const int n = 4;
 
     int from;
-    int& n_bits;
-    int& n_shift;
-    int params[2];
-    int dest;
+    ArgVector::value_type& n_bits;
+    ArgVector::value_type& n_shift;
+    ArgVector::value_type params[2];
+    ArgVector::value_type dest;
 
-    InputArgs(vector<int>::const_iterator it) : n_bits(params[0]), n_shift(params[1])
+    InputArgs(ArgVector::const_iterator it) : n_bits(params[0]), n_shift(params[1])
     {
         from = *it++;
         n_bits = *it++;
@@ -88,7 +90,7 @@ template<class T>
 class InputArgListBase : public ArgList<T>
 {
 public:
-    InputArgListBase(const vector<int>& args) :
+    InputArgListBase(const ArgVector& args) :
             ArgList<T>(args)
     {
     }
@@ -115,7 +117,7 @@ public:
 class InputArgList : public InputArgListBase<InputArgs>
 {
 public:
-    InputArgList(const vector<int>& args) :
+    InputArgList(const ArgVector& args) :
             InputArgListBase<InputArgs>(args)
     {
     }
@@ -126,19 +128,19 @@ class InputVecArgs
 public:
     int from;
     int n;
-    int& n_bits;
-    int& n_shift;
-    int params[2];
-    vector<int> dest;
+    ArgVector::value_type& n_bits;
+    ArgVector::value_type& n_shift;
+    ArgVector::value_type params[2];
+    ArgVector dest;
 
-    InputVecArgs(vector<int>::const_iterator it) : n_bits(params[0]), n_shift(params[1])
+    InputVecArgs(ArgVector::const_iterator it) : n_bits(params[0]), n_shift(params[1])
     {
         n = *it++;
         n_bits = n - 3;
         n_shift = *it++;
         from = *it++;
         dest.resize(n);
-        for (int i = 0; i < n_bits; i++)
+        for (size_t i = 0; i < n_bits; i++)
             dest[i] = *it++;
     }
 };
@@ -146,7 +148,7 @@ public:
 class InputVecArgList : public InputArgListBase<InputVecArgs>
 {
 public:
-    InputVecArgList(const vector<int>& args) :
+    InputVecArgList(const ArgVector& args) :
             InputArgListBase<InputVecArgs>(args)
     {
     }

@@ -57,15 +57,17 @@ void modp_<L>::unpack(octetStream& o,const Zp_Data& ZpD)
 }
 
 template<int L>
+template<int LL>
 void modp_<L>::unpack(octetStream& o)
 {
-  o.consume((octet*) x,L*sizeof(mp_limb_t));
+  o.consume((octet*) x, LL);
 }
 
 template<int L>
+template<int LL>
 void modp_<L>::pack(octetStream& o) const
 {
-  o.append((octet*) x,L*sizeof(mp_limb_t));
+  o.append((octet*) x, LL);
 }
 
 template<int L>

@@ -28,6 +28,11 @@ void P256Element::finish()
     curve = 0;
 }
 
+void P256Element::specification(octetStream& os)
+{
+    Scalar::specification(os);
+}
+
 P256Element::P256Element()
 {
     assert(curve);

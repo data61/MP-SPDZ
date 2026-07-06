@@ -139,6 +139,8 @@ arithmetic: trio
 ecdsa: $(patsubst ECDSA/%.cpp,%.x,$(wildcard ECDSA/*-ecdsa-party.cpp)) Fake-ECDSA.x
 ecdsa-static: static-dir $(patsubst ECDSA/%.cpp,static/%.x,$(wildcard ECDSA/*-ecdsa-party.cpp))
 
+machines: $(patsubst %.cpp,%.o,$(wildcard Machines/*.cpp))
+
 $(LIBRELEASE): Protocols/MalRepRingOptions.o $(PROCESSOR) $(COMMONOBJS) $(TINIER) $(GC)
 	$(AR) -csr $@ $^
 
@@ -330,7 +332,7 @@ maybe-boost: deps/libOTe/libOTe
 	PATH="$(CURDIR)/local/bin:$(PATH)" cmake $(CURDIR)/deps/libOTe -DCMAKE_CXX_COMPILER=$(CXX) || \
 	{ cd -; make boost; }
 
-OTE_OPTS += -DENABLE_SOFTSPOKEN_OT=ON -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_INSTALL_LIBDIR=lib
+OTE_OPTS += -DENABLE_SOFTSPOKEN_OT=ON -DCMAKE_CXX_COMPILER=$(OTE_CXX) -DCMAKE_INSTALL_LIBDIR=lib
 
 ifeq ($(ARM), 1)
 OTE_OPTS += -DENABLE_AVX=OFF -DENABLE_SSE=OFF

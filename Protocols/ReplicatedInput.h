@@ -6,6 +6,8 @@
 #ifndef PROTOCOLS_REPLICATEDINPUT_H_
 #define PROTOCOLS_REPLICATEDINPUT_H_
 
+#include <span>
+
 #include "Processor/Input.h"
 #include "Processor/Processor.h"
 #include "Replicated.h"
@@ -105,6 +107,10 @@ public:
     void exchange();
     void finalize_other(int player, T& target, octetStream& o, int n_bits = -1);
     T finalize_offset(int offset);
+
+    void add_mine(const span<T>& shares,
+            const span<const typename T::clear>& inputs);
+    void finalize_vector_sum(const vector<int>& players, const span<T>& target);
 
     double randomness_time()
     {

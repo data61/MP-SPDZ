@@ -56,6 +56,15 @@ inline void mpn_add_fixed_n<1>(mp_limb_t* res, const mp_limb_t* x, const mp_limb
     *res = *x + *y;
 }
 
+template <int N>
+inline void mpn_add_fixed_n(uint32_t* res, const uint32_t* x, const uint32_t* y);
+
+template <>
+inline void mpn_add_fixed_n<1>(uint32_t* res, const uint32_t* x, const uint32_t* y)
+{
+    *res = *x + *y;
+}
+
 #ifdef __x86_64__
 template <>
 inline void mpn_add_fixed_n<2>(mp_limb_t* res, const mp_limb_t* x, const mp_limb_t* y)
@@ -156,6 +165,15 @@ inline void mpn_sub_fixed_n<1>(mp_limb_t* res, const mp_limb_t* x, const mp_limb
     *res = *x - *y;
 }
 
+template <int N>
+inline void mpn_sub_fixed_n(uint32_t* res, const uint32_t* x, const uint32_t* y);
+
+template <>
+inline void mpn_sub_fixed_n<1>(uint32_t* res, const uint32_t* x, const uint32_t* y)
+{
+    *res = *x - *y;
+}
+
 #ifdef __x86_64__
 template <>
 inline mp_limb_t mpn_sub_fixed_n_borrow<1>(mp_limb_t* res, const mp_limb_t* x, const mp_limb_t* y)
@@ -201,6 +219,7 @@ inline mp_limb_t mpn_sub_fixed_n_borrow<2>(mp_limb_t* res, const mp_limb_t* x, c
     return borrow;
 }
 
+#if defined(__clang__) or __GNUC__ < 15
 template <>
 inline void mpn_sub_fixed_n<3>(mp_limb_t* res, const mp_limb_t* x, const mp_limb_t* y)
 {
@@ -214,6 +233,7 @@ inline void mpn_sub_fixed_n<3>(mp_limb_t* res, const mp_limb_t* x, const mp_limb
             : "cc"
     );
 }
+#endif
 
 template <>
 inline void mpn_sub_fixed_n<4>(mp_limb_t* res, const mp_limb_t* x, const mp_limb_t* y)
@@ -320,6 +340,31 @@ inline void mpn_mul_fixed_<1,1,1>(mp_limb_t* res, const mp_limb_t* x, const mp_l
     *res = *x * *y;
 }
 
+template <int L, int N, int M>
+inline void mpn_mul_fixed_(uint32_t* res, const uint32_t* x, const uint32_t* y);
+
+template <int L, int N, int M>
+inline void mpn_mul_fixed_(mp_limb_t* res, const uint32_t* x, const mp_limb_t* y)
+{
+	assert(N == 1);
+	mp_limb_t tmp[1] = {*x};
+	mpn_mul_fixed_<L, 1, M>(res, tmp, y);
+}
+
+template <int L, int N, int M>
+inline void mpn_mul_fixed_(mp_limb_t* res, const mp_limb_t* x, const uint32_t* y)
+{
+	assert(M == 1);
+	mp_limb_t tmp[1] = {*y};
+	mpn_mul_fixed_<L, N, 1>(res, x, tmp);
+}
+
+template <>
+inline void mpn_mul_fixed_<1,1,1>(uint32_t* res, const uint32_t* x, const uint32_t* y)
+{
+    *res = *x * *y;
+}
+
 template <>
 inline void mpn_mul_fixed_<2,2,2>(mp_limb_t* res, const mp_limb_t* x, const mp_limb_t* y)
 {
@@ -353,6 +398,78 @@ template <int N, int M>
 inline void mpn_mul_fixed(mp_limb_t* res, const mp_limb_t* x, const mp_limb_t* y)
 {
     mpn_mul_fixed_<N + M, N, M>(res, x, y);
+}
+
+template <class T, int N>
+inline void mpn_lshift_fixed(T* res, const T* x, unsigned int n_shift)
+{
+	mpn_lshift(res, x, N, n_shift);
+}
+
+template <>
+inline void mpn_lshift_fixed<uint32_t, 1>(uint32_t* res, const uint32_t* x, unsigned int n_shift)
+{
+	*res = *x << n_shift;
+}
+
+template <class T, int N>
+inline void mpn_rshift_fixed(T* res, const T* x, unsigned int n_shift)
+{
+	mpn_rshift(res, x, N, n_shift);
+}
+
+template <>
+inline void mpn_rshift_fixed<uint32_t, 1>(uint32_t* res, const uint32_t* x, unsigned int n_shift)
+{
+	*res = *x << n_shift;
+}
+
+template <class T, int N>
+inline void mpn_and_fixed(T* res, const T* x, const T* y)
+{
+	mpn_and_n(res, x, y, N);
+}
+
+template <>
+inline void mpn_and_fixed<uint32_t, 1>(uint32_t* res, const uint32_t* x, const uint32_t* y)
+{
+	*res = *x & *y;
+}
+
+template <class T, int N>
+inline void mpn_or_fixed(T* res, const T* x, const T* y)
+{
+	mpn_ior_n(res, x, y, N);
+}
+
+template <>
+inline void mpn_or_fixed<uint32_t, 1>(uint32_t* res, const uint32_t* x, const uint32_t* y)
+{
+	*res = *x | *y;
+}
+
+template <class T, int N>
+inline void mpn_xor_fixed(T* res, const T* x, const T* y)
+{
+	mpn_xor_n(res, x, y, N);
+}
+
+template <>
+inline void mpn_xor_fixed<uint32_t, 1>(uint32_t* res, const uint32_t* x, const uint32_t* y)
+{
+	*res = *x ^ *y;
+}
+
+template <class T, int N>
+inline int mpn_cmp_fixed(const T* x, const T* y)
+{
+	return mpn_cmp(x, y, N);
+}
+
+template <>
+inline int mpn_cmp_fixed<uint32_t, 1>(const uint32_t* x, const uint32_t* y)
+{
+	return *x != *y;
 }
 
 #endif /* MATH_MPN_FIXED_H_ */

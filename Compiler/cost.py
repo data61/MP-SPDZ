@@ -22,8 +22,17 @@ class Comm:
             self.online, self.offline = comm
             assert not offline
         except:
-            self.online = comm or 0
-            assert isinstance(self.online, (int, float))
+            if comm is None:
+                self.online = 0
+            else:
+                self.online = comm
+            types = (int, float)
+            try:
+                from sympy import Basic
+                types = types + (Basic,)
+            except:
+                pass
+            assert isinstance(self.online, types)
             self.offline = offline
 
     def __getitem__(self, index):
@@ -60,6 +69,7 @@ dishonest_majority = {
     'spdz',
     'soho',
     'gear',
+    'yao',
 }
 
 semihonest = {
@@ -189,6 +199,7 @@ variable_bit =  {
 
 fixed_and = {
     '(mal|sy|ps)-rep': lambda bucket_size=4: (6, 3 * (3 * bucket_size - 2)),
+    'yao': 256,
 }
 
 variable_and = {
@@ -212,7 +223,7 @@ dabit_from_bit = {
 }
 
 bits_from_squares = {
-    'atlas': lambda N: N > 4,
+    'atlas': lambda N: N > 4 if isinstance(N, int) else True,
     'sy-shamir': lambda N: True,
     'soho': lambda N: True,
     'gear': lambda N: True,
@@ -295,7 +306,7 @@ def get_match(data, protocol):
     try:
         return data.get(x)
     except:
-        return bool(x)
+        return int(bool(x))
 
 def get_match_variable(data, protocol, n_parties):
     f = get_match(data, protocol)
@@ -318,8 +329,13 @@ def get_mul_cost(protocol, n_parties):
 def get_and_cost(protocol, n_parties):
     return get_cost(fixed_and, variable_and, protocol, n_parties)
 
+def is_malicious(protocol):
+    return not find_match(semihonest, protocol)
+
 def expected_communication(protocol, req_num, length, n_parties=None,
                            force_triple_use=False):
+    if not req_num.finite():
+        return Comm()
     from Compiler.instructions import shuffle_base
     from Compiler.program import Tape
     get_int = lambda x: req_num.get(('modp', x), 0)
@@ -335,6 +351,8 @@ def expected_communication(protocol, req_num, length, n_parties=None,
         except TypeError:
             if find_match(dishonest_majority, protocol):
                 n_parties = 2
+            elif protocol == 'emulate':
+                n_parties = 1
             else:
                 n_parties = 3
     if find_match(dishonest_majority, protocol):
@@ -346,7 +364,7 @@ def expected_communication(protocol, req_num, length, n_parties=None,
         threshold = 0
     else:
         threshold = n_parties // 2
-    malicious = not find_match(semihonest, protocol)
+    malicious = is_malicious(protocol)
     x = find_match(fixed, protocol)
     y = get_mul_cost(protocol, n_parties)
     unit = apply_length(y, length)
@@ -441,8 +459,8 @@ def expected_communication(protocol, req_num, length, n_parties=None,
                     res += Comm(shuffle_cost) * req_num[x] * x[2]
                 elif find_match(cheap_dot_product, protocol) or \
                      'dealer' in protocol:
-                    res += shuffle_base.n_swaps(x[2]) * (threshold + 1) * \
-                        req_num[x] * unit * (x[3] + malicious)
+                    res += shuffle_base.n_swaps(x[2] // x[3]) * \
+                        (threshold + 1) * req_num[x] * unit * (x[3] + malicious)
                 elif shuffle_correction:
                     node = get_node()
                     shuffle_base.add_apply_usage(

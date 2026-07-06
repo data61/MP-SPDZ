@@ -200,7 +200,14 @@ void LowGearKeyGen<L>::run(PairwiseSetup<FD>& setup)
 
     RunningTimer timer;
 
-    auto mac_key = SeededPRNG().get<typename FD::T>();
+    typename FD::T mac_key;
+
+    bool fresh = setup.alphai == 0;
+
+    if (fresh)
+        mac_key = SeededPRNG().get<typename FD::T>();
+    else
+        mac_key = setup.alphai;
 
     PairwiseGenerator<FD> generator(0, machine, &P);
     map<string, Timer> timers;

@@ -89,7 +89,7 @@ template<int K>
 Z2<K> Z2<K>::operator&(const Z2<K>& other) const
 {
     Z2<K> res;
-    mpn_and_n(res.a, a, other.a, N_WORDS);
+    mpn_and_fixed<limb_type, N_WORDS>(res.a, a, other.a);
     return res;
 }
 
@@ -97,7 +97,7 @@ template<int K>
 Z2<K> Z2<K>::operator^(const Z2<K>& other) const
 {
     Z2<K> res;
-	mpn_xor_n(res.a, a, other.a, N_WORDS);
+	mpn_xor_fixed<limb_type, N_WORDS>(res.a, a, other.a);
     return res;
 }
 
@@ -105,7 +105,7 @@ template<int K>
 Z2<K> Z2<K>::operator|(const Z2<K>& other) const
 {
     Z2<K> res;
-	mpn_ior_n(res.a, a, other.a, N_WORDS);
+	mpn_or_fixed<limb_type, N_WORDS>(res.a, a, other.a);
     return res;
 }
 
@@ -116,7 +116,7 @@ bool Z2<K>::operator==(const Z2<K>& other) const
 	for (int i = 0; i < N_WORDS; i++)
 		cout << "cmp " << hex << a[i] << " " << other.a[i] << endl;
 #endif
-	return mpn_cmp(a, other.a, N_WORDS) == 0;
+	return mpn_cmp_fixed<limb_type, N_WORDS>(a, other.a) == 0;
 }
 
 template<int K>

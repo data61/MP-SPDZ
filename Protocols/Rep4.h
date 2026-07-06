@@ -92,14 +92,14 @@ public:
     void randoms(T& res, int n_bits);
 
     template<int = 0>
-    void trunc_pr(const vector<int>& regs, int size, SubProcessor<T>& proc,
+    void trunc_pr(const ArgVector& regs, int size, SubProcessor<T>& proc,
             true_type);
     template<int = 0>
-    void trunc_pr(const vector<int>& regs, int size, SubProcessor<T>& proc,
+    void trunc_pr(const ArgVector& regs, int size, SubProcessor<T>& proc,
             false_type);
 
     template<class U>
-    void split(StackedVector<T>& dest, const vector<int>& regs, int n_bits,
+    void split(StackedVector<T>& dest, const ArgVector& regs, int n_bits,
             const U* source, int n_inputs);
 
     int get_n_relevant_players() { return 2; }

@@ -75,8 +75,10 @@ public:
         }
     }
 
-    void pack(octetStream& os) const { os.store_int<sizeof(T)>(this->a); }
-    void unpack(octetStream& os) { this->a = os.get_int<sizeof(T)>(); }
+    template<int LL = sizeof(T)>
+    void pack(octetStream& os) const { os.store_int<LL>(this->a); }
+    template<int LL = sizeof(T)>
+    void unpack(octetStream& os) { this->a = os.get_int<LL>(); }
 
     void pack(octetStream& os, int n) const
     {

@@ -33,7 +33,7 @@ Processor<T>::Processor(Machine<T>& machine) :
 
 template <class T>
 Processor<T>::Processor(Memories<T>& memories, Machine<T>* machine) :
-		machine(machine), memories(memories), PC(0), time(0),
+		machine(machine), memories(memories), PC(0), last_PC(0), time(0),
 		complexity(0)
 {
 }
@@ -71,7 +71,7 @@ void Processor<T>::reset(const U& program)
 }
 
 template<class T>
-inline long long GC::Processor<T>::get_input(const int* params, bool interactive)
+inline long long GC::Processor<T>::get_input(const ArgVector::value_type* params, bool interactive)
 {
     assert(params[0] <= 64);
     return get_long_input<Integer>(params, *this, interactive).get();
@@ -79,7 +79,7 @@ inline long long GC::Processor<T>::get_input(const int* params, bool interactive
 
 template<class T>
 template<class U>
-U GC::Processor<T>::get_long_input(const int* params,
+U GC::Processor<T>::get_long_input(const ArgVector::value_type* params,
         ProcessorBase& input_proc, bool interactive)
 {
     if (not T::actual_inputs)
@@ -96,7 +96,7 @@ U GC::Processor<T>::get_long_input(const int* params,
 
 template<class T>
 template<class U>
-void GC::Processor<T>::check_input(const U& in, const int* params)
+void GC::Processor<T>::check_input(const U& in, const ArgVector::value_type* params)
 {
 	int n_bits = *params;
 	auto test = in >> n_bits;
@@ -122,14 +122,14 @@ void GC::Processor<T>::check_input(const U& in, const int* params)
 }
 
 template <class T>
-void Processor<T>::bitdecc(const vector<int>& regs, const Clear& x)
+void Processor<T>::bitdecc(const ArgVector& regs, const Clear& x)
 {
     for (unsigned int i = 0; i < regs.size(); i++)
         C[regs[i]] = (x >> i) & 1;
 }
 
 template <class T>
-void Processor<T>::bitdecint(const vector<int>& regs, const Integer& x)
+void Processor<T>::bitdecint(const ArgVector& regs, const Integer& x)
 {
     for (unsigned int i = 0; i < regs.size(); i++)
         I[regs[i]] = (x >> i) & 1;
@@ -137,7 +137,7 @@ void Processor<T>::bitdecint(const vector<int>& regs, const Integer& x)
 
 template<class T>
 template<class U>
-void Processor<T>::load_dynamic_direct(const vector<int>& args,
+void Processor<T>::load_dynamic_direct(const ArgVector& args,
         U& dynamic_memory)
 {
     vector< ReadAccess<T> > accesses;
@@ -150,7 +150,7 @@ void Processor<T>::load_dynamic_direct(const vector<int>& args,
 
 template<class T>
 template<class U>
-void GC::Processor<T>::load_dynamic_indirect(const vector<int>& args,
+void GC::Processor<T>::load_dynamic_indirect(const ArgVector& args,
         U& dynamic_memory)
 {
     vector< ReadAccess<T> > accesses;
@@ -163,7 +163,7 @@ void GC::Processor<T>::load_dynamic_indirect(const vector<int>& args,
 
 template<class T>
 template<class U>
-void GC::Processor<T>::store_dynamic_direct(const vector<int>& args,
+void GC::Processor<T>::store_dynamic_direct(const ArgVector& args,
         U& dynamic_memory)
 {
     vector< WriteAccess<T> > accesses;
@@ -177,7 +177,7 @@ void GC::Processor<T>::store_dynamic_direct(const vector<int>& args,
 
 template<class T>
 template<class U>
-void GC::Processor<T>::store_dynamic_indirect(const vector<int>& args,
+void GC::Processor<T>::store_dynamic_indirect(const ArgVector& args,
         U& dynamic_memory)
 {
     vector< WriteAccess<T> > accesses;
@@ -191,7 +191,7 @@ void GC::Processor<T>::store_dynamic_indirect(const vector<int>& args,
 
 template<class T>
 template<class U>
-void GC::Processor<T>::store_clear_in_dynamic(const vector<int>& args,
+void GC::Processor<T>::store_clear_in_dynamic(const ArgVector& args,
         U& dynamic_memory)
 {
     vector<ClearWriteAccess> accesses;
@@ -217,19 +217,19 @@ void Processor<T>::mem_op(int n, U& dest, const V& source,
 }
 
 template <class T>
-void Processor<T>::xors(const vector<int>& args)
+void Processor<T>::xors(const ArgVector& args)
 {
 	xors(args, 0, args.size());
 }
 
 template <class T>
-void Processor<T>::xors(const vector<int>& args, size_t start, size_t end)
+void Processor<T>::xors(const ArgVector& args, size_t start, size_t end)
 {
     assert(start % 4 == 0);
     assert(end % 4 == 0);
     assert(start < end);
     assert(args.begin() + end <= args.end());
-    int dl = T::default_length;
+    unsigned dl = T::default_length;
     for (auto it = args.begin() + start; it < args.begin() + end; it += 4)
     {
         if (*it == 1)
@@ -304,14 +304,15 @@ void Processor<T>::andm(const ::BaseInstruction& instruction)
 }
 
 template <class T>
-void Processor<T>::and_(const vector<int>& args, bool repeat)
+void Processor<T>::and_(const ArgVector& args, bool repeat)
 {
     check_args(args, 4);
     for (size_t i = 0; i < args.size(); i += 4)
     {
         for (int j = 0; j < DIV_CEIL(args[i], T::default_length); j++)
         {
-            int n = min(T::default_length, args[i] - j * T::default_length);
+            int n = min(T::default_length,
+                    int(args[i]) - j * T::default_length);
             S[args[i + 1] + j].and_(n, S[args[i + 2] + j],
                     S[args[i + 3] + (repeat ? 0 : j)], repeat);
         }
@@ -320,7 +321,7 @@ void Processor<T>::and_(const vector<int>& args, bool repeat)
 }
 
 template <class T>
-void Processor<T>::andrsvec(const vector<int>& args)
+void Processor<T>::andrsvec(const ArgVector& args)
 {
     int N_BITS = T::default_length;
     auto it = args.begin();
@@ -353,7 +354,7 @@ void Processor<T>::andrsvec(const vector<int>& args)
 }
 
 template <class T>
-void Processor<T>::input(const vector<int>& args)
+void Processor<T>::input(const ArgVector& args)
 {
     InputArgList a(args);
     for (auto x : a)
@@ -366,7 +367,7 @@ void Processor<T>::input(const vector<int>& args)
 }
 
 template <class T>
-void Processor<T>::reveal(const vector<int>& args)
+void Processor<T>::reveal(const ArgVector& args)
 {
     for (size_t j = 0; j < args.size(); j += 3)
     {
@@ -496,7 +497,7 @@ void Processor<T>::print_str(int n)
 }
 
 template <class T>
-void Processor<T>::print_float(const vector<int>& args)
+void Processor<T>::print_float(const ArgVector& args)
 {
     bigint::output_float(out,
             bigint::get_float(C[args[0]], C[args[1]], C[args[2]], C[args[3]]),
@@ -530,14 +531,14 @@ void GC::Processor<T>::push_stack()
 }
 
 template<class T>
-void GC::Processor<T>::push_args(const vector<int>& args)
+void GC::Processor<T>::push_args(const ArgVector& args)
 {
     S.push_args(args, SBIT);
     C.push_args(args, CBIT);
 }
 
 template<class T>
-void GC::Processor<T>::pop_stack(const vector<int>& results)
+void GC::Processor<T>::pop_stack(const ArgVector& results)
 {
     S.pop_stack(results, SBIT);
     C.pop_stack(results, CBIT);

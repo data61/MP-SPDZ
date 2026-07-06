@@ -25,15 +25,15 @@ template <class T>
 class Processor : public ::ProcessorBase, public GC::RuntimeBranching
 {
 public:
-    static int check_args(const vector<int>& args, int n);
+    static int check_args(const ArgVector& args, int n);
 
     template<class U>
-    static void check_input(const U& in, const int* params);
+    static void check_input(const U& in, const ArgVector::value_type* params);
 
     Machine<T>* machine;
     Memories<T>& memories;
 
-    unsigned int PC;
+    unsigned int PC, last_PC;
     unsigned int time;
 
     // rough measure for the memory usage
@@ -56,52 +56,52 @@ public:
     template<class U>
     void reset(const U& program);
 
-    long long get_input(const int* params, bool interactive = false);
+    long long get_input(const ArgVector::value_type* params, bool interactive = false);
     template<class U>
-    U get_long_input(const int* params, ProcessorBase& input_proc,
+    U get_long_input(const ArgVector::value_type* params, ProcessorBase& input_proc,
             bool interactive = false);
 
-    void bitcoms(T& x, const vector<int>& regs) { x.bitcom(S, regs); }
-    void bitdecs(const vector<int>& regs, const T& x) { x.bitdec(S, regs); }
-    void bitdecc(const vector<int>& regs, const Clear& x);
-    void bitdecint(const vector<int>& regs, const Integer& x);
+    void bitcoms(T& x, const ArgVector& regs) { x.bitcom(S, regs); }
+    void bitdecs(const ArgVector& regs, const T& x) { x.bitdec(S, regs); }
+    void bitdecc(const ArgVector& regs, const Clear& x);
+    void bitdecint(const ArgVector& regs, const Integer& x);
 
     void random_bit(T &x) { x.random_bit(); }
 
     template<class U>
-    void load_dynamic_direct(const vector<int>& args, U& dynamic_memory);
+    void load_dynamic_direct(const ArgVector& args, U& dynamic_memory);
     template<class U>
-    void store_dynamic_direct(const vector<int>& args, U& dynamic_memory);
+    void store_dynamic_direct(const ArgVector& args, U& dynamic_memory);
     template<class U>
-    void load_dynamic_indirect(const vector<int>& args, U& dynamic_memory);
+    void load_dynamic_indirect(const ArgVector& args, U& dynamic_memory);
     template<class U>
-    void store_dynamic_indirect(const vector<int>& args, U& dynamic_memory);
+    void store_dynamic_indirect(const ArgVector& args, U& dynamic_memory);
     template<class U>
-    void store_clear_in_dynamic(const vector<int>& args, U& dynamic_memory);
+    void store_clear_in_dynamic(const ArgVector& args, U& dynamic_memory);
 
     template<class U, class V>
     void mem_op(int n, U& dest, const V& source,
             Integer dest_address, Integer source_address);
 
-    void xors(const vector<int>& args);
-    void xors(const vector<int>& args, size_t start, size_t end);
+    void xors(const ArgVector& args);
+    void xors(const ArgVector& args, size_t start, size_t end);
     void xorc(const ::BaseInstruction& instruction);
     void nots(const ::BaseInstruction& instruction);
     void notcb(const ::BaseInstruction& instruction);
     void movsb(const ::BaseInstruction& instruction);
     void andm(const ::BaseInstruction& instruction);
-    void and_(const vector<int>& args, bool repeat);
-    void andrs(const vector<int>& args) { and_(args, true); }
-    void ands(const vector<int>& args) { and_(args, false); }
-    void andrsvec(const vector<int>& args);
+    void and_(const ArgVector& args, bool repeat);
+    void andrs(const ArgVector& args) { and_(args, true); }
+    void ands(const ArgVector& args) { and_(args, false); }
+    void andrsvec(const ArgVector& args);
 
-    void input(const vector<int>& args);
+    void input(const ArgVector& args);
     void inputb(typename T::Input& input, ProcessorBase& input_processor,
-            const vector<int>& args, int my_num);
+            const ArgVector& args, int my_num);
     void inputbvec(typename T::Input& input, ProcessorBase& input_processor,
-            const vector<int>& args, PlayerBase& P);
+            const ArgVector& args, PlayerBase& P);
 
-    void reveal(const vector<int>& args);
+    void reveal(const ArgVector& args);
 
     template<int = 0>
     void convcbit2s(const BaseInstruction& instruction);
@@ -115,21 +115,21 @@ public:
     void print_reg_signed(unsigned n_bits, Integer value);
     void print_chr(int n);
     void print_str(int n);
-    void print_float(const vector<int>& args);
+    void print_float(const ArgVector& args);
     void print_float_prec(int n);
 
     void incint(const BaseInstruction& instruction);
 
     void push_stack();
-    void push_args(const vector<int>& args);
-    void pop_stack(const vector<int>& results);
+    void push_args(const ArgVector& args);
+    void pop_stack(const ArgVector& results);
 
     template<class U>
     void call_tape(const BaseInstruction& instruction, U& dynamic_memory);
 };
 
 template <class T>
-inline int GC::Processor<T>::check_args(const vector<int>& args, int n)
+inline int GC::Processor<T>::check_args(const ArgVector& args, int n)
 {
     if (args.size() % n != 0)
         throw runtime_error("invalid number of arguments");

@@ -166,7 +166,7 @@ public:
     {
         fail();
     }
-    void get_no_count(StackedVector<T>&, DataTag, const vector<int>&, int)
+    void get_no_count(StackedVector<T>&, DataTag, const ArgVector&, int)
     {
         fail();
     }
@@ -201,12 +201,12 @@ public:
     NotImplementedInput(const T&)
     {
     }
-    void start(int n, vector<int> regs)
+    void start(int n, ArgVector regs)
     {
         (void) n, (void) regs;
         throw not_implemented();
     }
-    void stop(int n, vector<int> regs)
+    void stop(int n, ArgVector regs)
     {
         (void) n, (void) regs;
         throw not_implemented();
@@ -222,12 +222,12 @@ public:
         throw not_implemented();
     }
     template<class T>
-    static void input(SubProcessor<V>& proc, vector<int> regs, int)
+    static void input(SubProcessor<V>& proc, ArgVector regs, int)
     {
         (void) proc, (void) regs;
         throw not_implemented();
     }
-    static void input_mixed(SubProcessor<V>, vector<int>, int, int)
+    static void input_mixed(SubProcessor<V>, ArgVector, int, int)
     {
     }
     void reset_all(Player& P)
@@ -259,11 +259,11 @@ public:
         (void) a, (void) b;
         throw not_implemented();
     }
-    static void raw_input(SubProcessor<V>&, vector<int>, int)
+    static void raw_input(SubProcessor<V>&, ArgVector, int)
     {
         throw not_implemented();
     }
-    static void input_mixed(SubProcessor<V>&, vector<int>, int, bool)
+    static void input_mixed(SubProcessor<V>&, ArgVector, int, bool)
     {
         throw not_implemented();
     }

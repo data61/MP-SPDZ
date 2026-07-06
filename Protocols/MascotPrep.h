@@ -8,6 +8,7 @@
 
 #include "ReplicatedPrep.h"
 #include "OT/MascotParams.h"
+#include "OT/MascotMacKey.h"
 
 template<class T>
 class OTPrep : public virtual BitPrep<T>
@@ -32,7 +33,7 @@ class MascotInputPrep : public OTPrep<T>
     void buffer_inputs(int player);
 
 public:
-    static typename T::mac_key_type get_mac_key(Player& P);
+    static typename T::mac_key_type get_mac_key(Player& P, bool = false);
     static void teardown();
 
     MascotInputPrep(SubProcessor<T> *proc, DataPositions &usage) :
@@ -133,7 +134,7 @@ public:
 };
 
 template<class T>
-typename T::mac_key_type MascotInputPrep<T>::get_mac_key(Player& P)
+typename T::mac_key_type MascotInputPrep<T>::get_mac_key(Player& P, bool)
 {
     auto mac_key = T::TripleGenerator::get_mac_key(P);
     T::set_mac_key(mac_key);

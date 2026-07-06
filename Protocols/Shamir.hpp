@@ -61,7 +61,8 @@ Shamir<T>::Shamir(Player& P, int t) :
         threshold = t;
     else
         threshold = ShamirMachine::s().threshold;
-    n_mul_players = 2 * threshold + 1;
+    n_mul_players = min(P.num_players(), 2 * threshold + 1);
+    assert(n_mul_players <= P.num_players());
     resharing = new ShamirInput<T>(0, P);
     reset();
 }

@@ -12,7 +12,7 @@
  */
 void Commit(octetStream& comm, octetStream& open, const octetStream& message, int send_player);
 
-bool Open(octetStream& message, const octetStream& comm, const octetStream& open, int send_player);
+bool Open(octetStream& message, const octetStream& comm, octetStream& open, int send_player);
 
 // same as above using less memory
 class Commitment

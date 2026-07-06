@@ -8,7 +8,7 @@
 #include <math.h>
 
 template<>
-void FixInput_<Integer>::read(std::istream& in, const int* params)
+void FixInput_<Integer>::read(std::istream& in, const ArgVector::value_type* params)
 {
     double x;
     in >> x;
@@ -16,7 +16,7 @@ void FixInput_<Integer>::read(std::istream& in, const int* params)
 }
 
 template<>
-void FixInput_<bigint>::read(std::istream& in, const int* params)
+void FixInput_<bigint>::read(std::istream& in, const ArgVector::value_type* params)
 {
 #ifdef HIGH_PREC_INPUT
     mpf_class x;

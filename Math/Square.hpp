@@ -65,14 +65,28 @@ template<class U>
 void Square<U>::pack(octetStream& os) const
 {
     for (int i = 0; i < U::length(); i++)
-        rows[i].pack(os);
+        switch (DIV_CEIL(U::length(), 8))
+        {
+#define X(N) case N: rows[i].template pack<N>(os); break;
+        X(1) X(2) X(3) X(4) X(5) X(6) X(7)
+#undef X
+        default:
+            rows[i].pack(os);
+        }
 }
 
 template<class U>
 void Square<U>::unpack(octetStream& os)
 {
     for (int i = 0; i < U::length(); i++)
-        rows[i].unpack(os);
+        switch (DIV_CEIL(U::length(), 8))
+        {
+#define X(N) case N: rows[i].template unpack<N>(os); break;
+        X(1) X(2) X(3) X(4) X(5) X(6) X(7)
+#undef X
+        default:
+            rows[i].unpack(os);
+    }
 }
 
 template<class U>

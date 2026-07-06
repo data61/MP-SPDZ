@@ -6,6 +6,9 @@
 #ifndef OT_MASCOTMACKEY_H_
 #define OT_MASCOTMACKEY_H_
 
+template<class share_type>
+string get_ot_secrets_filename(const Player& P);
+
 template<class T>
 class MascotMacKey : public T
 {

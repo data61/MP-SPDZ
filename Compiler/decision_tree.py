@@ -26,31 +26,20 @@ def PrefixSum(x):
     return x.get_vector().prefix_sum()
 
 def PrefixSumR(x):
-    tmp = get_type(x).Array(len(x))
-    tmp.assign_vector(x)
-    break_point()
-    tmp[:] = tmp.get_reverse_vector().prefix_sum()
-    break_point()
-    return tmp.get_reverse_vector()
+    break_point('PrefixSumR')
+    return x.get_reverse_vector().prefix_sum().get_reverse_vector()
 
 def PrefixSum_inv(x):
-    tmp = get_type(x).Array(len(x) + 1)
-    tmp.assign_vector(x, base=1)
-    tmp[0] = 0
-    return tmp.get_vector(size=len(x), base=1) - tmp.get_vector(size=len(x))
+    x = x.get_vector()
+    return x - x.concat((type(x)(0), x.get_vector(size=len(x) - 1)))
 
 def PrefixSumR_inv(x):
-    tmp = get_type(x).Array(len(x) + 1)
-    tmp.assign_vector(x)
-    tmp[-1] = 0
-    return tmp.get_vector(size=len(x)) - tmp.get_vector(base=1, size=len(x))
+    x = x.get_vector()
+    return x - x.concat((x.get_vector(base=1, size=len(x) - 1), type(x)(0)))
 
 class SortPerm:
     def __init__(self, x):
-        B = sint.Matrix(len(x), 2)
-        B.set_column(0, 1 - x.get_vector())
-        B.set_column(1, x.get_vector())
-        self.perm = Array.create_from(dest_comp(B))
+        self.perm = Array.create_from(gen_bit_perm(x))
     def apply(self, x):
         res = Array.create_from(x)
         reveal_sort(self.perm, res, False)
@@ -134,7 +123,7 @@ def GroupMax(g, keys, *x):
     for d in range(m):
         w = 2 ** d
         g_old[:] = g_new[:]
-        break_point()
+        break_point('GroupMax')
         vsize = n - w
         g_new.assign_vector(g_old.get_vector(size=vsize).bit_or(
             g_old.get_vector(size=vsize, base=w)), base=w)
@@ -144,7 +133,7 @@ def GroupMax(g, keys, *x):
                           xx.get_vector(size=vsize, base=w))
             xx.assign_vector(g_old.get_vector(size=vsize, base=w).if_else(
                 xx.get_vector(size=vsize, base=w), a), base=w)
-        break_point()
+        break_point('GroupMax2')
         if debug:
             print_ln('group max w=%s b=%s a=%s keys=%s x=%s g=%s', w, b.reveal(),
                      util.reveal(a), util.reveal(keys),
@@ -216,7 +205,7 @@ def TrainLeafNodes(h, g, y, NID):
 
 def GroupSame(g, y):
     assert len(g) == len(y)
-    s = GroupSum(g, [sint(1)] * len(g))
+    s = GroupSum(g, sint(1, size=len(g)))
     s0 = GroupSum(g, y.bit_not())
     s1 = GroupSum(g, y)
     if debug_split:

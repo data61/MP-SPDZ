@@ -20,7 +20,7 @@ TemiSetup<FD>::TemiSetup()
 
 template<class FD>
 void TemiSetup<FD>::secure_init(Player& P, MachineBase& machine,
-        int plaintext_length, int)
+        int plaintext_length, int, bool)
 {
     ::secure_init(*this, P, machine, plaintext_length, 0, this->params);
 }

@@ -21,7 +21,6 @@
 #include "GC/TinierSharePrep.hpp"
 #include "GC/TinyPrep.hpp"
 #include "Protocols/ChaiGearPrep.hpp"
-#include "Protocols/CowGearPrep.hpp"
 #include "Protocols/DealerPrep.hpp"
 #include "Protocols/DealerInput.hpp"
 #include "Protocols/DealerMC.hpp"

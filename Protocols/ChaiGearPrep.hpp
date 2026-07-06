@@ -11,11 +11,15 @@
 #include "FHEOffline/Producer.h"
 
 #include "FHEOffline/DataSetup.hpp"
+#include "CowGearPrep.hpp"
 
 template<class T>
 MultiplicativeMachineParams* ChaiGearPrep<T>::machine = 0;
 template<class T>
 Lock ChaiGearPrep<T>::lock;
+
+template<class T>
+typename ChaiGearPrep<T>::mac_key_type ChaiGearPrep<T>::maybe_mac_key;
 
 template<class T>
 ChaiGearPrep<T>::~ChaiGearPrep()
@@ -36,7 +40,7 @@ void ChaiGearPrep<T>::teardown()
 }
 
 template<class T>
-void ChaiGearPrep<T>::basic_setup(Player& P)
+void ChaiGearPrep<T>::basic_setup(Player& P, bool read_only)
 {
     Timer timer;
     timer.start();
@@ -52,7 +56,8 @@ void ChaiGearPrep<T>::basic_setup(Player& P)
             << lowgear_security << endl;
 #endif
     machine->sec = lowgear_security;
-    secure_init(setup, P, *machine, typename T::clear(), lowgear_security);
+    secure_init(setup, P, *machine, typename T::clear(), lowgear_security,
+            read_only);
     T::clear::template init<typename FD::T>();
 #ifdef VERBOSE
     cerr << T::type_string() << " parameter setup took " << timer.elapsed()
@@ -61,7 +66,7 @@ void ChaiGearPrep<T>::basic_setup(Player& P)
 }
 
 template<class T>
-void ChaiGearPrep<T>::key_setup(Player& P)
+void ChaiGearPrep<T>::key_setup(Player& P, bool read_only)
 {
     CODE_LOCATION
     Timer timer;
@@ -69,8 +74,10 @@ void ChaiGearPrep<T>::key_setup(Player& P)
     assert(machine);
     auto& setup = machine->setup.part<FD>();
     auto& options = CowGearOptions::singleton;
+    if (maybe_mac_key != 0)
+        setup.alphai = maybe_mac_key;
     read_or_generate_secrets(setup, P, *machine, options.covert_security,
-            T::covert, T());
+            T::covert, T(), read_only);
 
     // generate minimal number of items
     machine->nTriplesPerThread = 1;
@@ -81,15 +88,39 @@ void ChaiGearPrep<T>::key_setup(Player& P)
 }
 
 template<class T>
-typename ChaiGearPrep<T>::mac_key_type ChaiGearPrep<T>::get_mac_key(Player& P)
+string ChaiGearPrep<T>::get_full_secrets_filename(const Player& P)
 {
-    if (machine == 0)
-        basic_setup(P);
+    assert(machine);
+    return full_secrets_filename(machine->get_setup<FD>(), *machine, P,
+            CowGearOptions::singleton.covert_security, T::covert);
+}
 
-    auto& mac_key = machine->setup.part<FD>().alphai;
-    if (mac_key == 0)
-        key_setup(P);
-    return mac_key;
+template<class T>
+void ChaiGearPrep<T>::adjust_mac_key(Player& P)
+{
+    assert(machine);
+    auto& setup = machine->get_setup<FD>();
+    mac_key_type diff = maybe_mac_key - setup.alphai;
+    if (diff == 0 or maybe_mac_key == 0)
+        return;
+
+    setup.alphai = maybe_mac_key;
+    Bundle<octetStream> bundle(P);
+    diff.pack(bundle.mine);
+    P.unchecked_broadcast(bundle);
+    for (int i = 0; i < P.num_players(); i++)
+    {
+        Plaintext_<FD> mess(setup.FieldD);
+        mess.assign_constant(bundle[i].get<mac_key_type>(), Polynomial);
+        setup.calpha += mess;
+    }
+}
+
+template<class T>
+typename ChaiGearPrep<T>::mac_key_type ChaiGearPrep<T>::get_mac_key(Player& P,
+        bool read_only)
+{
+    return ::get_mac_key<ChaiGearPrep<T>>(P, read_only);
 }
 
 template<class T>

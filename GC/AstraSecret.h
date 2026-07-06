@@ -19,7 +19,7 @@ class AstraSecretBase : public ShareSecret<T>
 {
 public:
     static void trans(Processor<T>& processor, int n_outputs,
-            const vector<int>& args)
+            const ArgVector& args)
     {
         vec_trans(processor, n_outputs, args);
     }
@@ -77,12 +77,12 @@ public:
         *this = super::constant(x);
     }
 
-    void bitcom(StackedVector<This>& S, const vector<int>& regs)
+    void bitcom(StackedVector<This>& S, const ArgVector& regs)
     {
         plain_bitcom(*this, S, regs);
     }
 
-    void bitdec(StackedVector<This>& S, const vector<int>& regs) const
+    void bitdec(StackedVector<This>& S, const ArgVector& regs) const
     {
         plain_bitdec(*this, S, regs);
     }

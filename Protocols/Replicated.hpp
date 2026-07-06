@@ -120,7 +120,7 @@ ProtocolBase<T>::~ProtocolBase()
 }
 
 template<class T>
-void ProtocolBase<T>::mulrs(const vector<int>& reg,
+void ProtocolBase<T>::mulrs(const ArgVector& reg,
         SubProcessor<T>& proc)
 {
     proc.mulrs(reg);
@@ -417,7 +417,7 @@ ReplicatedInput<T>& Replicated<T>::get_helper_input(size_t i)
 
 template<class T>
 template<class U>
-void Replicated<T>::trunc_pr(const vector<int>& regs, int size, U& proc,
+void Replicated<T>::trunc_pr(const ArgVector& regs, int size, U& proc,
         false_type)
 {
     CODE_LOCATION
@@ -571,7 +571,7 @@ void Replicated<T>::trunc_pr_finish(TruncPrTupleList<T>& infos,
 
 template<class T>
 template<class U>
-void Replicated<T>::trunc_pr(const vector<int>& regs, int size, U& proc,
+void Replicated<T>::trunc_pr(const ArgVector& regs, int size, U& proc,
         true_type)
 {
     (void) regs, (void) size, (void) proc;
@@ -580,7 +580,7 @@ void Replicated<T>::trunc_pr(const vector<int>& regs, int size, U& proc,
 
 template<class T>
 template<class U>
-void Replicated<T>::trunc_pr(const vector<int>& regs, int size,
+void Replicated<T>::trunc_pr(const ArgVector& regs, int size,
         U& proc)
 {
     this->trunc_rounds++;

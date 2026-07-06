@@ -185,6 +185,7 @@ public:
   Timer& add_to_last_round(const string& name, size_t length);
   CommStatsWithName operator[](const string& name)
   { return {name, map<string, CommStats>::operator[](name)}; }
+  double total_time() const;
 };
 
 /**

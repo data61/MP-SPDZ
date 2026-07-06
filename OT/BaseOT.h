@@ -59,8 +59,6 @@ public:
 		receiver_inputs.resize(nOT);
 		sender_inputs.resize(nOT);
 		receiver_outputs.resize(nOT);
-		G_sender.resize(nOT);
-		G_receiver.resize(nOT);
 	}
 
 	BaseOT(TwoPartyPlayer* player, OT_ROLE role) :

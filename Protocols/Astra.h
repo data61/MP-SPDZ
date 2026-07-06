@@ -146,7 +146,7 @@ public:
     void randoms_inst(StackedVector<T>&, const Instruction&);
 
     template<int = 0>
-    void trunc_pr(const vector<int>& regs, int size, SubProcessor<T>& proc,
+    void trunc_pr(const ArgVector& regs, int size, SubProcessor<T>& proc,
             false_type);
 
     template<int = 0>
@@ -280,7 +280,7 @@ public:
     void randoms_inst(StackedVector<T>&, const Instruction&);
 
     template<int = 0>
-    void trunc_pr(const vector<int>& regs, int size, SubProcessor<T>& proc,
+    void trunc_pr(const ArgVector& regs, int size, SubProcessor<T>& proc,
             false_type);
 
     template<int = 0>

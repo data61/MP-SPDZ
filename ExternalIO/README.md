@@ -59,5 +59,5 @@ Only the `sint` methods used in the example are documented here, equivalent meth
 
 The example uses the `Client` class implemented in
 `ExternalIO/Client.hpp` to handle the communication, see
-[this reference](https://mp-spdz.readthedocs.io/en/latest/io.html#reference) for
+[this reference](https://mp-spdz.readthedocs.io/en/latest/io.html#c-reference) for
 documentation.

@@ -22,8 +22,7 @@ Multiplier<FD>::Multiplier(int offset, PairwiseMachine& machine, Player& P,
     P(P, offset),
     num_players(P.num_players()),
     my_num(P.my_num()),
-    other_pk(machine.other_pks[(my_num + num_players - offset) % num_players]),
-    other_enc_alpha(machine.enc_alphas[(my_num + num_players - offset) % num_players]),
+    key_index((my_num + num_players - offset) % num_players),
     timers(timers),
     C(machine.pk), mask(machine.pk),
     product_share(machine.setup<FD>().FieldD), rc(machine.pk),
@@ -61,6 +60,8 @@ void Multiplier<FD>::add(Plaintext_<FD>& res, const Ciphertext& c,
 {
     CODE_LOCATION
     o.reset_write_head();
+
+    auto other_pk = machine.other_pks.at(key_index);
 
     if (role & SENDER)
     {
@@ -104,6 +105,7 @@ template <class FD>
 void Multiplier<FD>::multiply_alpha_and_add(Plaintext_<FD>& res,
         const Rq_Element& b, OT_ROLE role)
 {
+    auto& other_enc_alpha = machine.enc_alphas.at(key_index);
     multiply_and_add(res, other_enc_alpha, b, role);
 }
 

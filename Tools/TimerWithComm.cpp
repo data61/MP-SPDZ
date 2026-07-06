@@ -5,46 +5,44 @@
 
 #include "TimerWithComm.h"
 
-TimerWithComm::TimerWithComm()
-{
-}
-
 TimerWithComm::TimerWithComm(const Timer& other) :
-        Timer(other)
+        Timer(other), cpu_timer(CLOCK_PROCESS_CPUTIME_ID)
 {
 }
 
 TimerWithComm::TimerWithComm(double time) :
-        Timer(time)
+        TimerWithComm(Timer(time))
 {
 }
 
-void TimerWithComm::start(const NamedCommStats& stats)
+void TimerWithComm::start(const ThreadStats& stats)
 {
     Timer::start();
     last_stats = stats;
+    cpu_timer.start();
 }
 
-void TimerWithComm::stop(const NamedCommStats& stats)
+void TimerWithComm::stop(const ThreadStats& stats)
 {
     Timer::stop();
     total_stats += stats - last_stats;
+    cpu_timer.stop();
 }
 
 size_t TimerWithComm::bytes_sent() const
 {
-    return total_stats.sent;
+    return total_stats.comm_stats.sent;
 }
 
 double TimerWithComm::mb_sent() const
 {
-    return total_stats.sent * 1e-6;
+    return total_stats.comm_stats.sent * 1e-6;
 }
 
 size_t TimerWithComm::rounds() const
 {
     size_t res = 0;
-    for (auto& x : total_stats)
+    for (auto& x : total_stats.comm_stats)
         res += x.second.rounds;
     return res;
 }
@@ -86,8 +84,14 @@ string TimerWithComm::full()
     return tmp.str();
 }
 
+const ExecutionStats& TimerWithComm::exe_stats() const
+{
+    return total_stats.exe_stats;
+}
+
 ostream& operator<<(ostream& os, const TimerWithComm& stats)
 {
-    os << stats.mb_sent() << " MB, " << stats.rounds() << " rounds";
+    os << stats.mb_sent() << " MB, " << stats.rounds() << " rounds, "
+            << stats.cpu_timer.elapsed() << " CPU seconds";
     return os;
 }

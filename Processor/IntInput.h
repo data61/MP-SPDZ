@@ -8,6 +8,8 @@
 
 #include <iostream>
 
+#include "Instruction.h"
+
 template<class T>
 class IntInput
 {
@@ -20,7 +22,7 @@ public:
 
     T items[N_DEST];
 
-    void read(std::istream& in, const int* params);
+    void read(std::istream& in, const ArgVector::value_type* params);
 };
 
 #endif /* PROCESSOR_INTINPUT_H_ */

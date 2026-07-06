@@ -88,7 +88,7 @@ public:
     ProtocolBase();
     virtual ~ProtocolBase();
 
-    void mulrs(const vector<int>& reg, SubProcessor<T>& proc);
+    void mulrs(const ArgVector& reg, SubProcessor<T>& proc);
 
     void multiply(vector<T>& products, vector<pair<T, T>>& multiplicands,
             int begin, int end, SubProcessor<T>& proc);
@@ -125,10 +125,10 @@ public:
 
     virtual T get_random();
 
-    virtual void trunc_pr(const vector<int>& regs, int size, SubProcessor<T>& proc,
+    virtual void trunc_pr(const ArgVector& regs, int size, SubProcessor<T>& proc,
             true_type)
     { (void) regs, (void) size; (void) proc; throw runtime_error("trunc_pr not implemented"); }
-    virtual void trunc_pr(const vector<int>& regs, int size, SubProcessor<T>& proc,
+    virtual void trunc_pr(const ArgVector& regs, int size, SubProcessor<T>& proc,
             false_type)
     { (void) regs, (void) size; (void) proc; throw runtime_error("trunc_pr not implemented"); }
 
@@ -149,7 +149,8 @@ public:
 
     virtual void check() {}
 
-    virtual void cisc(SubProcessor<T>&, const Instruction&)
+    virtual void cisc(SubProcessor<T>&, const StackedVector<Integer>&,
+            const Instruction&)
     { throw runtime_error("CISC instructions not implemented"); }
 
     virtual vector<int> get_relevant_players();
@@ -234,12 +235,12 @@ public:
     T finalize_dotprod(int length);
 
     template<class U>
-    void trunc_pr(const vector<int>& regs, int size, U& proc);
+    void trunc_pr(const ArgVector& regs, int size, U& proc);
 
     template<class U>
-    void trunc_pr(const vector<int>& regs, int size, U& proc, true_type);
+    void trunc_pr(const ArgVector& regs, int size, U& proc, true_type);
     template<class U>
-    void trunc_pr(const vector<int>& regs, int size, U& proc, false_type);
+    void trunc_pr(const ArgVector& regs, int size, U& proc, false_type);
 
     T get_random();
     void randoms(T& res, int n_bits);

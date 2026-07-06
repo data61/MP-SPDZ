@@ -80,7 +80,7 @@ void Machine<T>::reset(const U& program, V& MD)
 }
 
 template<class T>
-void Machine<T>::run_tapes(const vector<int>& args)
+void Machine<T>::run_tapes(const ArgVector& args)
 {
     assert(args.size() % 3 == 0);
     for (unsigned i = 0; i < args.size(); i += 3)
