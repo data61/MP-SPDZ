@@ -1,0 +1,7 @@
+{
+    "band": "v7",
+    "input": "C:\\mp-spdz-7-recycles\\python-paillier",
+    "mode": "kinetic-forward-only",
+    "law": "energyless",
+    "status": "recycled"
+}
