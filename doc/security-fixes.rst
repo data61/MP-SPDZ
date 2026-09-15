@@ -5,6 +5,19 @@ Security Fixes
 This section explains select security fixes and credits people who
 have reported them.
 
+Insufficient checks in malicious replicated sharing with Beaver multiplication
+------------------------------------------------------------------------------
+
+`Yufei Duan <https://github.com/DuanYuFi>`_ discovered a protocol bug
+in malicious honest-majority 3PC with Beaver multiplication where a
+delayed check could be used by a malicious party to guess an input to
+an earlier multiplication. The fixed protocol uses the replication to
+check every opening immediately without additional rounds. Every party
+receives the necessary values from one party and a hash thereof from
+another. One of the parties is honest, so any deviation will be
+immediately discovered.
+
+
 Malicious parties are not committed to MAC key across threads and executions
 ----------------------------------------------------------------------------
 

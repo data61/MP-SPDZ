@@ -275,6 +275,10 @@ public:
    */
   virtual void send_all(const octetStream& o) const;
   /**
+   * Send something different to each of the other players
+   */
+  virtual void send_all(const vector<octetStream>& os) const;
+  /**
    * Send to a specific player
    */
   virtual void send_to(int player,const octetStream& o) const;

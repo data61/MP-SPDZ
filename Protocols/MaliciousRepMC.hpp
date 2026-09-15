@@ -49,36 +49,68 @@ template<class T>
 void HashMaliciousRepMC<T>::POpen(vector<typename T::open_type>& values,
         const vector<T>& S, const Player& P)
 {
-    ReplicatedMC<T>::POpen(values, S, P);
-    finalize(values);
+    prepare(S, P);
+    P.send_receive_all(to_send, to_receive);
+    finalize(values, S, P);
+}
+
+template<class T>
+void HashMaliciousRepMC<T>::prepare(const vector<T>& secrets, const Player& P)
+{
+    to_send.resize(3);
+    auto& value_buffer = to_send.at(P.get_player(-1));
+    value_buffer.reset_write_head();
+    hash_buffer.reset_write_head();
+    for (auto& x : secrets)
+    {
+        x[0].pack(value_buffer);
+        x[1].pack(hash_buffer);
+    }
+    hash_buffer.hash(to_send[P.get_player(1)]);
+}
+
+template<class T>
+void HashMaliciousRepMC<T>::finalize(vector<typename T::open_type>& values,
+        const vector<T>& secrets, const Player& P)
+{
+    auto& received_values = to_receive.at(P.get_player(1));
+    values.clear();
+    for (auto& x : secrets)
+    {
+        values.push_back(
+                x.sum() + received_values.get<typename T::open_type>());
+    }
+    received_values.hash(hash_buffer);
+    if (hash_buffer != to_receive.at(P.get_player(-1)))
+        throw mac_fail("check hash mismatch");
+}
+
+template<class T>
+void HashMaliciousRepMC<T>::POpen_Begin(vector<typename T::open_type>&,
+        const vector<T>& S, const Player& P)
+{
+    prepare(S, P);
+    P.send_all(to_send);
 }
 
 template<class T>
 void HashMaliciousRepMC<T>::POpen_End(vector<typename T::open_type>& values,
         const vector<T>& S, const Player& P)
 {
-    ReplicatedMC<T>::POpen_End(values, S, P);
-    finalize(values);
+    P.receive_all(to_receive);
+    finalize(values, S, P);
+}
+
+template<class T>
+void HashMaliciousRepMC<T>::exchange(const Player& P)
+{
+    POpen(this->values, this->secrets, P);
 }
 
 template<class T>
 typename T::open_type HashMaliciousRepMC<T>::finalize_raw()
 {
-    auto res = ReplicatedMC<T>::finalize_raw();
-    os.reset_write_head();
-    res.pack(os);
-    update();
-    return res;
-}
-
-template<class T>
-void HashMaliciousRepMC<T>::finalize(const vector<typename T::open_type>& values)
-{
-    os.reset_write_head();
-    os.reserve(values.size() * T::open_type::size());
-    for (auto& value : values)
-        value.pack(os);
-    update();
+    return MAC_Check_Base<T>::finalize_raw();
 }
 
 template<class T>

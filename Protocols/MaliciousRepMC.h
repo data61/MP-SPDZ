@@ -57,10 +57,15 @@ class HashMaliciousRepMC : public MaliciousRepMC<T>
 
     bool needs_checking;
 
+    vector<octetStream> to_send, to_receive;
+    octetStream hash_buffer;
+
     void reset();
     void update();
 
-    void finalize(const vector<typename T::open_type>& values);
+    void prepare(const vector<T>& secrets, const Player& P);
+    void finalize(vector<typename T::open_type>& values,
+            const vector<T>& secrets, const Player& P);
 
 public:
     // emulate MAC_Check
@@ -75,8 +80,10 @@ public:
     ~HashMaliciousRepMC();
 
     void POpen(vector<typename T::open_type>& values,const vector<T>& S,const Player& P);
+    void POpen_Begin(vector<typename T::open_type>& values,const vector<T>& S,const Player& P);
     void POpen_End(vector<typename T::open_type>& values,const vector<T>& S,const Player& P);
 
+    virtual void exchange(const Player& P);
     virtual typename T::open_type finalize_raw();
 
     void CheckFor(const typename T::open_type& value, const vector<T>& shares, const Player& P);
