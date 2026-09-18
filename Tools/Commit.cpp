@@ -25,7 +25,8 @@ bool Open(octetStream& message,const octetStream& comm, octetStream& open, int s
         throw invalid_commitment(send_player, e.what());
     }
 
-    if (!(h.equals(comm) && open_player == send_player))
+    if (!(h.equals(comm) && open_player == send_player)
+            or open.left() <= SEED_SIZE)
     {
         throw invalid_commitment(send_player);
     }
