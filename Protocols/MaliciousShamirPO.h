@@ -18,6 +18,8 @@ protected:
     vector<typename T::open_type> shares;
     typename T::Direct_MC MC;
 
+    int n_relevant_players();
+
 public:
     MaliciousShamirPO(Player& P);
 

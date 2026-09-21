@@ -16,6 +16,12 @@ MaliciousShamirPO<T>::MaliciousShamirPO(Player& P) :
 }
 
 template<class T>
+int MaliciousShamirPO<T>::n_relevant_players()
+{
+    return MC.get_threshold() + 1;
+}
+
+template<class T>
 void MaliciousShamirPO<T>::prepare_sending(const T& secret, int)
 {
     secret.pack(to_send);
@@ -24,14 +30,15 @@ void MaliciousShamirPO<T>::prepare_sending(const T& secret, int)
 template<class T>
 void MaliciousShamirPO<T>::send(int player)
 {
-    P.send_to(player, to_send);
+    if (P.my_num() < n_relevant_players())
+        P.send_to(player, to_send);
 }
 
 template<class T>
 void MaliciousShamirPO<T>::receive()
 {
-    to_receive.resize(P.num_players());
-    for (int i = 0; i < P.num_players(); i++)
+    to_receive.resize(n_relevant_players());
+    for (int i = 0; i < n_relevant_players(); i++)
         if (i != P.my_num())
             P.receive_player(i, to_receive[i]);
 }
@@ -39,7 +46,8 @@ void MaliciousShamirPO<T>::receive()
 template<class T>
 typename T::clear MaliciousShamirPO<T>::finalize(const T& secret)
 {
-    for (int i = 0; i < P.num_players(); i++)
+    shares.resize(n_relevant_players());
+    for (int i = 0; i < n_relevant_players(); i++)
     {
         if (i == P.my_num())
             shares[0] = secret;

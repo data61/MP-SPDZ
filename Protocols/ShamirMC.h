@@ -76,6 +76,8 @@ public:
 
     vector<rec_type> get_reconstruction(const Player& P, int n = 0);
     open_type reconstruct(const vector<open_type>& shares);
+
+    int get_threshold() const { return threshold; }
 };
 
 #endif /* PROTOCOLS_SHAMIRMC_H_ */
