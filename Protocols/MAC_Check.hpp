@@ -158,7 +158,11 @@ void mac_fail_remove(const Player& P)
 {
   string filename;
   if (U::needs_ot)
-    filename = get_ot_secrets_filename<typename U::prep_type>(P);
+    {
+      if (not U::prep_type::clear::Scalar::length())
+        U::prep_type::clear::Scalar::template init<typename U::clear>(false);
+      filename = get_ot_secrets_filename<typename U::prep_type>(P);
+    }
   else
     filename = U::LivePrep::get_full_secrets_filename(P);
   cerr << "Removing " << filename << " because of MAC check failure" << endl;
