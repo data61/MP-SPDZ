@@ -5197,8 +5197,10 @@ class sfix(_fix):
         :param player: public integer (int/regint/cint)
         :returns: :py:class:`personal`
         """
-        return personal(player, cfix._new(self.v.reveal_to(player)._v,
-                                          self.k, self.f))
+        class revealed_fix(self.clear_type):
+            f = self.f
+            k = self.k
+        return personal(player, revealed_fix._new(self.v.reveal_to(player)._v))
 
     def secure_shuffle(self, *args, **kwargs):
         return self._new(self.v.secure_shuffle(*args, **kwargs),
