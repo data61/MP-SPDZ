@@ -212,6 +212,11 @@ public:
   virtual int my_num() const = 0;
   virtual int num_players() const = 0;
 
+  int get_offset(int other_player) const
+  { return positive_modulo(other_player - my_num(), num_players()); }
+  int get_player(int offset) const
+  { return positive_modulo(offset + my_num(), num_players()); }
+
   virtual void receive_player(int, octetStream&) const
   { throw not_implemented(); }
   virtual void pass_around(octetStream&, int = 1) const
@@ -258,9 +263,6 @@ public:
    * Get my player number
    */
   int my_num() const { return player_no; }
-
-  int get_offset(int other_player) const { return positive_modulo(other_player - my_num(), num_players()); }
-  int get_player(int offset) const { return positive_modulo(offset + my_num(), num_players()); }
 
   virtual bool is_encrypted() { return false; }
 

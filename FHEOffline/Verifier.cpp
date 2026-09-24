@@ -116,9 +116,9 @@ void Verifier<FD>::Stage_2(
 template <class FD>
 void Verifier<FD>::NIZKPoK(AddableVector<Ciphertext>& c,
                           octetStream& ciphertexts, octetStream& cleartexts,
-                          const FHE_PK& pk)
+                          const FHE_PK& pk, int prover)
 {
-  P.set_challenge(ciphertexts);
+  P.set_challenge(ciphertexts, prover, pk);
 
   Stage_2(c,ciphertexts,cleartexts,pk);
 

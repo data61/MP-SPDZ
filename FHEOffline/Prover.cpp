@@ -115,7 +115,8 @@ size_t Prover<FD,U>::NIZKPoK(Proof& P, octetStream& ciphertexts, octetStream& cl
                         const FHE_PK& pk,
                         const AddableVector<Ciphertext>& c,
                         const vector<U>& x,
-                        const Proof::Randomness& r)
+                        const Proof::Randomness& r,
+                        int prover)
 {
 //  AElement<T> AE;
 //  for (i=0; i<P.sec; i++)
@@ -132,7 +133,7 @@ size_t Prover<FD,U>::NIZKPoK(Proof& P, octetStream& ciphertexts, octetStream& cl
   while (!ok)
     { cnt++;
       Stage_1(P,ciphertexts,c,pk);
-      P.set_challenge(ciphertexts);
+      P.set_challenge(ciphertexts, prover, pk);
       // Check check whether we are OK, or whether we should abort
       ok = Stage_2(P,cleartexts,x,r,pk);
     }

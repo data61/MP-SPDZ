@@ -28,7 +28,7 @@ public:
       - Diag flag mirrors that in Prover
   */
   void NIZKPoK(AddableVector<Ciphertext>& c,octetStream& ciphertexts,octetStream& cleartexts,
-               const FHE_PK& pk);
+               const FHE_PK& pk, int prover);
 
   size_t report_size(ReportType type) { return z.report_size(type) + t.report_size(type); }
 };

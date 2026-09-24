@@ -64,6 +64,7 @@ void PairwiseGenerator<FD>::run()
         a.randomize(G);
         b.randomize(G);
         timers["Randomization"].stop();
+        EC.get_proof().set_session_id(P);
         size_t prover_memory = EC.generate_proof(C, a, ciphertexts, cleartexts);
         timers["Plaintext multiplication"].start();
         c.mul(a, b);

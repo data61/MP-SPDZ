@@ -576,6 +576,7 @@ void InputProducer<FD>::run(const Player& P, const FHE_PK& pk,
     assert(EC.machine);
     SimpleEncCommit_<FD> personal_EC(P, pk, FieldD, timers, *EC.machine, 0);
     octetStream ciphertexts, cleartexts;
+    personal_EC.get_proof().set_session_id(P);
 
     for (int j = min; j < max; j++)
     {
@@ -595,7 +596,7 @@ void InputProducer<FD>::run(const Player& P, const FHE_PK& pk,
             P.receive_player(j, cleartexts);
             C.resize(personal_EC.machine->sec, pk.get_params());
             Verifier<FD>(personal_EC.proof, FieldD).NIZKPoK(C, ciphertexts,
-                    cleartexts, pk);
+                    cleartexts, pk, j);
         }
 
         inputs[j].clear();

@@ -220,13 +220,14 @@ void LowGearKeyGen<L>::run(PairwiseSetup<FD>& setup)
 
     AddableVector<Ciphertext> C;
     octetStream ciphertexts, cleartexts;
+    EC.get_proof().set_session_id(P);
     EC.generate_proof(C, m, ciphertexts, cleartexts);
 
     AddableVector<Ciphertext> others_ciphertexts;
     others_ciphertexts.resize(EC.proof.U, machine.pk.get_params());
     Verifier<FD> verifier(EC.proof, setup.FieldD);
     verifier.NIZKPoK(others_ciphertexts, ciphertexts,
-            cleartexts, machine.pk);
+            cleartexts, machine.pk, P.my_num());
 
     machine.enc_alphas.clear();
     for (int i = 0; i < P.num_players(); i++)
@@ -248,7 +249,7 @@ void LowGearKeyGen<L>::run(PairwiseSetup<FD>& setup)
 #endif
         timers["Verifying"].start();
         verifier.NIZKPoK(others_ciphertexts, ciphertexts,
-                cleartexts, machine.other_pks[player]);
+                cleartexts, machine.other_pks[player], player);
         timers["Verifying"].stop();
         machine.enc_alphas.at(player) = others_ciphertexts.at(0);
     }

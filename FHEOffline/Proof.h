@@ -29,6 +29,8 @@ class Proof
 
   bool diagonal;
 
+  octetStream session_id;
+
   Proof();   // Private to avoid default 
 
   public:
@@ -126,7 +128,9 @@ class Proof
     return Proof(sec, pk, 1, diagonal).U;
   }
 
-  void set_challenge(const octetStream& ciphertexts);
+  void set_session_id(const PlayerBase& P);
+  void set_challenge(const octetStream& ciphertexts, int prover,
+      const FHE_PK& pk);
   void set_challenge(PRNG& G);
   void generate_challenge(const Player& P);
 

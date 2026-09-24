@@ -6,6 +6,7 @@
 #include "Proof.h"
 #include "FHE/P2Data.h"
 #include "FHEOffline/EncCommit.h"
+#include "Tools/Subroutines.h"
 #include "Math/Z2k.hpp"
 
 double Proof::dist = 0;
@@ -33,9 +34,31 @@ bigint Proof::slack(int slack, int sec, int phim)
   }
 }
 
-void Proof::set_challenge(const octetStream& ciphertexts)
+void Proof::set_session_id(const PlayerBase& P)
 {
-  octetStream hash = ciphertexts.hash();
+  session_id.reset_write_head();
+  Create_Random_Seed(session_id.append(SEED_SIZE), P, SEED_SIZE);
+  if (OnlineOptions::singleton.has_option("debug_challenge"))
+      cerr << "new session id: " << session_id << endl;
+}
+
+void Proof::set_challenge(const octetStream& ciphertexts, int prover,
+    const FHE_PK& pk)
+{
+  Hash hasher;
+  assert(not session_id.empty());
+  hasher.update(session_id);
+  hasher.update(&prover, sizeof(prover));
+  octetStream os;
+  pk.pack(os);
+  hasher.update(os);
+  hasher.update(ciphertexts);
+  if (OnlineOptions::singleton.has_option("debug_challenge"))
+  {
+      cerr << "use session id: " << session_id << endl;
+      cerr << "prover " << prover << endl;
+  }
+  octetStream hash = hasher.final();
   PRNG G;
   assert(hash.get_length() >= SEED_SIZE);
   G.SetSeed(hash.get_data());

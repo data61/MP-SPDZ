@@ -39,7 +39,8 @@ public:
 	       const FHE_PK& pk,
                const AddableVector<Ciphertext>& c,
                const vector<U>& x,
-               const Proof::Randomness& r);
+               const Proof::Randomness& r,
+               int prover);
 
   size_t report_size(ReportType type);
   void report_size(ReportType type, MemoryUsage& res);
