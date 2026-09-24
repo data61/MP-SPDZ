@@ -147,6 +147,22 @@ void OTMultiplier<T>::init()
 template<class T>
 void OTMultiplier<T>::multiply()
 {
+    try
+    {
+        multiply_raw();
+    }
+    catch (...)
+    {
+        auto filename = get_ot_secrets_filename<T>(generator.get_player());
+        cerr << "Removing " << filename << endl << flush;
+        unlink(filename.c_str());
+        throw;
+    }
+}
+
+template<class T>
+void OTMultiplier<T>::multiply_raw()
+{
     this->outbox.push({});
     MultJob job;
     while (this->inbox.pop(job))

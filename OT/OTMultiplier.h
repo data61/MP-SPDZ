@@ -56,6 +56,8 @@ public:
 template <class T>
 class OTMultiplier : public OTMultiplierMac<typename T::sacri_type, typename T::mac_type>
 {
+    void multiply_raw();
+
 protected:
     BitVector keyBits;
     vector< array<BitVector, 2> > senderOutput;
