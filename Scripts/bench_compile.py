@@ -89,6 +89,11 @@ def main():
     parser.add_argument('--root', default=ROOT,
                         help='compile with the compiler in this directory, '
                         'e.g. a worktree of an older version')
+    parser.add_argument('--baseline',
+                        help='compare timings with the compiler in this '
+                        'directory, alternating between the two')
+    parser.add_argument('--baseline-python',
+                        help='Python interpreter for the baseline')
     parser.add_argument('-r', '--repeat', type=int, default=1,
                         help='run each entry this many times and '
                         'report the fastest')
@@ -100,11 +105,19 @@ def main():
                  if any(f in e[0] for f in options.filter.split(','))]
     if options.skip:
         suite = [e for e in suite if e[0] not in options.skip.split(',')]
-    golden_file = os.path.join(BENCH_DIR, 'golden.json')
+    # the output can depend on the Python version
+    version = subprocess.check_output(
+        [options.python, '-c', 'import sys; print("%d.%d" % sys.version_info[:2])'],
+        universal_newlines=True).strip()
+    golden_file = os.path.join(BENCH_DIR, 'golden-%s.json' % version)
     golden = {}
     if os.path.exists(golden_file):
         with open(golden_file) as f:
             golden = json.load(f)
+
+    if options.baseline:
+        compare(suite, options)
+        return
 
     with concurrent.futures.ThreadPoolExecutor(options.j) as pool:
         def best(e):
@@ -148,6 +161,30 @@ def main():
         print('saved', golden_file)
 
     sys.exit(1 if failed else 0)
+
+
+def compare(suite, options):
+    base_python = options.baseline_python or options.python
+    print('%-14s %9s %9s %8s' % ('label', 'baseline', 'new', 'speedup'))
+    total = [0, 0]
+    for entry in suite:
+        times = [[], []]
+        for i in range(options.repeat):
+            for j, (python, root) in enumerate(
+                    ((base_python, options.baseline),
+                     (options.python, options.root))):
+                label, elapsed, hashes, output = run(entry, python, root=root)
+                if hashes is None:
+                    print(output[-1500:])
+                    sys.exit(1)
+                times[j].append(elapsed)
+        best = [min(x) for x in times]
+        for j in range(2):
+            total[j] += best[j]
+        print('%-14s %8.2fs %8.2fs %7.2fx' % (
+            entry[0], best[0], best[1], best[0] / best[1]), flush=True)
+    print('%-14s %8.2fs %8.2fs %7.2fx' % (
+        'total', total[0], total[1], total[0] / total[1]))
 
 
 def prof_file(label):
