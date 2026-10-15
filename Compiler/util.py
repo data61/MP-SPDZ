@@ -1,5 +1,7 @@
+import linecache
 import math
 import operator
+import sys
 from functools import reduce
 from Compiler.exceptions import *
 
@@ -10,6 +12,20 @@ def format_trace(trace, prefix='  '):
         return ''.join('\n%sFile "%s", line %s, in %s\n%s  %s' %
                        (prefix,i[0],i[1],i[2],prefix,i[3][0].strip()) \
                            for i in reversed(trace))
+
+def get_trace(depth=1):
+    """ Cheaper alternative to inspect.stack() for :py:func:`format_trace`,
+    skipping ``depth`` frames. The source lines are read right away
+    because the source file might be temporary. """
+    res = []
+    frame = sys._getframe(depth)
+    while frame is not None:
+        filename = frame.f_code.co_filename
+        lineno = frame.f_lineno
+        res.append((filename, lineno, frame.f_code.co_name,
+                    [linecache.getline(filename, lineno)]))
+        frame = frame.f_back
+    return res
 
 def tuplify(x):
     if isinstance(x, (list, tuple)):
