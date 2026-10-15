@@ -1702,7 +1702,7 @@ def if_then(condition, in_loop=None, split_factor=None):
     state.in_loop = in_loop
     state.has_else = False
     state.closed_if = False
-    state.caller = [frame[1:] for frame in inspect.stack()[1:]]
+    state.caller = util.get_trace(2)
     instructions.program.curr_tape.if_states.append(state)
 
 def else_then():

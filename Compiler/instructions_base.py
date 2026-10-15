@@ -256,7 +256,8 @@ def check_vector_size(size):
 
 def set_global_vector_size(size):
     stack = global_vector_size_stack
-    check_vector_size(size)
+    if type(size) is not int:
+        check_vector_size(size)
     if size == 1 and not stack:
         return
     stack.append(size)
@@ -298,8 +299,9 @@ def vectorize(instruction, global_dict=None):
             self.size = size
             super(Vectorized_Instruction, self).__init__(*args, **kwargs)
             if not kwargs.get('copying', False):
+                info = _check_info
                 for arg,f in zip(self.args, self.arg_format):
-                    if issubclass(ArgFormats[f], RegisterArgFormat):
+                    if info[f][3]:
                         arg.set_size(size)
         def get_code(self):
             return instruction.get_code(self, self.get_size())
@@ -1010,6 +1012,163 @@ def format_str_is_reg(format_str):
 def format_str_is_writeable(format_str):
     return format_str_is_reg(format_str) and format_str[-1] == 'w'
 
+class _FormatKinds(dict):
+    """ Format string to 0 (no register), 1 (read register),
+    or 2 (written register). """
+    def __missing__(self, f):
+        if format_str_is_writeable(f):
+            res = 2
+        elif format_str_is_reg(f):
+            res = 1
+        else:
+            res = 0
+        self[f] = res
+        return res
+
+_format_kinds = _FormatKinds()
+
+class _CheckInfo(dict):
+    """ Format string to (argument format class, register type for the fast
+    path or None, integer bound for the fast path or None, is register). """
+    def __missing__(self, f):
+        cls = ArgFormats[f]
+        is_reg = issubclass(cls, RegisterArgFormat)
+        check = getattr(cls.check, '__func__', None)
+        reg_type = bound = None
+        if is_reg and check is RegisterArgFormat.check.__func__:
+            reg_type = cls.reg_type
+        if check is IntArgFormat.check.__func__ or \
+           cls in (ImmediateModpAF, ImmediateGF2NAF):
+            bound = 2 ** cls.n_bits
+        res = cls, reg_type, bound, is_reg
+        self[f] = res
+        return res
+
+_check_info = _CheckInfo()
+
+# id(arg_format) -> (arg_format, kind, ...) or (arg_format, None)
+_format_info = {}
+
+def _analyze_format(fmt):
+    kinds = _format_kinds
+    if isinstance(fmt, (list, tuple)):
+        return (fmt, 'static', len(fmt),
+                tuple(i for i, f in enumerate(fmt) if kinds[f] == 2),
+                tuple(i for i, f in enumerate(fmt) if kinds[f] == 1))
+    if isinstance(fmt, tools.cycle) and len(fmt.args) == 1 and \
+       isinstance(fmt.args[0], (list, tuple)) and \
+       all(isinstance(f, str) for f in fmt.args[0]):
+        pattern = fmt.args[0]
+        return (fmt, 'cycle', len(pattern),
+                tuple(i for i, f in enumerate(pattern) if kinds[f] == 2),
+                tuple(i for i, f in enumerate(pattern) if kinds[f] == 1))
+    if isinstance(fmt, tools.chain) and len(fmt.args) == 2 and \
+       isinstance(fmt.args[0], (list, tuple)) and \
+       isinstance(fmt.args[1], itertools.repeat):
+        rep = fmt.args[1]
+        # only unbounded repetition, which has no length and is not changed
+        # by next() (__reduce__() is not available from Python 3.14)
+        try:
+            rep.__length_hint__()
+        except TypeError:
+            prefix = fmt.args[0]
+            return (fmt, 'chain', len(prefix),
+                    tuple(i for i, f in enumerate(prefix) if kinds[f] == 2),
+                    tuple(i for i, f in enumerate(prefix) if kinds[f] == 1),
+                    kinds[next(rep)])
+    return fmt, None
+
+def _get_format_info(fmt):
+    # only cache long-lived format objects, not those created per instruction
+    if type(fmt) not in (list, tuple, tools.cycle, tools.chain):
+        return None
+    try:
+        info = _format_info[id(fmt)]
+        if info[0] is fmt:
+            return info
+    except KeyError:
+        pass
+    info = _format_info[id(fmt)] = _analyze_format(fmt)
+    return info
+
+# instruction type -> format info if the format is a class attribute
+_type_format_info = {}
+
+def _get_type_format_info(t):
+    fmt = getattr(t, 'arg_format', None)
+    if type(fmt) in (list, tuple, tools.cycle, tools.chain):
+        info = _analyze_format(fmt)
+    else:
+        info = None
+    _type_format_info[t] = info
+    return info
+
+def _get_regs(inst, kind):
+    """ Registers of given kind (1: read, 2: written) in argument order. """
+    args = inst.args
+    try:
+        info = _type_format_info[type(inst)]
+    except KeyError:
+        info = _get_type_format_info(type(inst))
+    if info is None:
+        info = _get_format_info(inst.arg_format)
+    if info is not None:
+        t = info[1]
+        n = len(args)
+        if t == 'static':
+            idx = info[5 - kind]
+            if n >= info[2]:
+                return [args[i] for i in idx]
+            else:
+                return [args[i] for i in idx if i < n]
+        elif t == 'cycle':
+            period = info[2]
+            idx = info[5 - kind]
+            return [args[i + j] for i in range(0, n, period) for j in idx
+                    if i + j < n]
+        elif t == 'chain':
+            prefix = info[2]
+            idx = info[5 - kind]
+            res = [args[i] for i in idx if i < n]
+            if info[5] == kind:
+                res += args[prefix:]
+            return res
+    kinds = _format_kinds
+    return [arg for arg, f in zip(args, inst.arg_format) if kinds[f] == kind]
+
+
+_pack_long = struct.Struct('>q').pack
+
+def _encode_int(arg):
+    # same as int_to_bytes() for valid input
+    if type(arg) in (int, bool) and -2 ** 32 <= arg < 2 ** 32:
+        return (arg & 0xffffffff).to_bytes(4, 'big')
+    raise ValueError()
+
+def _encode_reg(arg):
+    # same as RegisterArgFormat.encode() for valid input
+    i = arg.i
+    if type(i) is int and 0 <= i < 2 ** 32:
+        return i.to_bytes(4, 'big')
+    raise ValueError()
+
+class _Encoders(dict):
+    """ Format string to function returning the encoding as bytes. """
+    def __missing__(self, f):
+        cls = ArgFormats[f]
+        encode = getattr(cls.encode, '__func__', None)
+        if encode is RegisterArgFormat.encode.__func__:
+            res = _encode_reg
+        elif encode is IntArgFormat.encode.__func__:
+            res = _encode_int
+        elif encode is LongArgFormat.encode.__func__:
+            res = _pack_long
+        else:
+            res = lambda arg: bytes(cls.encode(arg))
+        self[f] = res
+        return res
+
+_encoders = _Encoders()
 
 class Instruction(object):
     """
@@ -1024,17 +1183,21 @@ class Instruction(object):
     def __init__(self, *args, **kwargs):
         """ Create an instruction and append it to the program list. """
         self.args = list(args)
-        if not kwargs.get('copying', False):
+        if kwargs:
+            if not kwargs.get('copying', False):
+                self.check_args()
+            if kwargs.get('add_to_prog', True):
+                program.curr_block.instructions.append(self)
+        else:
             self.check_args()
-        if kwargs.get('add_to_prog', True):
             program.curr_block.instructions.append(self)
         if program.DEBUG:
             self.caller = [frame[1:] for frame in inspect.stack()[1:]]
         else:
             self.caller = None
-        
-        Instruction.count += 1
-        if Instruction.count % 100000 == 0:
+
+        count = Instruction.count = Instruction.count + 1
+        if count % 100000 == 0:
             print("Compiled %d lines at" % self.__class__.count, time.asctime())
             sys.stdout.flush()
             if Instruction.count > 10 ** 7:
@@ -1043,7 +1206,9 @@ class Instruction(object):
                       "with @for_range_opt: "
                       "https://mp-spdz.readthedocs.io/en/latest/Compiler.html#"
                       "Compiler.library.for_range_opt")
-        if program.timeout and time.time() > program.timeout:
+        # checking the time is relatively expensive
+        if not count & 1023 and program.timeout and \
+           time.time() > program.timeout:
             raise CompilerError(
                 "Compilation timeout reached. If you need more time for your "
                 "program, you can add 'program.unlimited_compilation()' at "
@@ -1065,9 +1230,24 @@ class Instruction(object):
     
     def get_bytes(self):
         try:
+            return self._get_bytes_fast()
+        except Exception:
+            # use the original path for any error reporting
+            pass
+        try:
             return bytearray(self.get_encoding())
         except TypeError:
             raise CompilerError('cannot encode %s/%s' % (self, self.get_encoding()))
+
+    def _get_bytes_fast(self):
+        """ Same as :py:meth:`get_encoding` but returning bytes. """
+        res = [_pack_long(self.get_code())]
+        if self.has_var_args():
+            res.append(_encode_int(len(self.args)))
+        encoders = _encoders
+        for arg, f in zip(self.args, self.arg_format):
+            res.append(encoders[f](arg))
+        return b''.join(res)
     
     def check_args(self):
         """ Check the args match up with that specified in arg_format """
@@ -1076,9 +1256,23 @@ class Instruction(object):
                 raise CompilerError('Incorrect number of arguments for instruction %s' % (self))
         except TypeError:
             pass
+        info = _check_info
+        tape = None
         for n,(arg,f) in enumerate(zip(self.args, self.arg_format)):
             try:
-                ArgFormats[f].check(arg)
+                cls, reg_type, bound, _ = info[f]
+                # fast paths for common valid arguments
+                if reg_type is not None:
+                    if tape is None:
+                        tape = program.curr_tape
+                        Register = tape.Register
+                    if isinstance(arg, Register) and arg.program is tape \
+                       and arg.reg_type == reg_type:
+                        continue
+                elif bound is not None:
+                    if type(arg) is int and -bound <= arg < bound:
+                        continue
+                cls.check(arg)
             except ArgumentError as e:
                 raise CompilerError('Invalid argument %d "%s" to instruction: %s'
                     % (n, e.arg, self) + '\n' + e.msg)
@@ -1087,13 +1281,11 @@ class Instruction(object):
     
     def get_used(self):
         """ Return the set of registers that are read in this instruction. """
-        return (arg for arg,w in zip(self.args, self.arg_format) if \
-            format_str_is_reg(w) and not format_str_is_writeable(w))
+        return _get_regs(self, 1)
     
     def get_def(self):
         """ Return the set of registers that are written to in this instruction. """
-        return (arg for arg,w in zip(self.args, self.arg_format) if \
-            format_str_is_writeable(w))
+        return _get_regs(self, 2)
     
     def get_pre_arg(self):
         return ""
@@ -1170,15 +1362,21 @@ class Instruction(object):
     def get_usage(args):
         return {}
 
-    def get_parts(self):
-        if isinstance(self.arg_format, tools.cycle) and functools.reduce(
+    def has_parts(self):
+        """ Whether :py:meth:`get_parts` splits the instruction. """
+        return isinstance(self.arg_format, tools.cycle) and functools.reduce(
                 operator.and_, (isinstance(x, str)
-                                for x in self.arg_format.args[0])):
+                                for x in self.arg_format.args[0]))
+
+    def get_parts(self):
+        if self.has_parts():
             n = len(self.arg_format.args[0])
             for i in range(0, len(self.args), n):
-                args = self.args[i:i + n]
-                inst = Instruction(*args, copying=True, add_to_prog=False)
+                # avoid the overhead of creating a proper instruction
+                inst = Instruction.__new__(Instruction)
+                inst.args = self.args[i:i + n]
                 inst.arg_format = self.arg_format
+                inst.caller = None
                 yield inst
         else:
             yield self

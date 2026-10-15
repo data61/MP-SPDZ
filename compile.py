@@ -31,7 +31,7 @@ def main(compiler):
 
         p = cProfile.Profile().runctx("compilation(compiler)", globals(), locals())
         p.dump_stats(compiler.args[0] + ".prof")
-        p.print_stats(2)
+        p.sort_stats("cumulative").print_stats(40)
     else:
         compilation(compiler)
 

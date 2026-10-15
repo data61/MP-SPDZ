@@ -1,3 +1,4 @@
+import gc
 import inspect
 import os
 import re
@@ -456,6 +457,9 @@ class Compiler:
         self.VARS["sfix"] = self.sfix
 
     def prep_compile(self, name=None, build=True):
+        # Compilation creates millions of long-lived objects (instructions,
+        # registers), which makes frequent cyclic garbage collection costly.
+        gc.set_threshold(100000, 50, 100)
         self.parse_args()
         if len(self.args) < 1 and name is None:
             self.parser.print_help()

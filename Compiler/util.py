@@ -1,5 +1,7 @@
+import linecache
 import math
 import operator
+import sys
 from functools import reduce
 from Compiler.exceptions import *
 
@@ -10,6 +12,20 @@ def format_trace(trace, prefix='  '):
         return ''.join('\n%sFile "%s", line %s, in %s\n%s  %s' %
                        (prefix,i[0],i[1],i[2],prefix,i[3][0].strip()) \
                            for i in reversed(trace))
+
+def get_trace(depth=1):
+    """ Cheaper alternative to inspect.stack() for :py:func:`format_trace`,
+    skipping ``depth`` frames. The source lines are read right away
+    because the source file might be temporary. """
+    res = []
+    frame = sys._getframe(depth)
+    while frame is not None:
+        filename = frame.f_code.co_filename
+        lineno = frame.f_lineno
+        res.append((filename, lineno, frame.f_code.co_name,
+                    [linecache.getline(filename, lineno)]))
+        frame = frame.f_back
+    return res
 
 def tuplify(x):
     if isinstance(x, (list, tuple)):
@@ -244,10 +260,10 @@ def find_in_dict(d, v):
     return list(d.keys())[list(d.values()).index(v)]
 
 class set_by_id(object):
-    def __init__(self, init=[]):
-        self.content = {}
-        for x in init:
-            self.add(x)
+    __slots__ = ['content']
+
+    def __init__(self, init=()):
+        self.content = {id(x): x for x in init}
 
     def __contains__(self, value):
         return id(value) in self.content
@@ -276,6 +292,8 @@ class set_by_id(object):
         return self
 
 class dict_by_id(object):
+    __slots__ = ['content']
+
     def __init__(self):
         self.content = {}
 
@@ -298,6 +316,8 @@ class dict_by_id(object):
         return self.content.pop(id(key), None)
 
 class defaultdict_by_id(dict_by_id):
+    __slots__ = ['default']
+
     def __init__(self, default):
         dict_by_id.__init__(self)
         self.default = default

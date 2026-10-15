@@ -1507,15 +1507,11 @@ class Tape:
             filename = self.program.programs_dir + "/Bytecode/" + filename
         print("Writing to", filename)
         sys.stdout.flush()
-        f = open(filename, "wb")
-        h = hashlib.sha256()
-        for i in self._get_instructions():
-            if i is not None:
-                b = i.get_bytes()
-                f.write(b)
-                h.update(b)
-        f.close()
-        self.hash = h.digest()
+        b = b"".join(
+            i.get_bytes() for i in self._get_instructions() if i is not None)
+        with open(filename, "wb") as f:
+            f.write(b)
+        self.hash = hashlib.sha256(b).digest()
 
     def new_reg(self, reg_type, size=None):
         return self.Register(reg_type, self, size=size)
@@ -1803,7 +1799,7 @@ class Tape:
         def __init__(self, reg_type, program, size=None, i=None):
             """Creates a new register.
             reg_type must be one of those defined in RegType."""
-            if Compiler.instructions_base.get_global_instruction_type() == "gf2n":
+            if inst_base.global_instruction_type_stack[-1] == "gf2n":
                 if reg_type == RegType.ClearModp:
                     reg_type = RegType.ClearGF2N
                 elif reg_type == RegType.SecretModp:
@@ -1812,22 +1808,23 @@ class Tape:
             self.program = program
             self.block = program.active_basicblock
             if size is None:
-                size = Compiler.instructions_base.get_global_vector_size()
+                size = inst_base.get_global_vector_size()
             if size is not None and size > self.maximum_size:
                 raise CompilerError("vector too large: %d" % size)
             self.size = size
             self.vectorbase = self
             self.relative_i = 0
+            # equivalent to setting self.i because self is the vector base
             if i is not None:
-                self.i = i
+                self.absolute_i = i
             elif size is not None:
-                self.i = program.reg_counter[reg_type]
+                self.absolute_i = program.reg_counter[reg_type]
                 program.reg_counter[reg_type] += size
             else:
-                self.i = float("inf")
+                self.absolute_i = float("inf")
             self.vector = []
             self.can_eliminate = True
-            self.duplicates = util.set_by_id([self])
+            self.duplicates = util.set_by_id((self,))
             self.dup_count = None
             if Program.prog.DEBUG:
                 self.caller = [frame[1:] for frame in inspect.stack()[1:]]

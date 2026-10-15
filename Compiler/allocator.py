@@ -169,71 +169,81 @@ class StraightlineAllocator:
 
     def alloc_reg(self, reg, free):
         base = reg.vectorbase
-        if base in self.alloc:
+        alloc = self.alloc.content
+        if id(base) in alloc:
             # already allocated
             return
 
         reg_type = reg.reg_type
         size = base.size
         res = free.alloc(reg_type, size)
-        self.alloc[base] = res
+        alloc[id(base)] = base, res
 
-        base.i = self.alloc[base]
+        base.i = res
 
-        for dup in base.duplicates:
+        duplicates = base.duplicates.content
+        for dup in duplicates.values():
             dup = dup.vectorbase
-            self.alloc[dup] = self.alloc[base]
-            dup.i = self.alloc[base]
+            alloc[id(dup)] = dup, res
+            dup.i = res
             if not dup.dup_count:
-                dup.dup_count = len(base.duplicates)
+                dup.dup_count = len(duplicates)
 
     def dealloc_reg(self, reg, inst, free):
+        # the by-id containers are accessed directly for speed
+        dealloc = self.dealloc.content
         if reg.vector:
-            self.dealloc |= reg.vector
+            for x in reg.vector:
+                dealloc[id(x)] = x
         else:
-            self.dealloc.add(reg)
+            dealloc[id(reg)] = reg
         reg.duplicates.remove(reg)
         base = reg.vectorbase
 
-        seen = set_by_id()
-        to_check = set_by_id()
-        to_check.add(base)
+        seen = set()
+        to_check = {id(base): base}
         while to_check:
-            dup = to_check.pop()
-            if dup not in seen:
-                seen.add(dup)
+            dup = to_check.popitem()[1]
+            if id(dup) not in seen:
+                seen.add(id(dup))
                 base = dup.vectorbase
                 if base.vector:
                     for i in base.vector:
-                        if i not in self.dealloc:
+                        if id(i) not in dealloc:
                             # not all vector elements ready for deallocation
                             return
                         if len(i.duplicates) > 1:
                             for x in i.duplicates:
-                                to_check.add(x)
+                                to_check[id(x)] = x
                 else:
-                    if base not in self.dealloc:
+                    if id(base) not in dealloc:
                         return
-                for x in itertools.chain(dup.duplicates, base.duplicates):
-                    to_check.add(x)
+                for x in dup.duplicates.content.values():
+                    to_check[id(x)] = x
+                for x in base.duplicates.content.values():
+                    to_check[id(x)] = x
 
         if reg not in self.program.base_addresses \
            and not isinstance(inst, call_arg):
             free.free(base)
+        defined = self.defined
         if inst.is_vec() and base.vector:
-            self.defined[base] = inst
+            defined[base] = inst
             for i in base.vector:
-                self.defined[i] = inst
+                defined[i] = inst
         else:
-            self.defined[reg] = inst
+            defined[reg] = inst
 
     def process(self, program, alloc_pool):
         self.update_usage(alloc_pool)
+        alloc = self.alloc.content
+        defined = self.defined.content
         for k,i in enumerate(reversed(program)):
             unused_regs = []
-            for j in i.get_def():
-                if j.vectorbase in self.alloc:
-                    if j in self.defined:
+            defs = list(i.get_def())
+            for j in defs:
+                if id(j.vectorbase) in alloc:
+                    if id(j) in defined:
                         raise CompilerError("Double write on register %s " \
                                             "assigned by '%s' in %s" % \
                                                 (j,i,format_trace(i.caller)))
@@ -241,7 +251,7 @@ class StraightlineAllocator:
                     # unused register
                     self.alloc_reg(j, alloc_pool)
                     unused_regs.append(j)
-            if unused_regs and len(unused_regs) == len(list(i.get_def())) and \
+            if unused_regs and len(unused_regs) == len(defs) and \
                self.program.verbose:
                 # only report if all assigned registers are unused
                 self.unused[type(i).__name__] += 1
@@ -253,8 +263,13 @@ class StraightlineAllocator:
             if i.read_after_write:
                 for j in i.get_used():
                     self.alloc_reg(j, alloc_pool)
-                for j in i.get_def():
+                for j in defs:
                     self.dealloc_reg(j, i, alloc_pool)
+            elif not i.has_parts():
+                for j in defs:
+                    self.dealloc_reg(j, i, alloc_pool)
+                for j in i.get_used():
+                    self.alloc_reg(j, alloc_pool)
             else:
                 for part in reversed(list(i.get_parts())):
                     for j in part.get_def():
@@ -315,23 +330,24 @@ class StraightlineAllocator:
             print('Unused instructions:', dict(self.unused))
 
 def determine_scope(block, options):
-    last_def = defaultdict_by_id(lambda: -1)
+    # indexed by id(register)
+    last_def = {}
     used_from_scope = set_by_id()
 
     def read(reg, n):
-        for dup in reg.duplicates:
-            if last_def[dup] == -1:
+        for dup in reg.duplicates.content.values():
+            if id(dup) not in last_def:
                 dup.can_eliminate = False
                 used_from_scope.add(dup)
 
     def write(reg, n):
-        if last_def[reg] != -1:
+        if id(reg) in last_def:
             print('Warning: double write at register', reg)
             print('\tline %d: %s' % (n, instr))
             print('\ttrace: %s' % format_trace(instr.caller, '\t\t'))
             if options.stop:
                 sys.exit(1)
-        last_def[reg] = n
+        last_def[id(reg)] = n
 
     for n,instr in enumerate(block.instructions):
         outputs,inputs = instr.get_def(), instr.get_used()
@@ -377,9 +393,9 @@ class Merger:
         except StopIteration:
             return mergecount, None
 
-        under_budget = reduce(operator.or_, (
-            (instructions[x].get_repeat() or 0) <
-            self.block.parent.program.memory_budget for x in merge))
+        memory_budget = self.block.parent.program.memory_budget
+        under_budget = any((instructions[x].get_repeat() or 0) <
+                           memory_budget for x in merge)
 
         if under_budget:
             for i in merges_iter:
@@ -442,18 +458,15 @@ class Merger:
         options = self.options
         open_nodes = set()
         self.open_nodes = open_nodes
-        colordict = defaultdict(lambda: 'gray', asm_open='red',\
-                                ldi='lightblue', ldm='lightblue', stm='blue',\
-                                mov='yellow', mulm='orange', mulc='orange',\
-                                triple='green', square='green', bit='green',\
-                                asm_input='lightgreen')
 
         G = Compiler.graph.SparseDiGraph(len(block.instructions))
         self.G = G
+        succ = G.succ
+        pred = G.pred
 
-        reg_nodes = {}
-        last_def = defaultdict_by_id(lambda: -1)
-        last_read = defaultdict_by_id(list)
+        # indexed by id(register)
+        last_def = {}
+        last_read = {}
         last_mem_write = []
         last_mem_read = []
         last_mem_write_of = defaultdict(list)
@@ -468,10 +481,9 @@ class Merger:
         self.depths = depths
         parallel_open = defaultdict(lambda: 0)
         next_available_depth = {}
-        self.sources = []
-        self.real_depths = [0] * len(block.instructions)
         round_type = {}
         shuffles = defaultdict_by_id(set)
+        budget = block.parent.program.budget
 
         class MemScope:
             def __init__(self):
@@ -479,30 +491,49 @@ class Merger:
                 self.write = []
 
         def add_edge(i, j):
-            if i in (-1, j):
+            if i == -1 or i == j:
                 return
-            G.add_edge(i, j)
-            for d in (self.depths, self.real_depths):
-                if d[j] < d[i]:
-                    d[j] = d[i]
+            s = succ[i]
+            if j not in s:
+                pred[j].add(i)
+                s[j] = None
+            if depths[j] < depths[i]:
+                depths[j] = depths[i]
 
         def read(reg, n):
-            for dup in reg.duplicates:
-                if last_def[dup] not in (-1, n):
-                    add_edge(last_def[dup], n)
-            last_read[reg].append(n)
+            for dup in reg.duplicates.content.values():
+                m = last_def.get(id(dup), -1)
+                if m != -1 and m != n:
+                    add_edge(m, n)
+            reads = last_read.get(id(reg))
+            if reads is None:
+                last_read[id(reg)] = [n]
+            else:
+                reads.append(n)
 
         def write(reg, n):
-            for dup in reg.duplicates:
-                add_edge(last_def[dup], n)
-                for m in last_read[dup]:
+            for dup in reg.duplicates.content.values():
+                add_edge(last_def.get(id(dup), -1), n)
+                for m in last_read.get(id(dup), ()):
                     add_edge(m, n)
-            last_def[reg] = n
+            last_def[id(reg)] = n
+
+        def mem_key(addr):
+            # same as str(addr) but faster for integers
+            if type(addr) is not int:
+                addr = str(addr)
+                try:
+                    if str(int(addr)) == addr:
+                        addr = int(addr)
+                except ValueError:
+                    pass
+            return addr
 
         def handle_mem_access(addr, reg_type, last_access_this_kind,
                               last_access_other_kind):
-            this = last_access_this_kind[str(addr),reg_type]
-            other = last_access_other_kind[str(addr),reg_type]
+            key = mem_key(addr), reg_type
+            this = last_access_this_kind[key]
+            other = last_access_other_kind[key]
             if this and other:
                 if this[-1] < other[0]:
                     del this[:]
@@ -517,12 +548,23 @@ class Merger:
         def mem_access(n, instr, last_access_this_kind, last_access_other_kind):
             addr = instr.args[1]
             reg_type = instr.args[0].reg_type
-            budget = block.parent.program.budget
             if isinstance(addr, int):
-                for i in range(min(instr.get_size(), budget)):
-                    addr_i = addr + i
-                    handle_mem_access(addr_i, reg_type, last_access_this_kind,
-                                      last_access_other_kind)
+                # inlined handle_mem_access() for speed
+                is_write = id(last_access_this_kind) == id(last_mem_write_of)
+                for addr_i in range(addr, addr + min(instr.get_size(), budget)):
+                    key = addr_i, reg_type
+                    this = last_access_this_kind[key]
+                    other = last_access_other_kind.get(key)
+                    if this and other:
+                        if this[-1] < other[0]:
+                            del this[:]
+                    this.append(n)
+                    if other:
+                        for inst in other:
+                            add_edge(inst, n)
+                    if is_write:
+                        for inst in this:
+                            add_edge(inst, n)
                 if block.warn_about_mem and \
                    not block.parent.warned_about_mem and \
                    (instr.get_size() > budget) and not instr._protect:
@@ -585,14 +627,40 @@ class Merger:
                 for player in inst.get_players():
                     keep_merged_order(instr, n, player)
 
+        # instruction type -> (first, merge, second) category, matching the
+        # isinstance() chains below
+        categories = {}
+
+        def categorize(t):
+            if issubclass(t, TextInputInstruction):
+                first = 1
+            elif issubclass(t, RawInputInstruction):
+                first = 2
+            elif issubclass(t, matmulsm_class):
+                first = 3
+            else:
+                first = 0
+            merge = issubclass(t, merge_classes)
+            for second, cls in enumerate((
+                    ReadMemoryInstruction, WriteMemoryInstruction,
+                    IOInstruction, PublicFileIOInstruction, prep_class,
+                    StackInstruction, applyshuffle, delshuffle)):
+                if issubclass(t, cls):
+                    second += 1
+                    break
+            else:
+                second = 0
+            res = categories[t] = first, merge, second
+            return res
+
         for n,instr in enumerate(block.instructions):
             outputs,inputs = instr.get_def(), instr.get_used()
 
-            G.add_node(n)
+            try:
+                first, merge, second = categories[type(instr)]
+            except KeyError:
+                first, merge, second = categorize(type(instr))
 
-            # if options.debug:
-            #     col = colordict[instr.__class__.__name__]
-            #     G.add_node(n, color=col, label=str(instr))
             for reg in outputs:
                 if reg.vector and instr.is_vec():
                     for i in reg.vector:
@@ -608,11 +676,13 @@ class Merger:
                     read(reg, n)
 
             # will be merged
-            if isinstance(instr, TextInputInstruction):
+            if not first:
+                pass
+            elif first == 1:
                 keep_text_order(instr, n)
-            elif isinstance(instr, RawInputInstruction):
+            elif first == 2:
                 keep_merged_order(instr, n, RawInputInstruction)
-            elif isinstance(instr, matmulsm_class):
+            elif first == 3:
                 if options.preserve_mem_order:
                     strict_mem_access(n, last_mem_read, last_mem_write)
                 else:
@@ -678,31 +748,33 @@ class Merger:
                             for j in i:
                                 add_edge(j, n)
 
-            if isinstance(instr, merge_classes):
+            if merge:
                 open_nodes.add(n)
-                G.add_node(n, merges=[])
                 # the following must happen after adding the edge
-                self.real_depths[n] += 1
                 depth = depths[n] + 1
+                merge_id = instr.merge_id()
+                max_parallel_open = int(options.max_parallel_open)
 
                 # find first depth that has the right type and isn't full
                 skipped_depths = set()
                 while (depth in round_type and \
-                       round_type[depth] != instr.merge_id()) or \
-                      (int(options.max_parallel_open) > 0 and \
-                      parallel_open[depth] >= int(options.max_parallel_open)):
+                       round_type[depth] != merge_id) or \
+                      (max_parallel_open > 0 and \
+                      parallel_open[depth] >= max_parallel_open):
                     skipped_depths.add(depth)
                     depth = next_available_depth.get((type(instr), depth), \
                                                      depth + 1)
                 for d in skipped_depths:
                     next_available_depth[type(instr), d] = depth
 
-                round_type[depth] = instr.merge_id()
-                if int(options.max_parallel_open) > 0:
+                round_type[depth] = merge_id
+                if max_parallel_open > 0:
                     parallel_open[depth] += len(instr.args) * instr.get_size()
                 depths[n] = depth
 
-            if isinstance(instr, ReadMemoryInstruction):
+            if not second:
+                pass
+            elif second == 1:
                 if options.preserve_mem_order:
                     strict_mem_access(n, last_mem_read, last_mem_write)
                 elif instr._protect:
@@ -710,7 +782,7 @@ class Merger:
                     strict_mem_access(n, scope.read, scope.write)
                 if not options.preserve_mem_order:
                     mem_access(n, instr, last_mem_read_of, last_mem_write_of)
-            elif isinstance(instr, WriteMemoryInstruction):
+            elif second == 2:
                 if options.preserve_mem_order:
                     strict_mem_access(n, last_mem_write, last_mem_read)
                 elif instr._protect:
@@ -719,25 +791,22 @@ class Merger:
                 if not options.preserve_mem_order:
                     mem_access(n, instr, last_mem_write_of, last_mem_read_of)
             # keep I/O instructions in order
-            elif isinstance(instr, IOInstruction):
+            elif second == 3:
                 if last_print_str is not None:
                     add_edge(last_print_str, n)
                 last_print_str = n
-            elif isinstance(instr, PublicFileIOInstruction):
+            elif second == 4:
                 keep_order(instr, n, PublicFileIOInstruction)
-            elif isinstance(instr, prep_class):
+            elif second == 5:
                 keep_order(instr, n, instr.args[0])
-            elif isinstance(instr, StackInstruction):
+            elif second == 6:
                 keep_order(instr, n, StackInstruction)
-            elif isinstance(instr, applyshuffle):
+            elif second == 7:
                 for handle in instr.handles():
                     shuffles[handle].add(n)
-            elif isinstance(instr, delshuffle):
+            elif second == 8:
                 for i_inst in shuffles[instr.args[0]]:
                     add_edge(i_inst, n)
-
-            if not G.pred[n]:
-                self.sources.append(n)
 
             if n % 1000000 == 0 and n > 0:
                 print("Processed dependency of %d/%d instructions at" % \
@@ -750,9 +819,10 @@ class Merger:
             G.remove_edge(i, j)
         if i in G[j]:
             G.remove_edge(j, i)
-        G.add_edges_from(list(zip(itertools.cycle([i]), G[j], [G.weights[(j,k)] for k in G[j]])))
-        G.add_edges_from(list(zip(G.pred[j], itertools.cycle([i]), [G.weights[(k,j)] for k in G.pred[j]])))
-        G.get_attr(i, 'merges').append(j)
+        for k in list(G.succ[j]):
+            G.add_edge(i, k)
+        for k in list(G.pred[j]):
+            G.add_edge(k, i)
         G.remove_node(j)
 
     def eliminate_dead_code(self, only_ldint=False):
@@ -767,27 +837,23 @@ class Merger:
                 continue
             if only_ldint and not isinstance(inst, ldint_class):
                 continue
-            can_eliminate_defs = True
-            for reg in inst.get_def():
-                for dup in reg.duplicates:
-                    if not (dup.can_eliminate and reduce(
-                            operator.and_,
-                            (x.can_eliminate for x in dup.vector), True)):
-                        can_eliminate_defs = False
-                        break
             # remove if instruction has result that isn't used
-            unused_result = not G.degree(i) and len(list(inst.get_def())) \
-                and can_eliminate_defs \
-                and not isinstance(inst, (DoNotEliminateInstruction))
-            def eliminate(i):
+            if G.degree(i):
+                continue
+            defs = list(inst.get_def())
+            if not defs or isinstance(inst, DoNotEliminateInstruction):
+                continue
+            can_eliminate_defs = all(
+                dup.can_eliminate and
+                all(x.can_eliminate for x in dup.vector)
+                for reg in defs for dup in reg.duplicates)
+            if can_eliminate_defs:
                 G.remove_node(i)
                 merge_nodes.discard(i)
-                stats[type(instructions[i]).__name__] += 1
-                for reg in instructions[i].get_def():
+                stats[type(inst).__name__] += 1
+                for reg in defs:
                     self.block.parent.program.base_addresses.pop(reg)
                 instructions[i] = None
-            if unused_result:
-                eliminate(i)
                 count += 1
         if count > 0 and self.block.parent.program.verbose:
             print('Eliminated %d dead instructions, among which %d opens: %s' \
@@ -821,29 +887,70 @@ class RegintOptimizer:
         if (new_base.i, new_offset, multiplier) not in self.rev_offset_cache:
             self.rev_offset_cache[new_base.i, new_offset, multiplier] = res
 
+    # instruction type -> category in run()
+    categories = {}
+
+    @staticmethod
+    def categorize(t):
+        if issubclass(t, ldint_class):
+            return 1
+        elif issubclass(t, incint):
+            return 2
+        elif issubclass(t, IntegerInstruction):
+            return 3
+        elif issubclass(t, IndirectMemoryInstruction):
+            return 4
+        elif t == convint_class:
+            return 5
+        elif issubclass(t, mulm_class):
+            return 6
+        elif issubclass(t, (crash, cond_print_str, cond_print_plain)):
+            return 7
+        else:
+            return 0
+
     def run(self, instructions, program):
         changed = defaultdict(int)
-        for i, inst in enumerate(instructions):
+        categories = self.categories
+        # access by-id containers directly for speed
+        cache = self.cache.content
+        offset_cache = self.offset_cache.content
+        range_cache = self.range_cache.content
+        def set_cache(reg, value):
+            cache[id(reg)] = reg, value
+        def get_cache(reg):
+            return cache[id(reg)][1]
+        types = set(map(type, instructions))
+        for t in types:
+            if t not in categories:
+                categories[t] = self.categorize(t)
+        # only consider relevant instructions, computed in C for speed
+        relevant = itertools.compress(
+            range(len(instructions)),
+            map(categories.__getitem__, map(type, instructions)))
+        for i in relevant:
+            inst = instructions[i]
+            category = categories[type(inst)]
             pre = inst
-            if isinstance(inst, ldint_class):
-                self.cache[inst.args[0]] = inst.args[1]
-            elif isinstance(inst, incint):
+            if category == 1:
+                set_cache(inst.args[0], inst.args[1])
+            elif category == 2:
                 if inst.args[2] == 1 and inst.args[3] == 1 and \
                    inst.args[4] == len(inst.args[0]) and \
-                   inst.args[1] in self.cache:
+                   id(inst.args[1]) in cache:
                     self.range_cache[inst.args[0]] = \
-                        len(inst.args[0]), self.cache[inst.args[1]]
-            elif isinstance(inst, IntegerInstruction):
-                if inst.args[1] in self.cache and inst.args[2] in self.cache:
-                    res = inst.op(self.cache[inst.args[1]],
-                                  self.cache[inst.args[2]])
+                        len(inst.args[0]), get_cache(inst.args[1])
+            elif category == 3:
+                if id(inst.args[1]) in cache and id(inst.args[2]) in cache:
+                    res = inst.op(get_cache(inst.args[1]),
+                                  get_cache(inst.args[2]))
                     if abs(res) < 2 ** 31:
-                        self.cache[inst.args[0]] = res
+                        set_cache(inst.args[0], res)
                         instructions[i] = ldint(inst.args[0], res,
                                                 add_to_prog=False)
                 elif isinstance(inst, addint_class):
                     def f(base, delta_reg):
-                        delta = self.cache[delta_reg]
+                        delta = get_cache(delta_reg)
                         if base in self.offset_cache:
                             reg, offset, mult = self.offset_cache[base]
                             new_base, new_offset = reg, offset + delta
@@ -852,13 +959,13 @@ class RegintOptimizer:
                             mult = 1
                         self.add_offset(inst.args[0], new_base, new_offset,
                                         mult)
-                    if inst.args[1] in self.cache:
+                    if id(inst.args[1]) in cache:
                         f(inst.args[2], inst.args[1])
-                    elif inst.args[2] in self.cache:
+                    elif id(inst.args[2]) in cache:
                         f(inst.args[1], inst.args[2])
                 elif isinstance(inst, subint_class):
                     def f(reg, cached, reverse):
-                        delta = self.cache[cached]
+                        delta = get_cache(cached)
                         if reg in self.offset_cache:
                             reg, offset, mult = self.offset_cache[reg]
                             new_base = reg
@@ -873,41 +980,41 @@ class RegintOptimizer:
                             mult = 1
                         self.add_offset(inst.args[0], new_base, new_offset,
                                         -mult)
-                    if inst.args[1] in self.cache:
+                    if id(inst.args[1]) in cache:
                         f(inst.args[2], inst.args[1], False)
-                    elif inst.args[2] in self.cache:
+                    elif id(inst.args[2]) in cache:
                         f(inst.args[1], inst.args[2], True)
-            elif isinstance(inst, IndirectMemoryInstruction):
-                if inst.args[1] in self.cache:
-                    instructions[i] = inst.get_direct(self.cache[inst.args[1]])
+            elif category == 4:
+                if id(inst.args[1]) in cache:
+                    instructions[i] = inst.get_direct(get_cache(inst.args[1]))
                     instructions[i]._protect = inst._protect
-                elif inst.args[1] in self.offset_cache:
+                elif id(inst.args[1]) in offset_cache:
                     base, offset, mult = self.offset_cache[inst.args[1]]
                     addr = self.rev_offset_cache[base.i, offset, mult]
                     inst.args[1] = addr
-                elif inst.args[1] in self.range_cache:
+                elif id(inst.args[1]) in range_cache:
                     size, base = self.range_cache[inst.args[1]]
                     if size == len(inst.args[0]):
                         instructions[i] = inst.get_direct(base)
-            elif type(inst) == convint_class:
-                if inst.args[1] in self.cache:
-                    res = self.cache[inst.args[1]]
-                    self.cache[inst.args[0]] = res
+            elif category == 5:
+                if id(inst.args[1]) in cache:
+                    res = get_cache(inst.args[1])
+                    set_cache(inst.args[0], res)
                     if abs(res) < 2 ** 31:
                         instructions[i] = ldi(inst.args[0], res,
                                               add_to_prog=False)
-            elif isinstance(inst, mulm_class):
-                if inst.args[2] in self.cache:
-                    op = self.cache[inst.args[2]]
+            elif category == 6:
+                if id(inst.args[2]) in cache:
+                    op = get_cache(inst.args[2])
                     if op == 0:
                         instructions[i] = ldsi(inst.args[0], 0,
                                                add_to_prog=False)
-            elif isinstance(inst, (crash, cond_print_str, cond_print_plain)):
-                if inst.args[0] in self.cache:
-                    cond = self.cache[inst.args[0]]
+            elif category == 7:
+                if id(inst.args[0]) in cache:
+                    cond = get_cache(inst.args[0])
                     if not cond:
                         instructions[i] = None
-            if pre != instructions[i]:
+            if pre is not instructions[i]:
                 changed[type(inst).__name__] += 1
         pre = len(instructions)
         instructions[:] = list(filter(lambda x: x is not None, instructions))
