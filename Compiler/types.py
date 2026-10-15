@@ -76,6 +76,18 @@ import operator
 from functools import reduce
 import re
 
+_gc_types_module = None
+
+def _gc_types():
+    """ Compiler.GC.types, which cannot be imported at the top because it
+    imports this module. Faster than importing in frequently called
+    functions. """
+    global _gc_types_module
+    if _gc_types_module is None:
+        from .GC import types
+        _gc_types_module = types
+    return _gc_types_module
+
 
 class ClientMessageType:
     """ Enum to define type of message sent to external client. Each may be array of length n."""
@@ -134,7 +146,7 @@ def no_doc(operation):
 def vectorize(operation):
     def vectorized_operation(self, *args, **kwargs):
         if len(args):
-            from .GC.types import bits
+            bits = _gc_types().bits
             if (isinstance(args[0], Tape.Register) or isinstance(args[0], sfloat)) \
                     and not isinstance(args[0], bits) \
                     and args[0].size != self.size:
@@ -812,7 +824,7 @@ class _register(Tape.Register, _number, _structure):
 
     @set_instruction_type
     def __init__(self, reg_type, val, size):
-        from .GC.types import sbits
+        sbits = _gc_types().sbits
         if isinstance(val, (tuple, list)):
             size = len(val)
         elif isinstance(val, sbits):
@@ -1909,7 +1921,7 @@ class regint(_register, _int):
 
     def _condition(self):
         if program.options.binary:
-            from .GC.types import cbits
+            cbits = _gc_types().cbits
             return cbits.get_type(64)(self)
         else:
             return cint(self)
@@ -2624,7 +2636,7 @@ class sint(_secret, _int):
             x = tmp.split_to_two_summands(bits, True)
             carry = comparison.CarryOutRawLE(x[1][:bits], x[0][:bits])
             if program.use_split() > 3:
-                from .GC.types import sbitint
+                sbitint = _gc_types().sbitint
                 x = sbitint.full_adder(carry, x[0][bits], x[1][bits])
                 overflow = sint.conv(x[1]) * 2 + sint.conv(x[0])
             else:
@@ -2829,7 +2841,7 @@ class sint(_secret, _int):
 
     @vectorize_init
     def __init__(self, val=None, size=None):
-        from .GC.types import sbitvec
+        sbitvec = _gc_types().sbitvec
         if isinstance(val, personal):
             size = val._v.size
             super(sint, self).__init__('s', size=size)
@@ -3100,7 +3112,7 @@ class sint(_secret, _int):
 
     def split_to_n_summands(self, length, n):
         comparison.require_ring_size(length, 'splitting')
-        from .GC.types import sbits
+        sbits = _gc_types().sbits
         from .GC.instructions import split
         columns = [[sbits.get_type(self.size)()
                     for i in range(n)] for i in range(length)]
@@ -5997,7 +6009,7 @@ class _vectorizable:
         if isinstance(index, _clear):
             index = regint.conv(index)
         if length is not None:
-            from .GC.types import cbits
+            cbits = _gc_types().cbits
             if isinstance(index, int) and isinstance(length, int):
                 index += length * (index < 0)
                 if index >= length or index < 0:

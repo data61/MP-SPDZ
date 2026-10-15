@@ -875,29 +875,67 @@ class RegintOptimizer:
         if (new_base.i, new_offset, multiplier) not in self.rev_offset_cache:
             self.rev_offset_cache[new_base.i, new_offset, multiplier] = res
 
+    # instruction type -> category in run()
+    categories = {}
+
+    @staticmethod
+    def categorize(t):
+        if issubclass(t, ldint_class):
+            return 1
+        elif issubclass(t, incint):
+            return 2
+        elif issubclass(t, IntegerInstruction):
+            return 3
+        elif issubclass(t, IndirectMemoryInstruction):
+            return 4
+        elif t == convint_class:
+            return 5
+        elif issubclass(t, mulm_class):
+            return 6
+        elif issubclass(t, (crash, cond_print_str, cond_print_plain)):
+            return 7
+        else:
+            return 0
+
     def run(self, instructions, program):
         changed = defaultdict(int)
+        categories = self.categories
+        # access by-id containers directly for speed
+        cache = self.cache.content
+        offset_cache = self.offset_cache.content
+        range_cache = self.range_cache.content
+        def set_cache(reg, value):
+            cache[id(reg)] = reg, value
+        def get_cache(reg):
+            return cache[id(reg)][1]
         for i, inst in enumerate(instructions):
+            try:
+                category = categories[type(inst)]
+            except KeyError:
+                category = categories[type(inst)] = \
+                    self.categorize(type(inst))
+            if not category:
+                continue
             pre = inst
-            if isinstance(inst, ldint_class):
-                self.cache[inst.args[0]] = inst.args[1]
-            elif isinstance(inst, incint):
+            if category == 1:
+                set_cache(inst.args[0], inst.args[1])
+            elif category == 2:
                 if inst.args[2] == 1 and inst.args[3] == 1 and \
                    inst.args[4] == len(inst.args[0]) and \
-                   inst.args[1] in self.cache:
+                   id(inst.args[1]) in cache:
                     self.range_cache[inst.args[0]] = \
-                        len(inst.args[0]), self.cache[inst.args[1]]
-            elif isinstance(inst, IntegerInstruction):
-                if inst.args[1] in self.cache and inst.args[2] in self.cache:
-                    res = inst.op(self.cache[inst.args[1]],
-                                  self.cache[inst.args[2]])
+                        len(inst.args[0]), get_cache(inst.args[1])
+            elif category == 3:
+                if id(inst.args[1]) in cache and id(inst.args[2]) in cache:
+                    res = inst.op(get_cache(inst.args[1]),
+                                  get_cache(inst.args[2]))
                     if abs(res) < 2 ** 31:
-                        self.cache[inst.args[0]] = res
+                        set_cache(inst.args[0], res)
                         instructions[i] = ldint(inst.args[0], res,
                                                 add_to_prog=False)
                 elif isinstance(inst, addint_class):
                     def f(base, delta_reg):
-                        delta = self.cache[delta_reg]
+                        delta = get_cache(delta_reg)
                         if base in self.offset_cache:
                             reg, offset, mult = self.offset_cache[base]
                             new_base, new_offset = reg, offset + delta
@@ -906,13 +944,13 @@ class RegintOptimizer:
                             mult = 1
                         self.add_offset(inst.args[0], new_base, new_offset,
                                         mult)
-                    if inst.args[1] in self.cache:
+                    if id(inst.args[1]) in cache:
                         f(inst.args[2], inst.args[1])
-                    elif inst.args[2] in self.cache:
+                    elif id(inst.args[2]) in cache:
                         f(inst.args[1], inst.args[2])
                 elif isinstance(inst, subint_class):
                     def f(reg, cached, reverse):
-                        delta = self.cache[cached]
+                        delta = get_cache(cached)
                         if reg in self.offset_cache:
                             reg, offset, mult = self.offset_cache[reg]
                             new_base = reg
@@ -927,41 +965,41 @@ class RegintOptimizer:
                             mult = 1
                         self.add_offset(inst.args[0], new_base, new_offset,
                                         -mult)
-                    if inst.args[1] in self.cache:
+                    if id(inst.args[1]) in cache:
                         f(inst.args[2], inst.args[1], False)
-                    elif inst.args[2] in self.cache:
+                    elif id(inst.args[2]) in cache:
                         f(inst.args[1], inst.args[2], True)
-            elif isinstance(inst, IndirectMemoryInstruction):
-                if inst.args[1] in self.cache:
-                    instructions[i] = inst.get_direct(self.cache[inst.args[1]])
+            elif category == 4:
+                if id(inst.args[1]) in cache:
+                    instructions[i] = inst.get_direct(get_cache(inst.args[1]))
                     instructions[i]._protect = inst._protect
-                elif inst.args[1] in self.offset_cache:
+                elif id(inst.args[1]) in offset_cache:
                     base, offset, mult = self.offset_cache[inst.args[1]]
                     addr = self.rev_offset_cache[base.i, offset, mult]
                     inst.args[1] = addr
-                elif inst.args[1] in self.range_cache:
+                elif id(inst.args[1]) in range_cache:
                     size, base = self.range_cache[inst.args[1]]
                     if size == len(inst.args[0]):
                         instructions[i] = inst.get_direct(base)
-            elif type(inst) == convint_class:
-                if inst.args[1] in self.cache:
-                    res = self.cache[inst.args[1]]
-                    self.cache[inst.args[0]] = res
+            elif category == 5:
+                if id(inst.args[1]) in cache:
+                    res = get_cache(inst.args[1])
+                    set_cache(inst.args[0], res)
                     if abs(res) < 2 ** 31:
                         instructions[i] = ldi(inst.args[0], res,
                                               add_to_prog=False)
-            elif isinstance(inst, mulm_class):
-                if inst.args[2] in self.cache:
-                    op = self.cache[inst.args[2]]
+            elif category == 6:
+                if id(inst.args[2]) in cache:
+                    op = get_cache(inst.args[2])
                     if op == 0:
                         instructions[i] = ldsi(inst.args[0], 0,
                                                add_to_prog=False)
-            elif isinstance(inst, (crash, cond_print_str, cond_print_plain)):
-                if inst.args[0] in self.cache:
-                    cond = self.cache[inst.args[0]]
+            elif category == 7:
+                if id(inst.args[0]) in cache:
+                    cond = get_cache(inst.args[0])
                     if not cond:
                         instructions[i] = None
-            if pre != instructions[i]:
+            if pre is not instructions[i]:
                 changed[type(inst).__name__] += 1
         pre = len(instructions)
         instructions[:] = list(filter(lambda x: x is not None, instructions))
