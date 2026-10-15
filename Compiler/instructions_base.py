@@ -298,8 +298,9 @@ def vectorize(instruction, global_dict=None):
             self.size = size
             super(Vectorized_Instruction, self).__init__(*args, **kwargs)
             if not kwargs.get('copying', False):
+                info = _check_info
                 for arg,f in zip(self.args, self.arg_format):
-                    if issubclass(ArgFormats[f], RegisterArgFormat):
+                    if info[f][3]:
                         arg.set_size(size)
         def get_code(self):
             return instruction.get_code(self, self.get_size())
@@ -1010,6 +1011,113 @@ def format_str_is_reg(format_str):
 def format_str_is_writeable(format_str):
     return format_str_is_reg(format_str) and format_str[-1] == 'w'
 
+class _FormatKinds(dict):
+    """ Format string to 0 (no register), 1 (read register),
+    or 2 (written register). """
+    def __missing__(self, f):
+        if format_str_is_writeable(f):
+            res = 2
+        elif format_str_is_reg(f):
+            res = 1
+        else:
+            res = 0
+        self[f] = res
+        return res
+
+_format_kinds = _FormatKinds()
+
+class _CheckInfo(dict):
+    """ Format string to (argument format class, register type for the fast
+    path or None, integer bound for the fast path or None, is register). """
+    def __missing__(self, f):
+        cls = ArgFormats[f]
+        is_reg = issubclass(cls, RegisterArgFormat)
+        check = getattr(cls.check, '__func__', None)
+        reg_type = bound = None
+        if is_reg and check is RegisterArgFormat.check.__func__:
+            reg_type = cls.reg_type
+        if check is IntArgFormat.check.__func__ or \
+           cls in (ImmediateModpAF, ImmediateGF2NAF):
+            bound = 2 ** cls.n_bits
+        res = cls, reg_type, bound, is_reg
+        self[f] = res
+        return res
+
+_check_info = _CheckInfo()
+
+# id(arg_format) -> (arg_format, kind, ...) or (arg_format, None)
+_format_info = {}
+
+def _analyze_format(fmt):
+    kinds = _format_kinds
+    if isinstance(fmt, (list, tuple)):
+        return (fmt, 'static', len(fmt),
+                tuple(i for i, f in enumerate(fmt) if kinds[f] == 2),
+                tuple(i for i, f in enumerate(fmt) if kinds[f] == 1))
+    if isinstance(fmt, tools.cycle) and len(fmt.args) == 1 and \
+       isinstance(fmt.args[0], (list, tuple)) and \
+       all(isinstance(f, str) for f in fmt.args[0]):
+        pattern = fmt.args[0]
+        return (fmt, 'cycle', len(pattern),
+                tuple(i for i, f in enumerate(pattern) if kinds[f] == 2),
+                tuple(i for i, f in enumerate(pattern) if kinds[f] == 1))
+    if isinstance(fmt, tools.chain) and len(fmt.args) == 2 and \
+       isinstance(fmt.args[0], (list, tuple)) and \
+       isinstance(fmt.args[1], itertools.repeat):
+        rep = fmt.args[1]
+        # only unbounded repetition, which has no length and is not changed
+        # by next() (__reduce__() is not available from Python 3.14)
+        try:
+            rep.__length_hint__()
+        except TypeError:
+            prefix = fmt.args[0]
+            return (fmt, 'chain', len(prefix),
+                    tuple(i for i, f in enumerate(prefix) if kinds[f] == 2),
+                    tuple(i for i, f in enumerate(prefix) if kinds[f] == 1),
+                    kinds[next(rep)])
+    return fmt, None
+
+def _get_format_info(fmt):
+    # only cache long-lived format objects, not those created per instruction
+    if type(fmt) not in (list, tuple, tools.cycle, tools.chain):
+        return None
+    try:
+        info = _format_info[id(fmt)]
+        if info[0] is fmt:
+            return info
+    except KeyError:
+        pass
+    info = _format_info[id(fmt)] = _analyze_format(fmt)
+    return info
+
+def _get_regs(inst, kind):
+    """ Registers of given kind (1: read, 2: written) in argument order. """
+    args = inst.args
+    info = _get_format_info(inst.arg_format)
+    if info is not None:
+        t = info[1]
+        n = len(args)
+        if t == 'static':
+            idx = info[5 - kind]
+            if n >= info[2]:
+                return [args[i] for i in idx]
+            else:
+                return [args[i] for i in idx if i < n]
+        elif t == 'cycle':
+            period = info[2]
+            idx = info[5 - kind]
+            return [args[i + j] for i in range(0, n, period) for j in idx
+                    if i + j < n]
+        elif t == 'chain':
+            prefix = info[2]
+            idx = info[5 - kind]
+            res = [args[i] for i in idx if i < n]
+            if info[5] == kind:
+                res += args[prefix:]
+            return res
+    kinds = _format_kinds
+    return [arg for arg, f in zip(args, inst.arg_format) if kinds[f] == kind]
+
 
 class Instruction(object):
     """
@@ -1032,9 +1140,9 @@ class Instruction(object):
             self.caller = [frame[1:] for frame in inspect.stack()[1:]]
         else:
             self.caller = None
-        
-        Instruction.count += 1
-        if Instruction.count % 100000 == 0:
+
+        count = Instruction.count = Instruction.count + 1
+        if count % 100000 == 0:
             print("Compiled %d lines at" % self.__class__.count, time.asctime())
             sys.stdout.flush()
             if Instruction.count > 10 ** 7:
@@ -1043,7 +1151,9 @@ class Instruction(object):
                       "with @for_range_opt: "
                       "https://mp-spdz.readthedocs.io/en/latest/Compiler.html#"
                       "Compiler.library.for_range_opt")
-        if program.timeout and time.time() > program.timeout:
+        # checking the time is relatively expensive
+        if not count & 1023 and program.timeout and \
+           time.time() > program.timeout:
             raise CompilerError(
                 "Compilation timeout reached. If you need more time for your "
                 "program, you can add 'program.unlimited_compilation()' at "
@@ -1076,9 +1186,23 @@ class Instruction(object):
                 raise CompilerError('Incorrect number of arguments for instruction %s' % (self))
         except TypeError:
             pass
+        info = _check_info
+        tape = None
         for n,(arg,f) in enumerate(zip(self.args, self.arg_format)):
             try:
-                ArgFormats[f].check(arg)
+                cls, reg_type, bound, _ = info[f]
+                # fast paths for common valid arguments
+                if reg_type is not None:
+                    if tape is None:
+                        tape = program.curr_tape
+                        Register = tape.Register
+                    if isinstance(arg, Register) and arg.program is tape \
+                       and arg.reg_type == reg_type:
+                        continue
+                elif bound is not None:
+                    if type(arg) is int and -bound <= arg < bound:
+                        continue
+                cls.check(arg)
             except ArgumentError as e:
                 raise CompilerError('Invalid argument %d "%s" to instruction: %s'
                     % (n, e.arg, self) + '\n' + e.msg)
@@ -1087,13 +1211,11 @@ class Instruction(object):
     
     def get_used(self):
         """ Return the set of registers that are read in this instruction. """
-        return (arg for arg,w in zip(self.args, self.arg_format) if \
-            format_str_is_reg(w) and not format_str_is_writeable(w))
+        return _get_regs(self, 1)
     
     def get_def(self):
         """ Return the set of registers that are written to in this instruction. """
-        return (arg for arg,w in zip(self.args, self.arg_format) if \
-            format_str_is_writeable(w))
+        return _get_regs(self, 2)
     
     def get_pre_arg(self):
         return ""
