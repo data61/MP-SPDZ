@@ -393,9 +393,9 @@ class Merger:
         except StopIteration:
             return mergecount, None
 
-        under_budget = reduce(operator.or_, (
-            (instructions[x].get_repeat() or 0) <
-            self.block.parent.program.memory_budget for x in merge))
+        memory_budget = self.block.parent.program.memory_budget
+        under_budget = any((instructions[x].get_repeat() or 0) <
+                           memory_budget for x in merge)
 
         if under_budget:
             for i in merges_iter:
@@ -458,18 +458,15 @@ class Merger:
         options = self.options
         open_nodes = set()
         self.open_nodes = open_nodes
-        colordict = defaultdict(lambda: 'gray', asm_open='red',\
-                                ldi='lightblue', ldm='lightblue', stm='blue',\
-                                mov='yellow', mulm='orange', mulc='orange',\
-                                triple='green', square='green', bit='green',\
-                                asm_input='lightgreen')
 
         G = Compiler.graph.SparseDiGraph(len(block.instructions))
         self.G = G
+        succ = G.succ
+        pred = G.pred
 
-        reg_nodes = {}
-        last_def = defaultdict_by_id(lambda: -1)
-        last_read = defaultdict_by_id(list)
+        # indexed by id(register)
+        last_def = {}
+        last_read = {}
         last_mem_write = []
         last_mem_read = []
         last_mem_write_of = defaultdict(list)
@@ -484,10 +481,9 @@ class Merger:
         self.depths = depths
         parallel_open = defaultdict(lambda: 0)
         next_available_depth = {}
-        self.sources = []
-        self.real_depths = [0] * len(block.instructions)
         round_type = {}
         shuffles = defaultdict_by_id(set)
+        budget = block.parent.program.budget
 
         class MemScope:
             def __init__(self):
@@ -495,30 +491,49 @@ class Merger:
                 self.write = []
 
         def add_edge(i, j):
-            if i in (-1, j):
+            if i == -1 or i == j:
                 return
-            G.add_edge(i, j)
-            for d in (self.depths, self.real_depths):
-                if d[j] < d[i]:
-                    d[j] = d[i]
+            s = succ[i]
+            if j not in s:
+                pred[j].add(i)
+                s[j] = None
+            if depths[j] < depths[i]:
+                depths[j] = depths[i]
 
         def read(reg, n):
-            for dup in reg.duplicates:
-                if last_def[dup] not in (-1, n):
-                    add_edge(last_def[dup], n)
-            last_read[reg].append(n)
+            for dup in reg.duplicates.content.values():
+                m = last_def.get(id(dup), -1)
+                if m != -1 and m != n:
+                    add_edge(m, n)
+            reads = last_read.get(id(reg))
+            if reads is None:
+                last_read[id(reg)] = [n]
+            else:
+                reads.append(n)
 
         def write(reg, n):
-            for dup in reg.duplicates:
-                add_edge(last_def[dup], n)
-                for m in last_read[dup]:
+            for dup in reg.duplicates.content.values():
+                add_edge(last_def.get(id(dup), -1), n)
+                for m in last_read.get(id(dup), ()):
                     add_edge(m, n)
-            last_def[reg] = n
+            last_def[id(reg)] = n
+
+        def mem_key(addr):
+            # same as str(addr) but faster for integers
+            if type(addr) is not int:
+                addr = str(addr)
+                try:
+                    if str(int(addr)) == addr:
+                        addr = int(addr)
+                except ValueError:
+                    pass
+            return addr
 
         def handle_mem_access(addr, reg_type, last_access_this_kind,
                               last_access_other_kind):
-            this = last_access_this_kind[str(addr),reg_type]
-            other = last_access_other_kind[str(addr),reg_type]
+            key = mem_key(addr), reg_type
+            this = last_access_this_kind[key]
+            other = last_access_other_kind[key]
             if this and other:
                 if this[-1] < other[0]:
                     del this[:]
@@ -533,7 +548,6 @@ class Merger:
         def mem_access(n, instr, last_access_this_kind, last_access_other_kind):
             addr = instr.args[1]
             reg_type = instr.args[0].reg_type
-            budget = block.parent.program.budget
             if isinstance(addr, int):
                 for i in range(min(instr.get_size(), budget)):
                     addr_i = addr + i
@@ -601,14 +615,40 @@ class Merger:
                 for player in inst.get_players():
                     keep_merged_order(instr, n, player)
 
+        # instruction type -> (first, merge, second) category, matching the
+        # isinstance() chains below
+        categories = {}
+
+        def categorize(t):
+            if issubclass(t, TextInputInstruction):
+                first = 1
+            elif issubclass(t, RawInputInstruction):
+                first = 2
+            elif issubclass(t, matmulsm_class):
+                first = 3
+            else:
+                first = 0
+            merge = issubclass(t, merge_classes)
+            for second, cls in enumerate((
+                    ReadMemoryInstruction, WriteMemoryInstruction,
+                    IOInstruction, PublicFileIOInstruction, prep_class,
+                    StackInstruction, applyshuffle, delshuffle)):
+                if issubclass(t, cls):
+                    second += 1
+                    break
+            else:
+                second = 0
+            res = categories[t] = first, merge, second
+            return res
+
         for n,instr in enumerate(block.instructions):
             outputs,inputs = instr.get_def(), instr.get_used()
 
-            G.add_node(n)
+            try:
+                first, merge, second = categories[type(instr)]
+            except KeyError:
+                first, merge, second = categorize(type(instr))
 
-            # if options.debug:
-            #     col = colordict[instr.__class__.__name__]
-            #     G.add_node(n, color=col, label=str(instr))
             for reg in outputs:
                 if reg.vector and instr.is_vec():
                     for i in reg.vector:
@@ -624,11 +664,13 @@ class Merger:
                     read(reg, n)
 
             # will be merged
-            if isinstance(instr, TextInputInstruction):
+            if not first:
+                pass
+            elif first == 1:
                 keep_text_order(instr, n)
-            elif isinstance(instr, RawInputInstruction):
+            elif first == 2:
                 keep_merged_order(instr, n, RawInputInstruction)
-            elif isinstance(instr, matmulsm_class):
+            elif first == 3:
                 if options.preserve_mem_order:
                     strict_mem_access(n, last_mem_read, last_mem_write)
                 else:
@@ -694,31 +736,33 @@ class Merger:
                             for j in i:
                                 add_edge(j, n)
 
-            if isinstance(instr, merge_classes):
+            if merge:
                 open_nodes.add(n)
-                G.add_node(n, merges=[])
                 # the following must happen after adding the edge
-                self.real_depths[n] += 1
                 depth = depths[n] + 1
+                merge_id = instr.merge_id()
+                max_parallel_open = int(options.max_parallel_open)
 
                 # find first depth that has the right type and isn't full
                 skipped_depths = set()
                 while (depth in round_type and \
-                       round_type[depth] != instr.merge_id()) or \
-                      (int(options.max_parallel_open) > 0 and \
-                      parallel_open[depth] >= int(options.max_parallel_open)):
+                       round_type[depth] != merge_id) or \
+                      (max_parallel_open > 0 and \
+                      parallel_open[depth] >= max_parallel_open):
                     skipped_depths.add(depth)
                     depth = next_available_depth.get((type(instr), depth), \
                                                      depth + 1)
                 for d in skipped_depths:
                     next_available_depth[type(instr), d] = depth
 
-                round_type[depth] = instr.merge_id()
-                if int(options.max_parallel_open) > 0:
+                round_type[depth] = merge_id
+                if max_parallel_open > 0:
                     parallel_open[depth] += len(instr.args) * instr.get_size()
                 depths[n] = depth
 
-            if isinstance(instr, ReadMemoryInstruction):
+            if not second:
+                pass
+            elif second == 1:
                 if options.preserve_mem_order:
                     strict_mem_access(n, last_mem_read, last_mem_write)
                 elif instr._protect:
@@ -726,7 +770,7 @@ class Merger:
                     strict_mem_access(n, scope.read, scope.write)
                 if not options.preserve_mem_order:
                     mem_access(n, instr, last_mem_read_of, last_mem_write_of)
-            elif isinstance(instr, WriteMemoryInstruction):
+            elif second == 2:
                 if options.preserve_mem_order:
                     strict_mem_access(n, last_mem_write, last_mem_read)
                 elif instr._protect:
@@ -735,25 +779,22 @@ class Merger:
                 if not options.preserve_mem_order:
                     mem_access(n, instr, last_mem_write_of, last_mem_read_of)
             # keep I/O instructions in order
-            elif isinstance(instr, IOInstruction):
+            elif second == 3:
                 if last_print_str is not None:
                     add_edge(last_print_str, n)
                 last_print_str = n
-            elif isinstance(instr, PublicFileIOInstruction):
+            elif second == 4:
                 keep_order(instr, n, PublicFileIOInstruction)
-            elif isinstance(instr, prep_class):
+            elif second == 5:
                 keep_order(instr, n, instr.args[0])
-            elif isinstance(instr, StackInstruction):
+            elif second == 6:
                 keep_order(instr, n, StackInstruction)
-            elif isinstance(instr, applyshuffle):
+            elif second == 7:
                 for handle in instr.handles():
                     shuffles[handle].add(n)
-            elif isinstance(instr, delshuffle):
+            elif second == 8:
                 for i_inst in shuffles[instr.args[0]]:
                     add_edge(i_inst, n)
-
-            if not G.pred[n]:
-                self.sources.append(n)
 
             if n % 1000000 == 0 and n > 0:
                 print("Processed dependency of %d/%d instructions at" % \
@@ -766,9 +807,10 @@ class Merger:
             G.remove_edge(i, j)
         if i in G[j]:
             G.remove_edge(j, i)
-        G.add_edges_from(list(zip(itertools.cycle([i]), G[j], [G.weights[(j,k)] for k in G[j]])))
-        G.add_edges_from(list(zip(G.pred[j], itertools.cycle([i]), [G.weights[(k,j)] for k in G.pred[j]])))
-        G.get_attr(i, 'merges').append(j)
+        for k in list(G.succ[j]):
+            G.add_edge(i, k)
+        for k in list(G.pred[j]):
+            G.add_edge(k, i)
         G.remove_node(j)
 
     def eliminate_dead_code(self, only_ldint=False):
@@ -783,27 +825,23 @@ class Merger:
                 continue
             if only_ldint and not isinstance(inst, ldint_class):
                 continue
-            can_eliminate_defs = True
-            for reg in inst.get_def():
-                for dup in reg.duplicates:
-                    if not (dup.can_eliminate and reduce(
-                            operator.and_,
-                            (x.can_eliminate for x in dup.vector), True)):
-                        can_eliminate_defs = False
-                        break
             # remove if instruction has result that isn't used
-            unused_result = not G.degree(i) and len(list(inst.get_def())) \
-                and can_eliminate_defs \
-                and not isinstance(inst, (DoNotEliminateInstruction))
-            def eliminate(i):
+            if G.degree(i):
+                continue
+            defs = list(inst.get_def())
+            if not defs or isinstance(inst, DoNotEliminateInstruction):
+                continue
+            can_eliminate_defs = all(
+                dup.can_eliminate and
+                all(x.can_eliminate for x in dup.vector)
+                for reg in defs for dup in reg.duplicates)
+            if can_eliminate_defs:
                 G.remove_node(i)
                 merge_nodes.discard(i)
-                stats[type(instructions[i]).__name__] += 1
-                for reg in instructions[i].get_def():
+                stats[type(inst).__name__] += 1
+                for reg in defs:
                     self.block.parent.program.base_addresses.pop(reg)
                 instructions[i] = None
-            if unused_result:
-                eliminate(i)
                 count += 1
         if count > 0 and self.block.parent.program.verbose:
             print('Eliminated %d dead instructions, among which %d opens: %s' \

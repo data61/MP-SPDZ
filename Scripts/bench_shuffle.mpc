@@ -1,0 +1,9 @@
+# compile-time benchmark: shuffling and sorting
+a = sint.Array(1000)
+a.assign_all(5)
+a.secure_shuffle()
+a.sort()
+b = sint.Matrix(100, 3)
+b.secure_shuffle()
+b.sort()
+print_ln('%s', a[0].reveal())

@@ -39,6 +39,10 @@ SUITE = [
     ('sbitint-B', ['-B', '64', 'test_sbitint']),
     ('aes-B', ['-B', '32', 'aes_circuit']),
     ('gc-oram', ['-B', '32', 'gc_oram']),
+    ('tutorial-m', ['-m', '1000', '-R', '64', 'tutorial']),
+    ('oram', ['-R', '64', 'oram_tutorial']),
+    ('shuffle', ['-R', '64', os.path.join(ROOT, 'Scripts', 'bench_shuffle.mpc')]),
+    ('bankers', ['-F', '64', 'bankers_bonus', '1']),
 ]
 
 
@@ -64,6 +68,8 @@ def run(entry, python, profile=False, root=ROOT):
             data = re.sub(rb'^opts: (.*)$',
                           lambda m: b'opts: ' + b' '.join(sorted(m.group(1).split())),
                           data, flags=re.M)
+            # the compile command contains the path of bench_shuffle.mpc
+            data = data.replace(os.fsencode(ROOT), b'ROOT')
         hashes[os.path.basename(f)] = hashlib.sha256(data).hexdigest()
     return label, elapsed, hashes, res.stdout
 
