@@ -1090,10 +1090,27 @@ def _get_format_info(fmt):
     info = _format_info[id(fmt)] = _analyze_format(fmt)
     return info
 
+# instruction type -> format info if the format is a class attribute
+_type_format_info = {}
+
+def _get_type_format_info(t):
+    fmt = getattr(t, 'arg_format', None)
+    if type(fmt) in (list, tuple, tools.cycle, tools.chain):
+        info = _analyze_format(fmt)
+    else:
+        info = None
+    _type_format_info[t] = info
+    return info
+
 def _get_regs(inst, kind):
     """ Registers of given kind (1: read, 2: written) in argument order. """
     args = inst.args
-    info = _get_format_info(inst.arg_format)
+    try:
+        info = _type_format_info[type(inst)]
+    except KeyError:
+        info = _get_type_format_info(type(inst))
+    if info is None:
+        info = _get_format_info(inst.arg_format)
     if info is not None:
         t = info[1]
         n = len(args)
@@ -1118,6 +1135,39 @@ def _get_regs(inst, kind):
     kinds = _format_kinds
     return [arg for arg, f in zip(args, inst.arg_format) if kinds[f] == kind]
 
+
+_pack_long = struct.Struct('>q').pack
+
+def _encode_int(arg):
+    # same as int_to_bytes() for valid input
+    if type(arg) in (int, bool) and -2 ** 32 <= arg < 2 ** 32:
+        return (arg & 0xffffffff).to_bytes(4, 'big')
+    raise ValueError()
+
+def _encode_reg(arg):
+    # same as RegisterArgFormat.encode() for valid input
+    i = arg.i
+    if type(i) is int and 0 <= i < 2 ** 32:
+        return i.to_bytes(4, 'big')
+    raise ValueError()
+
+class _Encoders(dict):
+    """ Format string to function returning the encoding as bytes. """
+    def __missing__(self, f):
+        cls = ArgFormats[f]
+        encode = getattr(cls.encode, '__func__', None)
+        if encode is RegisterArgFormat.encode.__func__:
+            res = _encode_reg
+        elif encode is IntArgFormat.encode.__func__:
+            res = _encode_int
+        elif encode is LongArgFormat.encode.__func__:
+            res = _pack_long
+        else:
+            res = lambda arg: bytes(cls.encode(arg))
+        self[f] = res
+        return res
+
+_encoders = _Encoders()
 
 class Instruction(object):
     """
@@ -1175,9 +1225,24 @@ class Instruction(object):
     
     def get_bytes(self):
         try:
+            return self._get_bytes_fast()
+        except Exception:
+            # use the original path for any error reporting
+            pass
+        try:
             return bytearray(self.get_encoding())
         except TypeError:
             raise CompilerError('cannot encode %s/%s' % (self, self.get_encoding()))
+
+    def _get_bytes_fast(self):
+        """ Same as :py:meth:`get_encoding` but returning bytes. """
+        res = [_pack_long(self.get_code())]
+        if self.has_var_args():
+            res.append(_encode_int(len(self.args)))
+        encoders = _encoders
+        for arg, f in zip(self.args, self.arg_format):
+            res.append(encoders[f](arg))
+        return b''.join(res)
     
     def check_args(self):
         """ Check the args match up with that specified in arg_format """

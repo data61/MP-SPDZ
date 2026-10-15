@@ -1507,15 +1507,11 @@ class Tape:
             filename = self.program.programs_dir + "/Bytecode/" + filename
         print("Writing to", filename)
         sys.stdout.flush()
-        f = open(filename, "wb")
-        h = hashlib.sha256()
-        for i in self._get_instructions():
-            if i is not None:
-                b = i.get_bytes()
-                f.write(b)
-                h.update(b)
-        f.close()
-        self.hash = h.digest()
+        b = b"".join(
+            i.get_bytes() for i in self._get_instructions() if i is not None)
+        with open(filename, "wb") as f:
+            f.write(b)
+        self.hash = hashlib.sha256(b).digest()
 
     def new_reg(self, reg_type, size=None):
         return self.Register(reg_type, self, size=size)
