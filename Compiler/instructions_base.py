@@ -256,7 +256,8 @@ def check_vector_size(size):
 
 def set_global_vector_size(size):
     stack = global_vector_size_stack
-    check_vector_size(size)
+    if type(size) is not int:
+        check_vector_size(size)
     if size == 1 and not stack:
         return
     stack.append(size)
@@ -1182,9 +1183,13 @@ class Instruction(object):
     def __init__(self, *args, **kwargs):
         """ Create an instruction and append it to the program list. """
         self.args = list(args)
-        if not kwargs.get('copying', False):
+        if kwargs:
+            if not kwargs.get('copying', False):
+                self.check_args()
+            if kwargs.get('add_to_prog', True):
+                program.curr_block.instructions.append(self)
+        else:
             self.check_args()
-        if kwargs.get('add_to_prog', True):
             program.curr_block.instructions.append(self)
         if program.DEBUG:
             self.caller = [frame[1:] for frame in inspect.stack()[1:]]
