@@ -549,10 +549,22 @@ class Merger:
             addr = instr.args[1]
             reg_type = instr.args[0].reg_type
             if isinstance(addr, int):
-                for i in range(min(instr.get_size(), budget)):
-                    addr_i = addr + i
-                    handle_mem_access(addr_i, reg_type, last_access_this_kind,
-                                      last_access_other_kind)
+                # inlined handle_mem_access() for speed
+                is_write = id(last_access_this_kind) == id(last_mem_write_of)
+                for addr_i in range(addr, addr + min(instr.get_size(), budget)):
+                    key = addr_i, reg_type
+                    this = last_access_this_kind[key]
+                    other = last_access_other_kind.get(key)
+                    if this and other:
+                        if this[-1] < other[0]:
+                            del this[:]
+                    this.append(n)
+                    if other:
+                        for inst in other:
+                            add_edge(inst, n)
+                    if is_write:
+                        for inst in this:
+                            add_edge(inst, n)
                 if block.warn_about_mem and \
                    not block.parent.warned_about_mem and \
                    (instr.get_size() > budget) and not instr._protect:
@@ -908,14 +920,17 @@ class RegintOptimizer:
             cache[id(reg)] = reg, value
         def get_cache(reg):
             return cache[id(reg)][1]
-        for i, inst in enumerate(instructions):
-            try:
-                category = categories[type(inst)]
-            except KeyError:
-                category = categories[type(inst)] = \
-                    self.categorize(type(inst))
-            if not category:
-                continue
+        types = set(map(type, instructions))
+        for t in types:
+            if t not in categories:
+                categories[t] = self.categorize(t)
+        # only consider relevant instructions, computed in C for speed
+        relevant = itertools.compress(
+            range(len(instructions)),
+            map(categories.__getitem__, map(type, instructions)))
+        for i in relevant:
+            inst = instructions[i]
+            category = categories[type(inst)]
             pre = inst
             if category == 1:
                 set_cache(inst.args[0], inst.args[1])
