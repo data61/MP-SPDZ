@@ -244,10 +244,10 @@ def find_in_dict(d, v):
     return list(d.keys())[list(d.values()).index(v)]
 
 class set_by_id(object):
-    def __init__(self, init=[]):
-        self.content = {}
-        for x in init:
-            self.add(x)
+    __slots__ = ['content']
+
+    def __init__(self, init=()):
+        self.content = {id(x): x for x in init}
 
     def __contains__(self, value):
         return id(value) in self.content
@@ -276,6 +276,8 @@ class set_by_id(object):
         return self
 
 class dict_by_id(object):
+    __slots__ = ['content']
+
     def __init__(self):
         self.content = {}
 
@@ -298,6 +300,8 @@ class dict_by_id(object):
         return self.content.pop(id(key), None)
 
 class defaultdict_by_id(dict_by_id):
+    __slots__ = ['default']
+
     def __init__(self, default):
         dict_by_id.__init__(self)
         self.default = default

@@ -169,71 +169,81 @@ class StraightlineAllocator:
 
     def alloc_reg(self, reg, free):
         base = reg.vectorbase
-        if base in self.alloc:
+        alloc = self.alloc.content
+        if id(base) in alloc:
             # already allocated
             return
 
         reg_type = reg.reg_type
         size = base.size
         res = free.alloc(reg_type, size)
-        self.alloc[base] = res
+        alloc[id(base)] = base, res
 
-        base.i = self.alloc[base]
+        base.i = res
 
-        for dup in base.duplicates:
+        duplicates = base.duplicates.content
+        for dup in duplicates.values():
             dup = dup.vectorbase
-            self.alloc[dup] = self.alloc[base]
-            dup.i = self.alloc[base]
+            alloc[id(dup)] = dup, res
+            dup.i = res
             if not dup.dup_count:
-                dup.dup_count = len(base.duplicates)
+                dup.dup_count = len(duplicates)
 
     def dealloc_reg(self, reg, inst, free):
+        # the by-id containers are accessed directly for speed
+        dealloc = self.dealloc.content
         if reg.vector:
-            self.dealloc |= reg.vector
+            for x in reg.vector:
+                dealloc[id(x)] = x
         else:
-            self.dealloc.add(reg)
+            dealloc[id(reg)] = reg
         reg.duplicates.remove(reg)
         base = reg.vectorbase
 
-        seen = set_by_id()
-        to_check = set_by_id()
-        to_check.add(base)
+        seen = set()
+        to_check = {id(base): base}
         while to_check:
-            dup = to_check.pop()
-            if dup not in seen:
-                seen.add(dup)
+            dup = to_check.popitem()[1]
+            if id(dup) not in seen:
+                seen.add(id(dup))
                 base = dup.vectorbase
                 if base.vector:
                     for i in base.vector:
-                        if i not in self.dealloc:
+                        if id(i) not in dealloc:
                             # not all vector elements ready for deallocation
                             return
                         if len(i.duplicates) > 1:
                             for x in i.duplicates:
-                                to_check.add(x)
+                                to_check[id(x)] = x
                 else:
-                    if base not in self.dealloc:
+                    if id(base) not in dealloc:
                         return
-                for x in itertools.chain(dup.duplicates, base.duplicates):
-                    to_check.add(x)
+                for x in dup.duplicates.content.values():
+                    to_check[id(x)] = x
+                for x in base.duplicates.content.values():
+                    to_check[id(x)] = x
 
         if reg not in self.program.base_addresses \
            and not isinstance(inst, call_arg):
             free.free(base)
+        defined = self.defined
         if inst.is_vec() and base.vector:
-            self.defined[base] = inst
+            defined[base] = inst
             for i in base.vector:
-                self.defined[i] = inst
+                defined[i] = inst
         else:
-            self.defined[reg] = inst
+            defined[reg] = inst
 
     def process(self, program, alloc_pool):
         self.update_usage(alloc_pool)
+        alloc = self.alloc.content
+        defined = self.defined.content
         for k,i in enumerate(reversed(program)):
             unused_regs = []
-            for j in i.get_def():
-                if j.vectorbase in self.alloc:
-                    if j in self.defined:
+            defs = list(i.get_def())
+            for j in defs:
+                if id(j.vectorbase) in alloc:
+                    if id(j) in defined:
                         raise CompilerError("Double write on register %s " \
                                             "assigned by '%s' in %s" % \
                                                 (j,i,format_trace(i.caller)))
@@ -241,7 +251,7 @@ class StraightlineAllocator:
                     # unused register
                     self.alloc_reg(j, alloc_pool)
                     unused_regs.append(j)
-            if unused_regs and len(unused_regs) == len(list(i.get_def())) and \
+            if unused_regs and len(unused_regs) == len(defs) and \
                self.program.verbose:
                 # only report if all assigned registers are unused
                 self.unused[type(i).__name__] += 1
@@ -253,8 +263,13 @@ class StraightlineAllocator:
             if i.read_after_write:
                 for j in i.get_used():
                     self.alloc_reg(j, alloc_pool)
-                for j in i.get_def():
+                for j in defs:
                     self.dealloc_reg(j, i, alloc_pool)
+            elif not i.has_parts():
+                for j in defs:
+                    self.dealloc_reg(j, i, alloc_pool)
+                for j in i.get_used():
+                    self.alloc_reg(j, alloc_pool)
             else:
                 for part in reversed(list(i.get_parts())):
                     for j in part.get_def():
@@ -315,23 +330,24 @@ class StraightlineAllocator:
             print('Unused instructions:', dict(self.unused))
 
 def determine_scope(block, options):
-    last_def = defaultdict_by_id(lambda: -1)
+    # indexed by id(register)
+    last_def = {}
     used_from_scope = set_by_id()
 
     def read(reg, n):
-        for dup in reg.duplicates:
-            if last_def[dup] == -1:
+        for dup in reg.duplicates.content.values():
+            if id(dup) not in last_def:
                 dup.can_eliminate = False
                 used_from_scope.add(dup)
 
     def write(reg, n):
-        if last_def[reg] != -1:
+        if id(reg) in last_def:
             print('Warning: double write at register', reg)
             print('\tline %d: %s' % (n, instr))
             print('\ttrace: %s' % format_trace(instr.caller, '\t\t'))
             if options.stop:
                 sys.exit(1)
-        last_def[reg] = n
+        last_def[id(reg)] = n
 
     for n,instr in enumerate(block.instructions):
         outputs,inputs = instr.get_def(), instr.get_used()

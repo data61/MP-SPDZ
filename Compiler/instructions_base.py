@@ -1292,15 +1292,21 @@ class Instruction(object):
     def get_usage(args):
         return {}
 
-    def get_parts(self):
-        if isinstance(self.arg_format, tools.cycle) and functools.reduce(
+    def has_parts(self):
+        """ Whether :py:meth:`get_parts` splits the instruction. """
+        return isinstance(self.arg_format, tools.cycle) and functools.reduce(
                 operator.and_, (isinstance(x, str)
-                                for x in self.arg_format.args[0])):
+                                for x in self.arg_format.args[0]))
+
+    def get_parts(self):
+        if self.has_parts():
             n = len(self.arg_format.args[0])
             for i in range(0, len(self.args), n):
-                args = self.args[i:i + n]
-                inst = Instruction(*args, copying=True, add_to_prog=False)
+                # avoid the overhead of creating a proper instruction
+                inst = Instruction.__new__(Instruction)
+                inst.args = self.args[i:i + n]
                 inst.arg_format = self.arg_format
+                inst.caller = None
                 yield inst
         else:
             yield self
