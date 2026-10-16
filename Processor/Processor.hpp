@@ -516,15 +516,15 @@ void SubProcessor<T>::muls(const ArgVector& reg)
             assert(proc.S.begin() + *(it + j) <= proc.S.end());
         auto x = proc.S.begin() + *(it + 2);
         auto y = proc.S.begin() + *(it + 3);
-        for (size_t j = 0; j < *it; j++)
-            protocol.prepare_mul(*x++, *y++);
+        for (auto& xx : span(x, x + *it))
+            protocol.prepare_mul(xx, *y++);
     }
     protocol.exchange();
     for (auto it = reg.begin(); it < reg.end(); it += 4)
     {
-        auto z = proc.S.begin() + *(it + 1);
-        for (size_t j = 0; j < *it; j++)
-            *z++ = protocol.finalize_mul();
+        auto start = proc.S.begin() + *(it + 1);
+        for (auto& z : span(start, start + *it))
+            z = protocol.finalize_mul();
         protocol.counter += *it;
     }
 
@@ -557,6 +557,31 @@ void SubProcessor<T>::mulrs(const ArgVector& reg)
     }
 
     maybe_check();
+}
+
+template<class T>
+void SubProcessor<T>::mulbits(const ArgVector& reg)
+{
+    assert(reg.size() % 4 == 0);
+    vector<pair<T, T>> multiplicands;
+    vector<T> products;
+
+    for (size_t i = 0; i < reg.size(); i += 4)
+    {
+        auto x = S.begin() + reg[i + 2];
+        auto y = S.begin() + reg[i + 3];
+        for (size_t j = 0; j < reg[i]; j++)
+            multiplicands.push_back({*x++, *y++});
+    }
+    products.resize(multiplicands.size());
+    protocol.multiply_mixed(products, multiplicands, *this);
+    auto p = products.begin();
+    for (size_t i = 0; i < reg.size(); i += 4)
+    {
+        auto z = S.begin() + reg[i + 1];
+        for (size_t j = 0; j < reg[i]; j++)
+            *z++ = *p++;
+    }
 }
 
 template<class T>
@@ -948,7 +973,7 @@ void SubProcessor<T>::secure_shuffle(const Instruction& instruction)
     typename T::Protocol::Shuffler::shuffle_type shuffle;
     shuffler.generate(n / unit_size, shuffle);
 
-    vector<ShuffleTuple<T>> shuffles{ShuffleTuple<T>(n, output_base,
+    vector<shuffle_tuple_type> shuffles{shuffle_tuple_type(n, output_base,
             input_base, unit_size, shuffle, true)};
     shuffler.apply_multiple(S, shuffles);
 
@@ -972,12 +997,12 @@ void SubProcessor<T>::apply_shuffle(const Instruction& instruction,
     const auto& args = instruction.get_start();
 
     const auto n_shuffles = args.size() / 6;
-    vector<ShuffleTuple<T>> shuffles;
+    vector<shuffle_tuple_type> shuffles;
 
     for (size_t i = 0; i < n_shuffles; i++)
     {
         shuffles.push_back(
-                ShuffleTuple<T>(args[6 * i], args[6 * i + 1], args[6 * i + 2],
+                shuffle_tuple_type(args[6 * i], args[6 * i + 1], args[6 * i + 2],
                         args[6 * i + 3],
                         shuffle_store.get(Proc->read_Ci(args[6 * i + 4])),
                         bool(args[6 * i + 5])));
@@ -1234,6 +1259,14 @@ TimerWithComm Processor<sint, sgf2n>::prep_time()
   res += Procp.protocol.prep_time();
   res += Proc2.protocol.prep_time();
   return res;
+}
+
+template<class sint, class sgf2n>
+void Processor<sint, sgf2n>::jump(int n)
+{
+  PC += (signed int) n;
+  if (OnlineOptions::singleton.has_option("output_jumps"))
+    cerr << "jumping " << n << " to " << PC << endl;
 }
 
 #endif

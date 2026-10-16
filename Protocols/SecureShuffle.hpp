@@ -13,32 +13,35 @@
 #include <math.h>
 #include <algorithm>
 
-template<class T>
+template<class shuffle_type>
 class ShuffleTuple
 {
-    typedef typename T::Protocol::Shuffler::shuffle_type shuffle_type;
-
 public:
     size_t size, dest, source, unit_size;
-    const shuffle_type& shuffle;
+    shuffle_type& shuffle;
     bool reverse;
 
     ShuffleTuple(size_t size, size_t dest, size_t source, size_t unit_size,
-            const shuffle_type& shuffle, bool reverse) :
+            shuffle_type& shuffle, bool reverse) :
             size(size), dest(dest), source(source), unit_size(unit_size),
             shuffle(shuffle), reverse(reverse)
     {
     }
 
     ShuffleTuple(size_t size, size_t dest, size_t source, size_t unit_size,
-            const typename ShuffleStore<shuffle_type>::store_type& stored,
+            typename ShuffleStore<shuffle_type>::store_type& stored,
             bool reverse) :
             ShuffleTuple(size, dest, source, unit_size, stored.second, reverse)
     {
         if (stored.first == 0)
             throw runtime_error("shuffle has been deleted");
-        if (stored.first != size / unit_size)
+        if (stored.first != shuffle_size())
             throw runtime_error("wrong shuffle size");
+    }
+
+    size_t shuffle_size()
+    {
+        return size / unit_size;
     }
 
     size_t begin(long x) const
@@ -70,6 +73,16 @@ int ShuffleStore<T>::add(unsigned n_shuffles)
     lock();
     int res = shuffles.size();
     shuffles.push_back({n_shuffles, {}});
+
+    n_live_shuffles++;
+    if (max_n_live_shuffles < n_live_shuffles)
+    {
+        max_n_live_shuffles = n_live_shuffles;
+
+        if (OnlineOptions::singleton.has_option("live_shuffles"))
+            fprintf(stderr, "now have %d live shuffles\n", n_live_shuffles);
+    }
+
     unlock();
     return res;
 }
@@ -88,6 +101,7 @@ void ShuffleStore<T>::del(int handle)
 {
     lock();
     shuffles.at(handle) = {};
+    n_live_shuffles--;
     unlock();
 }
 
@@ -99,7 +113,7 @@ SecureShuffle<T>::SecureShuffle(SubProcessor<T>& proc) :
 
 template<class T>
 void SecureShuffle<T>::apply_multiple(StackedVector<T> &a,
-        vector<ShuffleTuple<T>>& shuffles)
+        vector<ShuffleTuple<shuffle_type>>& shuffles)
 {
     CODE_LOCATION
 
@@ -149,7 +163,7 @@ void SecureShuffle<T>::inverse_permutation(StackedVector<T> &stack, size_t n, si
 
     // We are dealing directly with permutations, so the unit_size will always be 1.
     shuffle_type shuffle;
-    vector<ShuffleTuple<T>> shuffles({{n, output_base, input_base, 1, shuffle, true}});
+    vector<ShuffleTuple<shuffle_type>> shuffles({{n, output_base, input_base, 1, shuffle, true}});
 
     prep_multiple(stack, shuffles, to_shuffle, is_exact);
 
@@ -226,7 +240,7 @@ void SecureShuffle<T>::inverse_permutation(StackedVector<T> &stack, size_t n, si
 
 template<class T>
 int SecureShuffle<T>::prep_multiple(StackedVector<T> &a,
-        vector<ShuffleTuple<T>> &shuffles, vector<vector<T>> &to_shuffle,
+        vector<ShuffleTuple<shuffle_type>> &shuffles, vector<vector<T>> &to_shuffle,
         vector<bool> &is_exact)
 {
     int max_depth = 0;
@@ -281,7 +295,7 @@ int SecureShuffle<T>::prep_multiple(StackedVector<T> &a,
 
 template<class T>
 void SecureShuffle<T>::finalize_multiple(StackedVector<T> &a,
-        vector<ShuffleTuple<T>> &shuffles, vector<vector<T>> &to_shuffle,
+        vector<ShuffleTuple<shuffle_type>> &shuffles, vector<vector<T>> &to_shuffle,
         vector<bool> &isExact)
 {
     const size_t n_shuffles = shuffles.size();
@@ -428,7 +442,7 @@ vector<vector<T>> SecureShuffle<T>::configure(int config_player, vector<int> *pe
 template<class T>
 void SecureShuffle<T>::parallel_waksman_round(size_t pass, int depth,
         bool inwards, vector<vector<T>> &toShuffle,
-        vector<ShuffleTuple<T>> &shuffles)
+        vector<ShuffleTuple<shuffle_type>> &shuffles)
 {
     const auto n_passes = proc.protocol.get_relevant_players().size();
     const auto n_shuffles = shuffles.size();

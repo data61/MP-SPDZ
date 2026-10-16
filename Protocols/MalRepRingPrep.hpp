@@ -144,6 +144,12 @@ TripleShuffleSacrifice<T>::TripleShuffleSacrifice() :
 }
 
 template<class T>
+TripleShuffleSacrifice<T>::TripleShuffleSacrifice(int B) :
+        ShuffleSacrifice(B)
+{
+}
+
+template<class T>
 TripleShuffleSacrifice<T>::TripleShuffleSacrifice(int B, int C) :
         ShuffleSacrifice(B, C)
 {
@@ -180,7 +186,7 @@ void TripleShuffleSacrifice<T>::triple_sacrifice(vector<array<T, 3>>& triples,
 
     if (queues)
     {
-        TripleSacrificeJob job(&triples, &check_triples);
+        TripleSacrificeJob job(&triples, &check_triples, B);
         int start = queues->distribute(job, N);
         triple_sacrifice(triples, check_triples, P, MC, start, N);
         if (start)

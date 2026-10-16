@@ -588,13 +588,11 @@ void EvalRegister::inputb(GC::Processor<GC::Secret<EvalRegister> >& processor,
 		access.received_labels(oss);
 }
 
-void EvalRegister::convcbit(Integer& dest, const GC::Clear& source,
-        GC::Processor<GC::Secret<EvalRegister>>& processor)
+void EvalRegister::sync(vector<Integer>& values, Player*)
 {
 	auto& party = ProgramParty::s();
-	dest = source;
-	party.convcbit = source;
-	processor.untaint();
+	party.convcbit = values;
+	party.processor.untaint();
 }
 
 void EvalRegister::input_helper(char value, octetStream& os)

@@ -22,6 +22,7 @@ protected:
 
     void run();
     virtual void run_with_error() = 0;
+    virtual void fail() = 0;
 };
 
 template<class T>
@@ -40,6 +41,7 @@ class Receiver : CommunicationThread
     void start();
     void stop();
     void run_with_error();
+    void fail();
 
 public:
     Timer timer;

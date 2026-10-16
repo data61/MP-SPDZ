@@ -10,6 +10,7 @@
 #include "GC/ShareSecret.hpp"
 #include "Protocols/MAC_Check_Base.hpp"
 #include "Protocols/DealerMC.h"
+#include "SemiSecureShuffle.h"
 #include "SemiSecret.h"
 #include "Semi.h"
 
@@ -40,6 +41,14 @@ template<class T, class V>
 void SemiSecretBase<T, V>::trans(Processor<T>& processor, int n_outputs,
         const ArgVector& args)
 {
+    trans(processor.S, processor.S, n_outputs, args);
+}
+
+
+template<class T, class V>
+void GC::SemiSecretBase<T, V>::trans(StackedVector<T>& dest,
+        StackedVector<T>& source, int n_outputs, const ArgVector& args)
+{
     int N_BITS = default_length;
     for (int j = 0; j < DIV_CEIL(n_outputs, N_BITS); j++)
         for (int l = 0; l < DIV_CEIL(args.size() - n_outputs, N_BITS); l++)
@@ -48,7 +57,7 @@ void SemiSecretBase<T, V>::trans(Processor<T>& processor, int n_outputs,
             size_t input_base = n_outputs + l * N_BITS;
             for (size_t i = input_base;
                     i < min(input_base + N_BITS, args.size()); i++)
-                square.rows[i - input_base] = processor.S[args[i] + j].get();
+                square.rows[i - input_base] = source[args[i] + j].get();
             square.transpose(
                     min(size_t(N_BITS), args.size() - n_outputs - l * N_BITS),
                     min(N_BITS, n_outputs - j * N_BITS));
@@ -56,7 +65,7 @@ void SemiSecretBase<T, V>::trans(Processor<T>& processor, int n_outputs,
             for (int i = output_base; i < min(n_outputs, output_base + N_BITS);
                     i++)
             {
-                processor.S[args[i] + l] = square.rows[i - output_base];
+                dest[args[i] + l] = square.rows[i - output_base];
             }
         }
 }

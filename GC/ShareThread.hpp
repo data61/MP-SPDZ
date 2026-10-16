@@ -179,7 +179,8 @@ void ShareThread<T>::and_(Processor<T>& processor,
         total_bits += *it;
 
     // accept 10 % waste
-    bool fast_mode = 0.1 * total_bits > args.size() / 4 * T::default_length;
+    bool fast_mode = 0.1 * total_bits > args.size() / 4 * T::default_length
+            and not (repeat and T::dishonest_majority);
     if (fast_mode)
     {
         protocol->set_fast_mode(true);
@@ -260,6 +261,7 @@ void ShareThread<T>::and_(Processor<T>& processor,
     if (OnlineOptions::singleton.has_option("always_check"))
         protocol->check();
 
+    protocol->init_mul();
     protocol->set_fast_mode(false);
 }
 
@@ -339,6 +341,12 @@ void ShareThread<T>::xors(Processor<T>& processor, const ArgVector& args)
             (*out++).xor_(n_bits_left, *left++, *right++);
         }
     }
+}
+
+template<class T>
+TimerWithComm ShareThread<T>::prep_time()
+{
+    return DataF.total_time();
 }
 
 } /* namespace GC */

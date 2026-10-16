@@ -81,15 +81,14 @@ public:
     typename T::MAC_Check& output;
     typename T::Protocol& protocol;
     typename T::Input input;
+    typename T::LivePrep& preprocessing;
 
     /**
      * @param P communication instance
      * @param setup one-time setup instance
      */
     BinaryProtocolSet(Player& P, const BinaryProtocolSetup<T>& setup) :
-            usage(P.num_players()), prep(usage), thread(prep, P,
-                    setup.get_mac_key()), output(*thread.MC), protocol(
-                    *thread.protocol), input(output, prep, P)
+            BinaryProtocolSet(P, setup.get_mac_key())
     {
     }
 
@@ -99,9 +98,7 @@ public:
      */
     template<class sint, class sgf2n>
     BinaryProtocolSet(Player& P, const Machine<sint, sgf2n>& machine) :
-            usage(P.num_players()), prep(usage), thread(prep, P,
-                    machine.get_bit_mac_key()), output(*thread.MC), protocol(
-                    *thread.protocol), input(output, prep, P)
+            BinaryProtocolSet(P, machine.get_bit_mac_key())
     {
         assert((is_same<typename sint::bit_type, T>()));
     }
@@ -109,7 +106,8 @@ public:
     BinaryProtocolSet(Player& P, const typename T::mac_key_type mac_key) :
             usage(P.num_players()), prep(usage), thread(prep, P,
                     mac_key), output(*thread.MC), protocol(
-                    *thread.protocol), input(output, prep, P)
+                    *thread.protocol), input(output, prep, P),
+                    preprocessing(prep)
     {
     }
 

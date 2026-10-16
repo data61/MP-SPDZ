@@ -22,7 +22,7 @@ class client_socket
 public:
     int socket;
 
-    client_socket(boost::asio::io_service&,
+    client_socket(ssl_service&,
             client_ctx&, int plaintext_socket, string,
             string, bool) : socket(plaintext_socket)
     {

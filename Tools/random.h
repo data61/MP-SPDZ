@@ -28,6 +28,7 @@
 
 class Player;
 class PlayerBase;
+class BitVector;
 
 /* This basically defines a randomness expander, if using
  * as a real PRG on an input stream you should first collapse
@@ -71,8 +72,8 @@ class PRNG
 
    bool initialized;
 
+   template<bool SMALL = false>
    void hash(); // Hashes state to random and sets cnt=0
-   void next();
 
    public:
 
@@ -106,8 +107,14 @@ class PRNG
    void SetSeed(const unsigned char*);
    /// Initialize with seed from another instance.
    void SetSeed(PRNG& G);
+   /// Initialize with seed from any serializable
+   template<class T>
+   void SetSeedFrom(const T& seed);
    void InitSeed();
    
+   template<bool SMALL = false>
+   void next();
+
    bool is_initialized();
 
    /// Random bit
@@ -181,6 +188,9 @@ class PRNG
    template<class T>
    T get()
      { T res; res.randomize(*this); return res; }
+
+   template<class T>
+   void random_permutation(size_t n, T& perm);
 };
 
 /// Randomly seeded pseudo-random number generator
@@ -212,6 +222,15 @@ public:
       return PRNG::get<T>();
     }
 };
+
+template<class T>
+void PRNG::SetSeedFrom(const T& seed)
+{
+  octetStream os;
+  seed.pack(os);
+  assert(os.get_length() >= SEED_SIZE);
+  SetSeed(os.get_data());
+}
 
 inline bool PRNG::get_bit()
 {
@@ -253,7 +272,6 @@ inline __m128i PRNG::get_doubleword()
     cnt += 16;
     return ans;
 }
-
 
 inline void PRNG::get_octets(octet* ans,int len)
 {
@@ -325,6 +343,19 @@ inline unsigned int PRNG::get_uint_lemire(unsigned int upper)
         }
     }
   return m >> 32;
+}
+
+template<class T>
+void PRNG::random_permutation(size_t n, T& perm)
+{
+  perm.reserve(n);
+  for (size_t j = 0; j < n; j++)
+    perm.push_back(j);
+  for (size_t j = 0; j < n; j++)
+    {
+      int k = get_uint_lemire(n - j);
+      swap(perm[j], perm[k + j]);
+    }
 }
 
 #endif

@@ -67,6 +67,9 @@ public:
     virtual typename T::open_type finalize_raw();
     virtual array<typename T::open_type*, 2> finalize_several(size_t n);
 
+    virtual void start_exchange(const Player& P);
+    virtual void stop_exchange(const Player& P);
+
     /// Check whether all ``shares`` are ``value``
     virtual void CheckFor(const typename T::open_type& value, const vector<T>& shares, const Player& P);
 

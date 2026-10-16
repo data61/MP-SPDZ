@@ -165,7 +165,8 @@ void SpdzWise<T>::buffer_random()
     CODE_LOCATION
     // proxy for initialization
     assert(mac_key != 0);
-    auto batch_size = this->buffer_size;
+    auto batch_size = BaseMachine::batch_size<T>(DATA_RANDOM, this->buffer_size);
+    assert(batch_size);
     if (OnlineOptions::singleton.has_option("verbose_random"))
         fprintf(stderr, "generating %d random elements\n", batch_size);
     vector<typename T::part_type> rs;

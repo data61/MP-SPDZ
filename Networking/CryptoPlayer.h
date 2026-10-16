@@ -65,6 +65,8 @@ public:
             const vector<bool>& my_receivers, vector<octetStream>& os) const;
 
     void Broadcast_Receive_no_stats(vector<octetStream>& os) const;
+
+    Player* fresh_fork(string suffix);
 };
 
 #endif /* NETWORKING_CRYPTOPLAYER_H_ */

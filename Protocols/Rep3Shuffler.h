@@ -28,10 +28,10 @@ public:
 
     void generate(int n_shuffle, shuffle_type& shuffle);
 
-    void apply_multiple(StackedVector<T>& a, vector<ShuffleTuple<T>> &shuffles,
+    void apply_multiple(StackedVector<T>& a, vector<ShuffleTuple<shuffle_type>> &shuffles,
             bool multithread = true);
 
-    void shuffle_job(StackedVector<T>& a, const vector<ShuffleTuple<T>>& shuffles,
+    void shuffle_job(StackedVector<T>& a, const vector<ShuffleTuple<shuffle_type>>& shuffles,
             long begin, long end, Player& P, ThreadQueues* queues);
 };
 

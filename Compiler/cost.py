@@ -12,6 +12,8 @@ def preserve_inf(op, x):
 my_ceil, my_floor = (lambda x: preserve_inf(op, x) \
     for op in (math.ceil, math.floor))
 
+is_var = lambda x: not isinstance(x, int)
+
 class Comm:
     def __init__(self, comm=0, offline=0):
         try:
@@ -219,7 +221,7 @@ bit2a = {
 dabit_from_bit = {
     'ring',
     '-rep-ring',
-    'semi2k',
+    'emi|soho',
 }
 
 bits_from_squares = {
@@ -508,5 +510,8 @@ def expected_communication(protocol, req_num, length, n_parties=None,
             edabit = get_match_variable(variable_edabit, protocol, n_parties)
             if edabit:
                 res += Comm(offline=edabit(x[1])(length)) * req_num[x]
+        elif len(x) > 1 and x[0] == 'bit' and x[1] == 'shuffle':
+            res += my_ceil(req_num[x] * x[3] / 128) * x[2] * 32 * 2 * 2 * \
+                Comm(0, ot_cost) * (1 + 1 / 16)
     res.n_parties = n_parties
     return res

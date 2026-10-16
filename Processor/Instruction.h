@@ -111,6 +111,7 @@ enum
     OPEN = 0xA5,
     MULS = 0xA6,
     MULRS = 0xA7,
+    MULBITS = 0xA4,
     DOTPRODS = 0xA8,
     TRUNC_PR = 0xA9,
     MATMULS = 0xAA,
@@ -194,6 +195,8 @@ enum
     PRINTINT = 0x9F,
     INCINT = 0xD1,
     SHUFFLE = 0xD2,
+    GROUPSUMINT = 0xD3,
+    QS_PERM = 0xD4,
     // Conversion
     CONVINT = 0xC0,
     CONVMODP = 0xC1,
@@ -421,6 +424,9 @@ public:
 
   void shuffle(ArithmeticProcessor& Proc) const;
   void bitdecint(ArithmeticProcessor& Proc) const;
+
+  void groupsumint(StackedVector<Integer>& Ci) const;
+  void qs_perm(StackedVector<Integer>& Ci) const;
 
   template<class T>
   void print(SwitchableOutput& out, T* v, T* p = 0, T* s = 0, T* z = 0,

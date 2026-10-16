@@ -96,6 +96,8 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case CONDPRINTPLAIN:
       case INPUTMASKREG:
       case ZIPS:
+      case ZIPSB:
+      case GROUPSUMINT:
         get_ints(r, s, 3);
         break;
       // instructions with 2 register operands
@@ -166,6 +168,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case CLOSECLIENTCONNECTION:
       case CRASH:
       case DELSHUFFLE:
+      case DELSHUFFLEB:
         r[0]=get_int(s);
         break;
       // instructions with 2 registers + 1 integer operand
@@ -328,6 +331,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case APPLYSHUFFLE:
       case MATMULSM:
       case GMATMULSM:
+      case MULBITS:
         num_var_args = get_int(s);
         get_vector(num_var_args, start, s);
         break;
@@ -408,6 +412,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case GWRITEFILESHARE:
       case WRITEFILECLEAR:
       case CONCATS:
+      case CONCATSB:
       case UNSPLIT:
           num_var_args = get_int(s) - 1;
           r[0] = get_int(s);
@@ -447,6 +452,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case ANDM:
       case XORCB:
       case FIXINPUT:
+      case CONVCBITVEC:
         n = get_int(s);
         get_ints(r, s, 3);
         break;
@@ -467,7 +473,6 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
         get_ints(r, s, 2);
         break;
       case CONVSINT:
-      case CONVCBITVEC:
       case CONVCBIT2S:
       case NOTS:
       case NOTCB:
@@ -487,6 +492,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case INPUTB:
       case INPUTBVEC:
       case REVEAL:
+      case APPLYSHUFFLEB:
         get_vector(get_int(s), start, s);
         break;
       case PRINTREGSIGNED:
@@ -510,6 +516,16 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
         n = get_int(s);
         get_ints(r, s, 1);
         get_vector(num_var_args, start, s);
+        break;
+      case TRANSVEC:
+      case PICKSB:
+      case QS_PERM:
+        get_vector(4, start, s);
+        break;
+      case GENSECSHUFFLEB:
+        r[0] = get_int(s);
+        n = get_int(s);
+        r[1] = get_int(s);
         break;
       default:
         ostringstream os;
@@ -561,7 +577,7 @@ bool Instruction::get_offline_data_usage(DataPositions& usage)
 inline
 int BaseInstruction::get_reg_type() const
 {
-  switch (opcode & 0x2B0)
+  switch (opcode & 0x230)
   {
     case SECRET_WRITE:
       return SBIT;
@@ -662,7 +678,7 @@ int BaseInstruction::get_reg_type() const
           else
             return SGF2N;
         }
-      else if (opcode >> 4 == 0x9)
+      else if (opcode >> 4 == 0x9 or opcode >> 4 == 0xD)
         return INT;
       else
         return SINT;
@@ -757,6 +773,7 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
   }
   case MULS:
   case MULRS:
+  case MULBITS:
       skip = 4;
       offset = 1;
       size_offset = -1;
@@ -814,6 +831,8 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
   case STMSDI:
       skip = 2;
       break;
+  case MOVSB:
+	  return r[0] + DIV_CEIL(n, BitVec::n_bits);
   case ANDRS:
   case XORS:
   case ANDS:
@@ -876,10 +895,21 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
       size = n;
       break;
   case APPLYSHUFFLE:
+  case APPLYSHUFFLEB:
       skip = 6;
       offset = 1;
       size_offset = -1;
       break;
+  case CONCATSB:
+  {
+      for (auto it = start.begin(); it < start.end(); it += 2)
+          res += *it;
+      return r[0] + DIV_CEIL(res, BitVec::n_bits);
+  }
+  case TRANSVEC:
+      return start.at(1) + start.at(0) * DIV_CEIL(start.at(2), BitVec::n_bits);
+  case ZIPSB:
+      return r[0] + 2 * size;
   }
 
   if (n_prefix > 0)
@@ -982,7 +1012,13 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
           values.push_back(tmp);
       }
       if (r[2])
+      {
           Procp.protocol.sync(values, Proc.P);
+          if (not values.empty() and
+                  OnlineOptions::singleton.has_option("output_sync"))
+              fprintf(stderr, "synced %zu values: %ld\n", values.size(),
+                      values.at(0).get());
+      }
       for (int i = 0; i < size; i++)
           Proc.write_Ci(r[0] + i, values[i].get());
       return;
@@ -1180,6 +1216,9 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
       case GMULRS:
         Proc.Proc2.protocol.mulrs(start, Proc.Proc2);
         return;
+      case MULBITS:
+        Proc.Procp.protocol.mulbits(start, Proc.Procp);
+        return;
       case DOTPRODS:
         Proc.Procp.dotprods(start, size);
         return;
@@ -1235,18 +1274,18 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
           return;
         }
       case JMP:
-        Proc.PC += (signed int) n;
+        Proc.jump(n);
         break;
       case JMPI:
-        Proc.PC += (signed int) Proc.read_Ci(r[0]);
+        Proc.jump(Proc.read_Ci(r[0]));
         break;
       case JMPNZ:
         if (Proc.read_Ci(r[0]) != 0)
-          { Proc.PC += (signed int) n; }
+          Proc.jump(n);
         break;
       case JMPEQZ:
         if (Proc.read_Ci(r[0]) == 0)
-          { Proc.PC += (signed int) n; }
+          Proc.jump(n);
         break;
       case PRINTREG:
            {
@@ -1419,12 +1458,10 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc2.binary_file_io.read(Proc2.get_S(), Proc.get_Ci(), Proc.P, *this);
         return;
       case WRITEFILECLEAR:
-        // Write shares to file system
         Procp.binary_file_io_clear.write(Procp.get_C(), Proc.get_Ci(), Proc.P,
             *this);
         return;
       case READFILECLEAR:
-        // Write shares to file system
         Procp.binary_file_io_clear.read(Procp.get_C(), Proc.get_Ci(), Proc.P,
             *this);
         return;
@@ -1460,7 +1497,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         Proc2.DataF.get(Proc.Proc2.get_S(), r, start, size);
         return;
       case CISC:
-        Procp.protocol.cisc(Procp, Proc.get_Ci(), *this);
+        Procp.protocol.cisc(Procp, Proc.get_Ci(), Proc.machine.Mp.MS, *this);
         return;
       default:
         throw invalid_opcode(opcode);
@@ -1502,8 +1539,9 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
       }
       catch (exception& e)
       {
-          cerr << "Fatal error at " << name << ":" << Proc.last_PC << " ("
-              << p[Proc.last_PC].get_name() << "): " << e.what() << endl;
+          auto inst =  p[Proc.last_PC].get_name();
+          fprintf(stderr, "Fatal error at %s:%d (%s): %s\n", name.c_str(),
+                  Proc.last_PC, inst.c_str(), e.what());
           exit(1);
       }
     }
@@ -1527,8 +1565,12 @@ void Program::execute_with_errors(Processor<sint, sgf2n>& Proc) const
   (void) time_stats;
 
 #ifdef TIME_INSTRUCTIONS
-  time_stats = true;
+  time_stats = not OnlineOptions::singleton.has_option("count_stats");
 #endif
+
+  if (OnlineOptions::singleton.has_option("output_tape"))
+    fprintf(stderr, "\trunning %s in thread %d\n", name.c_str(),
+        BaseMachine::thread_num);
 
   while (Proc.PC<size)
     {

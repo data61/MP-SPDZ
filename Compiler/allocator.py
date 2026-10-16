@@ -74,15 +74,15 @@ class AllocRange:
         self.grow = True
         self.pool = defaultdict(set)
 
-    def alloc(self, size):
+    def alloc(self, size, location=None):
         if self.pool[size]:
             return self.pool[size].pop()
         elif self.grow or self.top + size <= self.limit:
             res = self.top
             self.top += size
             self.limit = max(self.limit, self.top)
-            if res >= REG_MAX:
-                raise RegisterOverflowError(size)
+            if self.top >= REG_MAX:
+                raise RegisterOverflowError(size, self.top, location)
             return res
 
     def free(self, base, size):
@@ -115,9 +115,9 @@ class AllocPool:
         self.by_base = {}
         self.parent = parent
 
-    def alloc(self, reg_type, size):
+    def alloc(self, reg_type, size, location=None):
         for r in self.ranges[reg_type]:
-            res = r.alloc(size)
+            res = r.alloc(size, location=location)
             if res is not None:
                 self.by_base[reg_type, res] = r
                 return res
@@ -167,7 +167,8 @@ class StraightlineAllocator:
         self.old_pool = None
         self.unused = defaultdict(lambda: 0)
 
-    def alloc_reg(self, reg, free):
+    def alloc_reg(self, reg, block):
+        free = block.alloc_pool
         base = reg.vectorbase
         if base in self.alloc:
             # already allocated
@@ -175,7 +176,7 @@ class StraightlineAllocator:
 
         reg_type = reg.reg_type
         size = base.size
-        res = free.alloc(reg_type, size)
+        res = free.alloc(reg_type, size, location=block.name)
         self.alloc[base] = res
 
         base.i = self.alloc[base]
@@ -227,7 +228,9 @@ class StraightlineAllocator:
         else:
             self.defined[reg] = inst
 
-    def process(self, program, alloc_pool):
+    def process(self, block):
+        program = block.instructions
+        alloc_pool = block.alloc_pool
         self.update_usage(alloc_pool)
         for k,i in enumerate(reversed(program)):
             unused_regs = []
@@ -239,7 +242,7 @@ class StraightlineAllocator:
                                                 (j,i,format_trace(i.caller)))
                 else:
                     # unused register
-                    self.alloc_reg(j, alloc_pool)
+                    self.alloc_reg(j, block)
                     unused_regs.append(j)
             if unused_regs and len(unused_regs) == len(list(i.get_def())) and \
                self.program.verbose:
@@ -252,7 +255,7 @@ class StraightlineAllocator:
 
             if i.read_after_write:
                 for j in i.get_used():
-                    self.alloc_reg(j, alloc_pool)
+                    self.alloc_reg(j, block)
                 for j in i.get_def():
                     self.dealloc_reg(j, i, alloc_pool)
             else:
@@ -260,7 +263,7 @@ class StraightlineAllocator:
                     for j in part.get_def():
                         self.dealloc_reg(j, i, alloc_pool)
                     for j in part.get_used():
-                        self.alloc_reg(j, alloc_pool)
+                        self.alloc_reg(j, block)
 
             if k % 1000000 == 0 and k > 0:
                 print("Allocated registers for %d instructions at" % k, time.asctime())
@@ -833,6 +836,15 @@ class RegintOptimizer:
                    inst.args[1] in self.cache:
                     self.range_cache[inst.args[0]] = \
                         len(inst.args[0]), self.cache[inst.args[1]]
+            elif isinstance(inst, movint_class):
+                if inst.args[1] in self.cache:
+                    res = self.cache[inst.args[1]]
+                    self.cache[inst.args[0]] = res
+                    instructions[i] = ldint(inst.args[0], res,
+                                            add_to_prog=False)
+                if inst.args[1] in self.offset_cache:
+                    self.offset_cache[inst.args[0]] = \
+                        self.offset_cache[inst.args[1]]
             elif isinstance(inst, IntegerInstruction):
                 if inst.args[1] in self.cache and inst.args[2] in self.cache:
                     res = inst.op(self.cache[inst.args[1]],

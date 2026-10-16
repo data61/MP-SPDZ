@@ -10,9 +10,15 @@
 [submodule "deps/libOTe"]
 	path = deps/libOTe
 	url = https://github.com/mkskeller/softspoken-implementation
+[submodule "deps/libOTe2"]
+	path = deps/libOTe2
+	url = https://github.com/mkskeller/libOTe
 [submodule "deps/SimplestOT_C"]
 	path = deps/SimplestOT_C
 	url = https://github.com/mkskeller/SimplestOT_C
 [submodule "deps/sse2neon"]
 	path = deps/sse2neon
 	url = https://github.com/DLTcollab/sse2neon
+[submodule "deps/secure-join"]
+	path = deps/secure-join
+	url = https://github.com/mkskeller/secure-join

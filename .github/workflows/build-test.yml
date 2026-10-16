@@ -1,0 +1,44 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master, to-publish ]
+  pull_request: {}
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build-linux:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-24.04
+    timeout-minutes: 0
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+            submodules: recursive
+
+      # Runs a set of commands using the runners shell
+      - name: CPU info
+        run: cat /proc/cpuinfo
+      - name: system packages
+        run: bash -c "sudo apt-get update && sudo apt-get install libboost-all-dev libsodium-dev libntl-dev python3-gmpy2 python3-pip axel libz-dev libc6-dev doxygen valgrind"
+      - name: config
+        run: echo MY_CFLAGS += -DFEWER_RINGS -DFEWER_PRIMES >> CONFIG.mine
+      - name: config
+        run: echo MY_CFLAGS += -DCOMP_SEC=10 -DCHECK_SIZE >> CONFIG.mine
+      - name: build
+        run: make -j2 replicated-{ring,field}-party.x rep4-ring-party.x shamir mascot-party.x sy spdz2k-party.x semi-he yao semi2k-party.x semi-party.x dealer-ring-party.x cowgear-party.x chaigear-party.x fd
+      - name: certificates
+        run: Scripts/setup-ssl.sh
+      - name: tutorial test
+        run: skip_binary=1 slim=1 Scripts/test_tutorial.sh -X

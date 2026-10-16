@@ -79,6 +79,7 @@ class octetStream
   void reserve(size_t l);
   template<class T>
   void reserve(size_t l);
+  void reserve_min(size_t l);
   template<class T>
   void require(size_t n_items);
   /// Free memory
@@ -135,6 +136,8 @@ class octetStream
   void reset_read_head()  { ptr = data; bits[1].n = 0; }
   /// Set length to zero but keep allocation
   void reset_write_head() { end = data; bits[0].n = 0; reset_read_head(); }
+
+  void reset_reserve(size_t size);
 
   // Move len back num
   void rewind_write_head(size_t num) { end-=num; }
@@ -345,6 +348,11 @@ template<class T>
 void octetStream::reserve(size_t l)
 {
   reserve(l * T::size());
+}
+
+inline void octetStream::reserve_min(size_t l)
+{
+  resize(get_length() + l);
 }
 
 template<class T>

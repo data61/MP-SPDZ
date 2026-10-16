@@ -199,6 +199,9 @@ def vectorize_init(function):
                 raise CompilerError('Mismatch in vector size')
         if 'size' in kwargs and kwargs['size'] is not None:
             size = kwargs['size']
+        if len(args) > 1 and isinstance(args[1], Tape.Register) and \
+           size is None:
+            size = args[1].size
         if size is not None:
             set_global_vector_size(size)
             try:
@@ -452,6 +455,10 @@ class _int(Tape._no_truth):
         :rtype: depending on inputs, secret if any is """
         carry = self * other
         return self + other - 2 * carry, carry
+
+    def carry_out(self, a, b):
+        s = util.bit_xor(a, b)
+        return util.if_else(s, self, a)
 
     @staticmethod
     def long_one():
@@ -724,19 +731,19 @@ class _register(Tape.Register, _number, _structure):
         return self.size
 
     @vectorized_classmethod
-    def conv(cls, val):
+    def conv(cls, val, **kwargs):
         if isinstance(val, MemValue):
             val = val.read()
         if isinstance(val, cls):
             return val
         elif not isinstance(val, (_register, _vec)):
             try:
-                return type(val)(cls.conv(v) for v in val)
+                return type(val)(cls.conv(v, **kwargs) for v in val)
             except TypeError:
                 pass
             except CompilerError:
                 pass
-        return cls(val)
+        return cls(val, **kwargs)
 
     @vectorized_classmethod
     @read_mem_value
@@ -793,11 +800,16 @@ class _register(Tape.Register, _number, _structure):
         return cls()
 
     @classmethod
-    def bit_compose(cls, bits):
+    def bit_compose(cls, bits, signed=False):
         """ Compose value from bits.
 
         :param bits: iterable of any type implementing left shift """
-        return sum(cls.conv(b) << i for i,b in enumerate(bits))
+        bits = [cls.conv(b) << i for i,b in enumerate(bits)]
+        #library.print_ln('bc signed=%s %s', signed, util.reveal(bits))
+        if signed and len(bits) > 1:
+            return sum(bits) - (bits[-1] << 1)
+        else:
+            return sum(bits)
 
     @classmethod
     def malloc(cls, size, creator_tape=None, **kwargs):
@@ -811,7 +823,7 @@ class _register(Tape.Register, _number, _structure):
         program.free(addr, cls.reg_type)
 
     @set_instruction_type
-    def __init__(self, reg_type, val, size):
+    def __init__(self, reg_type, val, size, **kwargs):
         from .GC.types import sbits
         if isinstance(val, (tuple, list)):
             size = len(val)
@@ -829,7 +841,7 @@ class _register(Tape.Register, _number, _structure):
                     part.load_other(x)
         elif val is not None:
             try:
-                self.load_other(val)
+                self.load_other(val, **kwargs)
             except:
                 raise CompilerError(
                     "cannot convert '%s' to '%s'" % (type(val), type(self)))
@@ -1194,6 +1206,8 @@ class cint(_clear, _int):
         dest = regint() if dest is None else dest
         convmodp(dest, self, sync, bitlength=n_bits)
         return dest
+
+    to_regint_by_bit = to_regint
 
     def __mod__(self, other):
         """ Clear modulo.
@@ -1676,7 +1690,10 @@ class regint(_register, _int):
         if isinstance(val, cgf2n):
             gconvgf2n(self, val)
         elif isinstance(val, regint):
-            addint(self, val, regint(0))
+            if self.size == val.size:
+                movint(self, val)
+            else:
+                addint(self, val, regint(0))
         else:
             try:
                 val.to_regint(dest=self)
@@ -1925,6 +1942,14 @@ class regint(_register, _int):
         if not util.is_constant(player):
             raise CompilerError('Player number must be known at compile time')
         intoutput(player, self)
+
+    def sum(self):
+        tmp = regint(size=self.size)
+        groupsumint(tmp, regint(0, size=self.size), self)
+        tmp = Array.create_from(tmp)
+        res = tmp[0]
+        tmp.delete()
+        return res
 
 class localint(Tape._no_truth):
     """ Local integer that must prevented from leaking into the secure
@@ -2306,16 +2331,16 @@ class _secret(_arithmetic_register, _secret_structure):
                  indices_values=indices_values)
         return res
 
-    @staticmethod
-    def _new(self):
+    @classmethod
+    def _new(cls, value, **kwargs):
         # mirror sfix
-        return self
+        return cls.conv(value, **kwargs)
 
     @no_doc
-    def __init__(self, reg_type, val=None, size=None):
+    def __init__(self, reg_type, val=None, size=None, **kwargs):
         if isinstance(val, self.clear_type):
             size = val.size
-        super(_secret, self).__init__(reg_type, val=val, size=size)
+        super(_secret, self).__init__(reg_type, val=val, size=size, **kwargs)
 
     @set_instruction_type
     @vectorize
@@ -2332,7 +2357,7 @@ class _secret(_arithmetic_register, _secret_structure):
     @set_instruction_type
     @read_mem_value
     @vectorize
-    def load_other(self, val):
+    def load_other(self, val, **kwargs):
         from Compiler.GC.types import sbits, sbitvec
         if isinstance(val, self.clear_type):
             self.load_clear(val)
@@ -2349,15 +2374,16 @@ class _secret(_arithmetic_register, _secret_structure):
                     movs(self, x[0].bit_xor(x[1]))
                 return
             r = self.get_dabit()
-            tmp = r[0].bit_xor((r[1] ^ val).reveal().to_regint_by_bit())
+            tmp = r[0].bit_xor(
+                (r[1] ^ val).reveal().to_regint_by_bit(sync=False))
             program.curr_block.replace_last_reg(self, tmp)
         elif isinstance(val, sbitvec):
-            movs(self, sint.bit_compose(val))
+            movs(self, sint.bit_compose(val, **kwargs))
         else:
             self.load_clear(self.clear_type(val))
 
     @classmethod
-    def bit_compose(cls, bits):
+    def bit_compose(cls, bits, signed=False):
         """ Compose value from bits.
 
         :param bits: iterable of any type convertible to sint """
@@ -2367,7 +2393,9 @@ class _secret(_arithmetic_register, _secret_structure):
         elif isinstance(bits, sbitvec):
             bits = bits.v
         bits = list(bits)
-        if (program.use_edabit() or program.use_split()) and isinstance(bits[0], sbits):
+        if len(bits) > 5 and (program.use_edabit() or (
+                program.options.ring and program.use_split())) and \
+            isinstance(bits[0], sbits):
             if program.use_edabit():
                 mask = cls.get_edabit(len(bits), strict=True, size=bits[0].n)
             else:
@@ -2387,10 +2415,14 @@ class _secret(_arithmetic_register, _secret_structure):
             t = sbitintvec.get_type(len(bits) + 1)
             masked = t.from_vec(mask[1] + [0]) + t.from_vec(bits + [0])
             overflow = masked.v[-1]
-            masked = cls.bit_compose(x.reveal().to_regint_by_bit() for x in masked.v[:-1])
-            return masked - mask[0] + (cls(overflow) << len(bits))
+            masked = cls.bit_compose(x.reveal().to_regint_by_bit(sync=False)
+                                     for x in masked.v[:-1])
+            res = masked - mask[0] + (cls(overflow) << len(bits))
+            if signed:
+                res -= cls(bits[-1]) << len(bits)
+            return res
         else:
-            return super(_secret, cls).bit_compose(bits)
+            return super(_secret, cls).bit_compose(bits, signed=signed)
 
     @set_instruction_type
     @read_mem_value
@@ -2436,6 +2468,8 @@ class _secret(_arithmetic_register, _secret_structure):
         size or one size 1 for a value-vector multiplication.
 
         :param other: any compatible type """
+        if isinstance(other, sintbit) and self.size == other.size:
+            return other * self
         if isinstance(other, _register) and (1 in (self.size, other.size)) \
            and (self.size, other.size) != (1, 1):
             x, y = (other, self) if self.size < other.size else (self, other)
@@ -2490,6 +2524,10 @@ class _secret(_arithmetic_register, _secret_structure):
 
     @set_instruction_type
     def secure_shuffle(self, unit_size=1):
+        if program.use_binary_shuffle:
+            from Compiler.GC.types import sbitintvec
+            t = sbitintvec.get_type(self.default_bit_length())
+            return type(self)(t.from_right_length(self).secure_shuffle())
         res = type(self)(size=self.size)
         secshuffle(res, self, unit_size)
         return res
@@ -2503,6 +2541,9 @@ class _secret(_arithmetic_register, _secret_structure):
         res = self.clear_type()
         asm_open(check, res, self)
         return res
+
+    def reveal_to_regint_by_bit(self):
+        return self.reveal().to_regint_by_bit()
 
     @set_instruction_type
     def reveal_to(self, player):
@@ -2828,7 +2869,7 @@ class sint(_secret, _int):
         self._store_in_mem(address, stms, stmsi)
 
     @vectorize_init
-    def __init__(self, val=None, size=None):
+    def __init__(self, val=None, size=None, **kwargs):
         from .GC.types import sbitvec
         if isinstance(val, personal):
             size = val._v.size
@@ -2839,7 +2880,7 @@ class sint(_secret, _int):
             self.load_other(val.v.round(val.k, val.f,
                                         nearest=val.round_nearest))
         elif isinstance(val, sbitvec):
-            super(sint, self).__init__('s', val=val, size=val.v[0].n)
+            super(sint, self).__init__('s', val=val, size=val.v[0].n, **kwargs)
         else:
             super(sint, self).__init__('s', val=val, size=size)
 
@@ -2939,7 +2980,7 @@ class sint(_secret, _int):
             if m >= bit_length:
                 return self
             res = sint()
-            comparison.Mod2m(res, self, bit_length, m, signed=signed)
+            comparison.Mod2m(res, self, bit_length, m, signed)
         else:
             res, pow2 = floatingpoint.Trunc(self, bit_length, m,
                                             compute_modulo=True)
@@ -3193,10 +3234,15 @@ class sint(_secret, _int):
         return w
 
     @staticmethod
-    def get_secure_shuffle(n):
-        res = regint()
-        gensecshuffle(res, n)
+    def get_secure_shuffle(n, full=False, size=1):
+        res = regint(size=size)
+        for i in range(size):
+            gensecshuffle(res[i], n)
         return res
+
+    @staticmethod
+    def delete_shuffle(shuffle):
+        delshuffle(shuffle)
 
     @read_mem_value
     def secure_permute(self, shuffle, unit_size=1, reverse=False, n_threads=None):
@@ -3251,9 +3297,9 @@ class sint(_secret, _int):
     def get_vector(self, base=0, size=None, skip=1):
         if size is None:
             size = len(self) - base
-        if base == 0 and size == len(self):
+        if base == 0 and size == len(self) and skip == 1:
             return self
-        if base + size > len(self):
+        if base + size * skip >= len(self) + skip:
             raise IndexError('%s+%s too much for length %s' % (base, size, len(self)))
         res = type(self)(size=size)
         picks(res, self, base, skip)
@@ -3351,6 +3397,15 @@ class sintbit(sint):
     __rand__ = __and__
     __rxor__ = __xor__
     __ror__ = __or__
+
+    @vectorize
+    def mul(self, other):
+        if isinstance(other, sint):
+            res = sint()
+            mulbits(self.size, res, other, self)
+            return res
+        else:
+            return sint.mul(self, other)
 
 class sgf2n(_secret, _gf2n):
     r"""
@@ -3517,6 +3572,7 @@ for t in (sint, sgf2n):
     t.default_type = t
 
 sint.bit_type = sintbit
+sint.int_type = sint
 sgf2n.bit_type = sgf2n
 
 class _bitint(Tape._no_truth):
@@ -3543,7 +3599,7 @@ class _bitint(Tape._no_truth):
         if cls.log_rounds:
             return cls.carry_lookahead_adder(a, b, carry_in=carry_in,
                                              get_carry=get_carry)
-        elif cls.linear_rounds:
+        elif cls.linear_rounds or program.linear_rounds():
             return cls.ripple_carry_adder(a, b, carry_in=carry_in,
                                              get_carry=get_carry)
         else:
@@ -3892,7 +3948,7 @@ class _bitint(Tape._no_truth):
         n = 1
         for b in bits:
             try:
-                n = x.n
+                n = x.size
                 break
             except:
                 pass
@@ -4799,9 +4855,9 @@ class _fix(_single):
             return super(_fix, cls).conv(other)
 
     @classmethod
-    def _new(cls, other, k=None, f=None):
+    def _new(cls, other, k=None, f=None, **kwargs):
         res = cls(k=k, f=f, initialize=False)
-        res.v = res.int_type.conv(other)
+        res.v = res.int_type.conv(other, **kwargs)
         return res
 
     @vectorize_init
@@ -4973,9 +5029,10 @@ class _fix(_single):
             k = self.k
         return revealed_fix._new(val)
 
-    def bit_decompose(self, n_bits=None):
+    def bit_decompose(self, n_bits=None, **kwargs):
         """ Bit decomposition. """
-        return self.v.bit_decompose(n_bits or self.default_bit_length())
+        return self.v.bit_decompose(
+            n_bits or self.default_bit_length(), **kwargs)
 
     def default_bit_length(self):
         return self.k
@@ -6045,6 +6102,44 @@ class _vectorizable:
                   for i in range(n_parties))
         tmp.write_to_socket(client_id, tmp)
 
+    def to_binary_with_right_length(self, bit_length, n_threads=None, **kwargs):
+        """ Convert sint container to binary.
+
+        :param bit_length: bit length of input and output (potentially
+          insecure if input exceeds the bit length)
+        :param n_threads: number of threads (default is to run in same
+          thread)
+
+        """
+        from .GC.types import sbitintvec
+        t = sbitintvec.get_type(bit_length)
+        res = self.same_shape(t)
+        @library.multithread(n_threads, self.total_size())
+        def _(base, size):
+            res.assign_vector(
+                t.from_right_length(self.get_vector(
+                    base=base, size=size), **kwargs), base=base)
+        return res
+
+    def from_binary(self, other, n_threads=None, **kwargs):
+        """ Convert secret binary container to arithmetic.
+
+        :param other: sbitvec (multi-)array
+        :param n_threads: number of threads (default is to run in same
+          thread)
+
+        """
+        assert self.shape == other.shape
+        bak = self.address
+        self.address = MemValue(bak)
+        @library.multithread(n_threads, self.total_size())
+        def _(base, size):
+            self.assign_vector(self.value_type._new(
+                self.value_type.int_type(
+                    other.get_vector(base=base, size=size), **kwargs)),
+                               base=base)
+        self.address = bak
+
 class Array(_vectorizable):
     """
     Array accessible by public index. That is, ``a[i]`` works for an
@@ -6086,7 +6181,7 @@ class Array(_vectorizable):
             res = l.same_shape()
             res[:] = l[:]
             return res
-        if isinstance(l, _number):
+        if isinstance(l, (_number, _vec)):
             tmp = l
             t = type(l)
         else:
@@ -6271,9 +6366,9 @@ class Array(_vectorizable):
         for i in range(self.length):
             yield self[i]
 
-    def same_shape(self, **kwargs):
+    def same_shape(self, value_type=None, **kwargs):
         """ Array of same length and type. """
-        return Array(self.length, self.value_type, **kwargs)
+        return Array(self.length, value_type or self.value_type, **kwargs)
 
     def assign(self, other, base=0):
         """ Assignment.
@@ -6331,18 +6426,23 @@ class Array(_vectorizable):
                 if isinstance(v, (sint, sfix)):
                     self.assign_vector(v.expand_to_vector(size), base=base)
                 else:
-                    @library.for_range_opt(size)
+                    @library.for_range_opt(size, disable_index_checks=True)
                     def _(i):
                         self[base + i] = mem_value
         return self
 
-    def get_vector(self, base=0, size=None):
+    def get_vector(self, base=0, size=None, skip=1):
         """ Return vector with content.
 
         :param base: starting point (regint/cint/int)
         :param size: length (compile-time int) """
-        size = size or self.length - base
-        return self.value_type.load_mem(self.get_address(base, size), size=size)
+        size = size or (self.length - base) // skip
+        if skip == 1:
+            return self.value_type.load_mem(
+                self.get_address(base, size), size=size)
+        else:
+            return self.value_type.load_mem(
+                regint.inc(size, self.address + base, skip))
 
     get_part_vector = get_vector
 
@@ -6596,7 +6696,10 @@ class Array(_vectorizable):
         return self
 
     def __isub__(self, other):
-        self[:] -= other.get_vector()
+        if util.is_constant(other):
+            self[:] -= other
+        else:
+            self[:] -= other.get_vector()
         return self
 
     def __imul__(self, other):
@@ -6617,16 +6720,48 @@ class Array(_vectorizable):
 
     def sum(self):
         """ Sum of elements. """
-        return self[:].sum()
+        res = self[0]
+        @library.multithread(None, len(self) - 1)
+        def _(base, size):
+            res.iadd(self.get_vector(base=base + 1, size=size).sum())
+        return res
 
     def shuffle(self):
         """ Insecure shuffle in place. """
         self.assign_vector(self.get(regint.inc(len(self)).shuffle()))
 
-    def secure_shuffle(self):
+    def secure_shuffle(self, n_threads=None, get_shuffle=False):
         """ Secure shuffle in place according to the security model.
-        See :py:func:`MultiArray.secure_shuffle` for references. """
-        self.assign_vector(self.get_vector().secure_shuffle())
+        See :py:func:`MultiArray.secure_shuffle` for references.
+
+        :param n_threads: number of threads (default is to run in same
+          thread)
+        :param get_shuffle: return oblivious shuffle
+
+        """
+        if n_threads and program.use_binary_shuffle and \
+           issubclass(self.value_type, _secret):
+            assert not get_shuffle
+            from Compiler.GC.types import sbitintvec
+            t = sbitintvec.get_type(self.value_type.default_bit_length())
+            tmp = t.Array(len(self))
+            @library.multithread(n_threads, len(self))
+            def _(base, size):
+                tmp.assign_vector(t.from_right_length(
+                    self.get_vector(base=base, size=size)), base=base)
+            tmp.secure_shuffle()
+            @library.multithread(n_threads, len(self))
+            def _(base, size):
+                self.assign_vector(
+                    tmp.get_vector(base=base, size=size), base=base)
+            tmp.delete()
+            return
+        if get_shuffle:
+            res = self.value_type.get_secure_shuffle(len(self))
+            self.secure_permute(res)
+            return res
+        else:
+            self.assign_vector(self.get_vector().secure_shuffle())
 
     def secure_permute(self, *args, **kwargs):
         """ Secure permute in place according to the security model.
@@ -6711,7 +6846,8 @@ class Array(_vectorizable):
         """
         return personal(player, self.create_from(self[:].reveal_to(player)._v))
 
-    def sort(self, n_threads=None, batcher=False, n_bits=None, **kwargs):
+    def sort(self, n_threads=None, batcher=False, n_bits=None, signed=True,
+             time=False, debug=False, quicksort=False, **kwargs):
         r"""
         Sort in place using `radix sort
         <https://eprint.iacr.org/2014/121>`_ with complexity
@@ -6724,15 +6860,50 @@ class Array(_vectorizable):
           default), need to use Batcher's algorithm for several threads
         :param batcher: use Batcher's odd-even mergesort in any case
         :param n_bits: number of bits in keys (default: global bit length)
+        :param signed: most significant bit is sign
+        :param time: granular timings
+        :param debug: debugging output (insecure)
+        :param quicksort: use Quicksort
+
         """
         if batcher or self.value_type.n_elements() > 1 or \
-           program.options.binary:
+           (program.options.binary and not program.use_binary_shuffle):
             library.loopy_odd_even_merge_sort(self, n_threads=n_threads,
                                               **kwargs)
         else:
             from . import sorting
-            sorting.radix_sort(self, self, n_bits=n_bits, n_threads=n_threads,
-                               **kwargs)
+            from .GC.types import _binary
+            mixed = program.use_binary_shuffle and \
+                not issubclass(self.value_type, _binary)
+            if mixed:
+                n_bits = n_bits or self.value_type().default_bit_length()
+                from Compiler.GC.types import sbitintvec
+                timer = library.MultiTimer(time)
+                to_sort = self.create_from(
+                    sbitintvec.get_type(n_bits).from_right_length(
+                        self[:], signed=signed))
+                timer.next()
+                time = timer.timer_id * 10
+                if debug:
+                    library.print_ln('sort n_bits=%s input=%s bin=%s', n_bits,
+                                     self.reveal(), to_sort.reveal())
+            else:
+                to_sort = self
+            if quicksort:
+                n_bits = n_bits or self.value_type().default_bit_length()
+                sorting.quicksort(to_sort, n_bits=n_bits, n_threads=n_threads,
+                                  time=time, debug=debug, **kwargs)
+            else:
+                sorting.radix_sort(
+                    to_sort, to_sort, n_bits=n_bits, signed=signed,
+                    n_threads=n_threads, time=time, debug=debug, **kwargs)
+            if mixed:
+                timer.next()
+                self[:] = self.value_type._new(to_sort[:], signed=signed)
+                if debug:
+                    library.print_ln('sort res=%s bin=%s', self.reveal(),
+                                     to_sort.reveal())
+                timer.end()
 
     def to_row_matrix(self):
         """
@@ -6850,16 +7021,16 @@ class SubMultiArray(_vectorizable):
         for i, x in enumerate(value):
             self.maybe_get(condition, index).maybe_set(condition, i, x)
 
-    def assign_all(self, value):
+    def assign_all(self, value, **kwargs):
         """ Assign the same value to all entries.
 
         :param value: convertible to relevant basic type """
         try:
-            self.to_array().assign_all(value)
+            self.to_array().assign_all(value, **kwargs)
         except AssertionError:
             @library.for_range(self.sizes[0])
             def f(i):
-                self[i].assign_all(value)
+                self[i].assign_all(value, **kwargs)
         return self
 
     def total_size(self):
@@ -6887,17 +7058,35 @@ class SubMultiArray(_vectorizable):
         assert vector.size <= self.total_size()
         self.value_type.conv(vector).store_in_mem(self.address + base)
 
-    def assign(self, other, base=0):
+    def assign(self, other, base=0, n_threads=None):
         """ Assign container to content. Not implemented for floating-point.
 
         :param other: container of matching size and type """
+        from Compiler.GC.types import sbitvec, sbits
+        if issubclass(self.value_type, sbitvec) and \
+           isinstance(other, _vectorizable) and \
+           self.total_size() == other.total_size() and \
+           issubclass(other.value_type, sbitvec) and \
+           self.value_type.n_bits == other.value_type.n_bits and \
+           self.value_type.n_bits <= sbits.unit and base == 0:
+            t = sbits.get_type(self.total_size() * sbits.unit)
+            t.load_mem(other.address).store_in_mem(self.address)
+            return
         try:
-            if self.value_type.n_elements() > 1:
-                assert self.sizes == other.sizes
-            self.assign_vector(other.get_vector(), base=base)
+            @library.multithread(n_threads, self.total_size() - base,
+                                 max_size=program.budget)
+            def _(part_base, size):
+                part_base += base
+                self.assign_vector(other.get_vector(base=part_base, size=size),
+                                   base=part_base)
         except:
-            for i, x in enumerate(other):
-                self[base + i].assign(x)
+            try:
+                if self.value_type.n_elements() > 1:
+                    assert self.sizes == other.sizes
+                self.assign_vector(other.get_vector(), base=base)
+            except:
+                for i, x in enumerate(other):
+                    self[base + i].assign(x)
 
     def get_part_vector(self, base=0, size=None):
         """ Vector from range of the first dimension, including all
@@ -7014,12 +7203,13 @@ class SubMultiArray(_vectorizable):
         addresses = self.get_addresses(*indices)
         vector.store_in_mem(addresses)
 
-    def same_shape(self, **kwargs):
+    def same_shape(self, value_type=None, **kwargs):
         """ :return: new multidimensional array with same shape and basic type """
+        value_type = value_type or self.value_type
         if len(self.sizes) == 2:
-            return Matrix(*self.sizes, self.value_type, **kwargs)
+            return Matrix(*self.sizes, value_type, **kwargs)
         else:
-            return MultiArray(self.sizes, self.value_type, **kwargs)
+            return MultiArray(self.sizes, value_type, **kwargs)
 
     def get_part(self, start, size):
         """ Part multi-array.
@@ -7477,28 +7667,39 @@ class SubMultiArray(_vectorizable):
         res = self.value_type.dot_product(a, b)
         return res
 
-    def get_column(self, index):
-        """ Get matrix column as vector.
+    def get_column(self, index, base=0, size=None):
+        """ Get (part of) matrix column as vector.
 
         :param index: regint/cint/int
+        :param base: starting row (default 0)
+        :param size: number of rows (default all remaining)
+
         """
         assert self.value_type.n_elements() == 1
-        addresses = regint.inc(self.sizes[0], self.address + \
+        size = size or self.sizes[0] - base
+        addresses = regint.inc(size, self.address + \
+                               base * self.get_part_size() + \
                                index * self.value_type.mem_size(),
                                self.get_part_size())
         return self.value_type.load_mem(addresses)
 
-    def set_column(self, index, vector):
+    def set_column(self, index, vector, base=0):
         """ Change column.
 
         :param index: regint/cint/int
         :param vector: short enought vector of compatible type
+        :param base: starting row (default 0)
+
         """
         assert self.value_type.n_elements() == 1
-        addresses = regint.inc(self.sizes[0], self.address + \
+        addresses = regint.inc(len(vector), self.address + \
+                               base * self.get_part_size() + \
                                index * self.value_type.mem_size(),
                                self.get_part_size())
         self.value_type.conv(vector).store_in_mem(addresses)
+
+    def get_columns(self):
+        return (self.get_column(i) for i in range(self.sizes[1]))
 
     def transpose(self, n_threads=None):
         """ Matrix transpose.
@@ -7552,12 +7753,16 @@ class SubMultiArray(_vectorizable):
         <https://eprint.iacr.org/2014/137>`_ or Section 3.2 of
         `Asharov et al. <https://eprint.iacr.org/2022/1595>`_ if applicable.
         """
-        if self.total_size() < 2 ** 28:
+        if 'shuffle' in program.keep_cisc:
+            return
+        from .GC.types import _binary
+        if self.total_size() < 2 ** 28 and not issubclass(
+                self.value_type, _binary):
             self.assign_vector(self.get_vector().secure_shuffle(self.part_size()))
         else:
-            perm = sint.get_secure_shuffle(len(self))
+            perm = self.value_type.get_secure_shuffle(len(self))
             self.secure_permute(perm)
-            delshuffle(perm)
+            self.value_type.delete_shuffle(perm)
 
     def secure_permute(self, permutation, reverse=False, n_threads=None, n_parallel=None):
         """ Securely permute rows (first index). See
@@ -7598,7 +7803,8 @@ class SubMultiArray(_vectorizable):
                     self.set_column(i, column)
 
     def sort(self, key_indices=None, n_bits=None, batcher=False, n_threads=None,
-             **kwargs):
+             signed=True, value_n_bits=None, key_prep=None, time=False,
+             debug=False, quicksort=False, **kwargs):
         """ Sort sub-arrays (different first index) in place.
         This uses `radix sort <https://eprint.iacr.org/2014/121>`_.
 
@@ -7609,24 +7815,73 @@ class SubMultiArray(_vectorizable):
         :param batcher: whether to use Batcher's odd-even merge sorting
         :param n_threads: number of threads to use (single thread by default),
          only works with Batcher's algorithm
+        :param signed: most significant bit is sign
+        :param value_n_bits: number of bits in values (default: global
+          bit length)
+        :param key_prep: modifier function for keys
+        :param time: granular timings
+        :param debug: debugging output (insecure)
+        :param quicksort: use Quicksort
+
         """
         if key_indices is None:
             key_indices = (0,) * (len(self.sizes) - 1)
+        if isinstance(key_indices, regint):
+            key_indices = tuple(key_indices)
+        key_indices = util.tuplify(key_indices)
         if len(key_indices) != len(self.sizes) - 1:
             raise CompilerError('length of key_indices has to be one less '
                                 'than the dimension')
-        if program.options.binary or batcher:
+        if (program.options.binary and not program.use_binary_shuffle) \
+           or batcher:
             assert len(self.sizes) == 2
             library.loopy_odd_even_merge_sort(self, key_indices=key_indices,
                                               n_threads=n_threads, **kwargs)
             return
-        if isinstance(key_indices, regint):
-            key_indices = tuple(key_indices)
-        key_indices = (None,) + util.tuplify(key_indices)
+        from .GC.types import _binary
+        mixed = program.use_binary_shuffle and \
+            not issubclass(self.value_type, _binary)
+        if mixed:
+            from Compiler.GC.types import sbitintvec
+            timer = library.MultiTimer(time)
+            value_n_bits = value_n_bits or self.value_type.default_bit_length()
+            to_sort = self.to_binary_with_right_length(
+                value_n_bits, n_threads=n_threads, signed=signed)
+            timer.next()
+            time = timer.timer_id * 10
+            if debug:
+                library.print_ln('sort input=%s', self.reveal())
+        else:
+            to_sort = self
+        key_indices = (None,) + key_indices
         from . import sorting
-        keys = self.get_vector_by_indices(*key_indices)
-        sorting.radix_sort(keys, self, n_bits=n_bits, n_threads=n_threads,
-                           **kwargs)
+        keys = to_sort.get_vector_by_indices(*key_indices)
+        if key_prep:
+            keys = key_prep(keys)
+        if quicksort:
+            n_bits = n_bits or self.value_type().default_bit_length()
+            shuffle, perm = sorting.quicksort(
+                keys, n_bits=n_bits, return_permutation=True,
+                n_threads=n_threads, time=time, debug=debug, **kwargs)
+            to_sort.secure_permute(shuffle, n_threads=n_threads)
+            to_sort.permute(perm)
+            library.break_point('multi-quicksort')
+            to_sort.value_type.delete_shuffle(shuffle)
+            perm.delete()
+        else:
+            sorting.radix_sort(keys, to_sort, n_bits=n_bits,
+                               n_threads=n_threads,
+                               signed=signed, time=time, debug=debug, **kwargs)
+        if mixed:
+            timer.next()
+            @library.multithread(n_threads, self.total_size())
+            def _(base, size):
+                self.assign_vector(
+                    self.value_type._new(to_sort.get_vector(
+                        base=base, size=size), signed=signed), base=base)
+            timer.end()
+            if debug:
+                library.print_ln('sort res=%s', self.reveal())
 
     def randomize(self, *args, n_threads=None):
         """ Randomize according to data type.
@@ -7773,7 +8028,15 @@ class Matrix(MultiArray):
                             address=address)
 
     @staticmethod
-    def create_from(rows):
+    def create_from(rows, n_threads=None):
+        """ Create or copy matrix.
+
+        :param rows: iterable, :py:class:`Array`, or
+          :py:class:`Matrix`
+        :param n_threads: multithreaded operation, requires input to
+          be a container and not an iterable
+
+        """
         if not isinstance(rows, _vectorizable):
             rows = list(rows)
         if isinstance(rows[0], (list, tuple, Array)):
@@ -7788,16 +8051,15 @@ class Matrix(MultiArray):
                             'accidental shortening by creating matrix')
         res = Matrix(len(rows), len(rows[0]), t)
         if isinstance(rows, _vectorizable):
-            @library.for_range_opt(len(rows), budget=max(program.budget, 1000))
-            def _(i):
-                res[i].assign(rows[i])
+            @library.multithread(n_threads, rows.total_size(),
+                                 max_size=max(program.budget, 1000))
+            def _(base, size):
+                res.assign_vector(rows.get_vector(base=base, size=size),
+                                  base=base)
         else:
             for i in range(len(rows)):
                 res[i].assign(rows[i])
         return res
-
-    def get_columns(self):
-        return (self.get_column(i) for i in range(self.sizes[1]))
 
     def get_column_by_row_indices(self, rows, column):
         assert self.value_type.n_elements() == 1

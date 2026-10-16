@@ -9,13 +9,13 @@
 #include <fstream>
 #include <assert.h>
 
-void BitVector::assign(const BitVector& K)
+void BitVector::assign(const BitVectorView& K)
 {
     if (nbits != K.nbits)
     {
         resize(K.nbits);
     }
-    memcpy(bytes, K.bytes, nbytes);
+    memmove(bytes, K.bytes, nbytes);
 }
 
 void BitVector::resize_zero(size_t new_nbits)
@@ -72,14 +72,50 @@ bool BitVector::parity() const
 #endif
 }
 
-void BitVector::append(const BitVector& other, size_t length)
+void BitVector::append(const BitVectorView& other, size_t length)
 {
+    if (long(length) < 0)
+        length = other.size();
+    assert(nbytes <= capacity);
     assert(nbits % 8 == 0);
     assert(length % 8 == 0);
     assert(length <= other.nbits);
     auto old_nbytes = nbytes;
-    resize(nbits + length);
-    memcpy(bytes + old_nbytes, other.bytes, length / 8);
+    auto add_nbytes = length / 8;
+    if (nbytes + add_nbytes > capacity)
+        resize(2 * (nbits + length));
+    nbytes = old_nbytes + add_nbytes;
+    nbits = old_nbytes * 8 + length;
+    assert(nbytes <= capacity);
+    memcpy(bytes + old_nbytes, other.bytes, add_nbytes);
+}
+
+BitVectorView& BitVectorView::operator &=(const BitVectorView& other)
+{
+    assert(size() == other.size());
+    size_t i = 0;
+    for (; i + 31 < size_bytes(); i += 32)
+    {
+        auto j = i / 32;
+        set_m256i(j, get_m256i(j) & other.get_m256i(j));
+    }
+    for (; i < size_bytes(); i++)
+        bytes[i] &= other.bytes[i];
+    return *this;
+}
+
+BitVector BitVector::operator~() const
+{
+    BitVector res(size());
+    size_t i = 0;
+    for (; i + 32 < size_bytes(); i += 32)
+    {
+        auto j = i / 32;
+        res.set_m256i(j, ~get_m256i(j));
+    }
+    for (; i < size_bytes(); i++)
+        res.bytes[i] = ~bytes[i];
+    return res;
 }
 
 void BitVector::randomize(PRNG& G)
@@ -87,7 +123,7 @@ void BitVector::randomize(PRNG& G)
     G.get_octets(bytes, nbytes);
 }
 
-void BitVector::randomize_at(int a, int nb, PRNG& G)
+void BitVector::randomize_at(size_t a, size_t nb, PRNG& G)
 {
     if (nb < 1)
         throw invalid_length();
@@ -148,7 +184,7 @@ void BitVector::input(istream& s,bool human)
 }
 
 
-void BitVector::pack(octetStream& o) const
+void BitVectorView::pack(octetStream& o) const
 {
     o.store_int(nbits, 8);
     o.append((octet*)bytes, nbytes);
@@ -160,9 +196,30 @@ void BitVector::unpack(octetStream& o)
     o.consume((octet*)bytes, nbytes);
 }
 
+BitVector::BitVector(const vector<Bit>& other) : BitVector(other.size())
+{
+    auto x = other.begin();
+    for (size_t i = 0; i < size(); i += 8)
+    {
+        char tmp = 0;
+        for (int j = 0; j < 8; j++)
+        {
+            tmp ^= *x++ << j;
+        }
+        bytes[i / 8] = tmp;
+    }
+}
+
 BitVector& BitVector::operator =(const octetStream other)
 {
     resize(other.get_length() * 8);
     memcpy(bytes, other.get_data(), nbytes);
     return *this;
+}
+
+ostream& operator <<(ostream& o, const BitVectorView& x)
+{
+    for (size_t i = 0; i < x.size(); i++)
+        o << int(x.get_bit(i));
+    return o;
 }

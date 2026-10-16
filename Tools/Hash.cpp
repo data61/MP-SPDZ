@@ -44,8 +44,13 @@ void Hash::final(octetStream& os)
 {
     os.resize_precise(hash_length);
     os.reset_write_head();
+    append_final(os);
+
+}
+
+void Hash::append_final(octetStream& os)
+{
     final(os.append(hash_length));
-    reset();
 }
 
 octetStream Hash::final()
@@ -53,4 +58,12 @@ octetStream Hash::final()
     octetStream res;
     final(res);
     return res;
+}
+
+bool Hash::matches(octetStream& os)
+{
+    array<unsigned char, hash_length> a, b;
+    final(a.data());
+    os.consume(b.data(), hash_length);
+    return a == b;
 }

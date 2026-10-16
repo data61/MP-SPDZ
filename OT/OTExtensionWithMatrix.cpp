@@ -6,17 +6,64 @@
 #include "OTExtensionWithMatrix.h"
 #include "Tools/Bundle.h"
 #include "Tools/CodeLocations.h"
+#include "Tools/WaitQueue.h"
+#include "Processor/ThreadQueues.h"
 
 #ifndef USE_KOS
+#ifdef USE_LIBOTE1
 #include "Networking/PlayerCtSocket.h"
 
 #include <libOTe/TwoChooseOne/SoftSpokenOT/TwoOneMalicious.h>
 #include <cryptoTools/Network/IOService.h>
+#include <cryptoTools/Crypto/PRNG.h>
 
 osuCrypto::IOService ot_extension_ios;
+#else
+#include "Networking/PlayerCoSocket.h"
+#include <libOTe/TwoChooseOne/SoftSpokenOT/SoftSpokenMalOtExt.h>
+#include <libOTe/TwoChooseOne/Silent/SilentOtExtReceiver.h>
+#include <libOTe/TwoChooseOne/Silent/SilentOtExtSender.h>
+#endif
 #endif
 
 #include "OTCorrelator.hpp"
+
+namespace osuCrypto {
+class Channel;
+}
+
+class SoftState
+{
+#ifdef USE_LIBOTE1
+    array<osuCrypto::Channel*, 2> channels;
+    array<PlayerCtSocket*, 2> sockets;
+#else
+    array<PlayerCoSocket*, 2> co_sockets;
+    osuCrypto::AlignedUnVector<std::array<osuCrypto::block, 2>> sendMessages;
+    osuCrypto::AlignedUnVector<osuCrypto::block> messages;
+#endif
+
+    OTExtensionWithMatrix& ext;
+
+    typedef pair<const BitVector*, bool> job_type;
+    WaitQueue<job_type> job_queue, res_queue;
+
+    pthread_t thread;
+
+    static void* run_thread(void* state);
+
+    void run();
+
+public:
+    SoftState(OTExtensionWithMatrix& ext);
+    ~SoftState();
+
+    void generate(const BitVector& newReceiverInput, bool just_bits);
+
+    void soft_sender(size_t n, bool just_bits);
+    void soft_receiver(size_t n, const BitVector& newReceiverInput,
+            bool just_bits);
+};
 
 OTExtensionWithMatrix OTExtensionWithMatrix::setup(TwoPartyPlayer& player,
         int128 delta, OT_ROLE role, bool passive)
@@ -29,10 +76,19 @@ OTExtensionWithMatrix OTExtensionWithMatrix::setup(TwoPartyPlayer& player,
     return OTExtensionWithMatrix(baseOT, &player, passive);
 }
 
-OTExtensionWithMatrix::OTExtensionWithMatrix(BaseOT& baseOT, TwoPartyPlayer* player,
+OTExtensionWithMatrix::OTExtensionWithMatrix(const BaseOT& baseOT, TwoPartyPlayer* player,
         bool passive) : OTCorrelator(baseOT, player, passive)
 {
     init_me();
+}
+
+OTExtensionWithMatrix::OTExtensionWithMatrix(Player& P, bool passive) :
+        OTExtensionWithMatrix(BaseMachine::fresh_ot_setup(P).get_base(0),
+                new VirtualTwoPartyPlayer(P, 1 - P.my_num()), passive)
+{
+    assert(P.num_players() == 2);
+    init_me();
+    delete_player = true;
 }
 
 void OTExtensionWithMatrix::init_me()
@@ -40,18 +96,67 @@ void OTExtensionWithMatrix::init_me()
     G.ReSeed();
     nsubloops = 1;
     agreed = false;
-#ifndef USE_KOS
-    channel = 0;
-#endif
     softspoken_k = 2;
+    state = 0;
+    delete_player = false;
 }
 
 OTExtensionWithMatrix::~OTExtensionWithMatrix()
 {
-#ifndef USE_KOS
-    if (channel)
-        delete channel;
+    if (state)
+        delete state;
+    if (delete_player)
+        delete player;
+}
+
+SoftState::SoftState(OTExtensionWithMatrix& ext) : ext(ext)
+{
+    assert(ext.player);
+
+#ifdef USE_LIBOTE1
+    sockets[0] = new PlayerCtSocket(*ext.player);
+    sockets[1] = new PlayerCtSocket(*ext.player->fork("soft"));
+
+    for (int i = 0; i < 2; i++)
+        channels[i] = new osuCrypto::Channel(ot_extension_ios, sockets[i]);
+#else
+    co_sockets[0] = new PlayerCoSocket(*ext.player);
+    co_sockets[1] = new PlayerCoSocket(*ext.player->fork("soft"));
 #endif
+
+    pthread_create(&thread, 0, run_thread, this);
+}
+
+SoftState::~SoftState()
+{
+    job_queue.stop();
+    pthread_join(thread, 0);
+
+#ifndef USE_KOS
+#ifdef USE_LIBOTE1
+    for (auto& channel : channels)
+        delete channel;
+#else
+    for (auto& x : co_sockets)
+        delete x;
+#endif
+#endif
+}
+
+void* SoftState::run_thread(void* state)
+{
+    ((SoftState*) state)->run();
+    return 0;
+}
+
+void SoftState::run()
+{
+    job_type job;
+    while (job_queue.pop(job))
+    {
+        soft_receiver(job.first->size(), *job.first, job.second);
+        res_queue.push(job);
+    }
 }
 
 bool OTExtensionWithMatrix::use_kos()
@@ -144,7 +249,7 @@ void OTExtensionWithMatrix::transfer(int nOTs,
 }
 
 void OTExtensionWithMatrix::extend(int nOTs_requested,
-        const BitVector& newReceiverInput, bool hash)
+        const BitVector& newReceiverInput, bool hash, bool just_bits)
 {
     CODE_LOCATION
     protocol_agreement();
@@ -160,106 +265,223 @@ void OTExtensionWithMatrix::extend(int nOTs_requested,
 #ifdef USE_KOS
     assert(use_kos());
 #else
-    resize(nOTs_requested);
+
+    if (not just_bits)
+        resize(nOTs_requested);
 
     if (nOTs_requested == 0)
         return;
 
-    if (not channel)
-        channel = new osuCrypto::Channel(ot_extension_ios, new PlayerCtSocket(*player));
+    if (not state)
+        state = new SoftState(*this);
 
-    if (player->my_num())
-    {
-        soft_sender(nOTs_requested);
-        soft_receiver(nOTs_requested, newReceiverInput);
-    }
-    else
-    {
-        soft_receiver(nOTs_requested, newReceiverInput);
-        soft_sender(nOTs_requested);
-    }
+    assert(newReceiverInput.size() == unsigned(nOTs_requested));
 
-    channel->send("hello", 6);
+    state->generate(newReceiverInput, just_bits);
+}
+
+void SoftState::generate(const BitVector& newReceiverInput, bool just_bits)
+{
+    auto nOTs_requested = newReceiverInput.size();
+    job_type job(&newReceiverInput, just_bits);
+    job_queue.push(job);
+    try
+    {
+        soft_sender(nOTs_requested, just_bits);
+    }
+    catch (exception& e)
+    {
+        ext.state = 0;
+        throw;
+    }
+    assert(res_queue.pop() == job);
+
+#ifdef USE_LIBOTE1
+    channels[0]->send("hello", 6);
     char buf[6];
-    channel->recv(buf, 6);
+    channels[0]->recv(buf, 6);
     assert(string(buf, 5) == string("hello"));
+#endif
 #endif
 }
 
 #ifndef USE_KOS
-void OTExtensionWithMatrix::soft_sender(size_t n)
+void SoftState::soft_sender(size_t n, bool just_bits)
 {
-    if (not (ot_role & SENDER))
+    if (not (ext.ot_role & SENDER))
         return;
 
     if (OnlineOptions::singleton.has_option("verbose_ot"))
         fprintf(stderr, "%zu OTs as sender (%s)\n", n,
-                passive_only ? "semi-honest" : "malicious");
+                ext.passive_only ? "semi-honest" : "malicious");
 
     osuCrypto::PRNG prng(osuCrypto::sysRandomSeed());
-    osuCrypto::SoftSpokenOT::TwoOneMaliciousSender sender(softspoken_k);
 
     vector<osuCrypto::block> outputs;
-    for (auto& x : G_receiver)
+    for (auto& x : ext.G_receiver)
     {
         outputs.push_back(x.get_doubleword());
     }
-    sender.malicious = not passive_only;
+
+#ifdef USE_LIBOTE1
+    auto& channel = *channels[ext.player->my_num()];
+    auto& tamper = sockets[ext.player->my_num()]->tamper;
+    osuCrypto::SoftSpokenOT::TwoOneMaliciousSender sender(ext.softspoken_k);
+    sender.malicious = not ext.passive_only;
+    tamper = OnlineOptions::singleton.has_option("tamper_libote_sender_base");
     sender.setBaseOts(outputs,
-            {baseReceiverInput.get_ptr(), sender.baseOtCount()}, prng,
-            *channel);
+            {ext.baseReceiverInput.get_ptr(), sender.baseOtCount()}, prng,
+            channel);
 
     // Choose which messages should be sent.
     auto sendMessages = osuCrypto::allocAlignedBlockArray<std::array<osuCrypto::block, 2>>(n);
 
     // Send the messages.
-    sender.send(gsl::span(sendMessages.get(), n), prng, *channel);
+    tamper = OnlineOptions::singleton.has_option("tamper_libote_sender");
+    sender.send(gsl::span(sendMessages.get(), n), prng, channel);
+#else
+    osuCrypto::OtExtSender* sender_;
+    if (OnlineOptions::singleton.has_option("silentot"))
+    {
+        auto sender = new osuCrypto::SilentOtExtSender;
+        sender_ = sender;
+        if (ext.passive_only)
+            sender->mSecurityType = osuCrypto::SilentSecType::SemiHonest;
+        else
+            sender->mSecurityType = osuCrypto::SilentSecType::Malicious;
+    }
+    else if(ext.passive_only)
+        sender_ = new osuCrypto::SoftSpokenShOtSender(ext.softspoken_k);
+    else
+        sender_ = new osuCrypto::SoftSpokenMalOtSender(ext.softspoken_k);
 
-    for (int j = 0; j < 2; j++)
-      for (int i = 0; i < DIV_CEIL(n, 128); i++)
-      {
-          auto& square = senderOutputMatrices[j].squares.at(i);
-          for (size_t k = 0; k < min(128lu, n - 128 * i); k++)
-              square.rows[k] = sendMessages[i * 128 + k][j];
-      }
+    auto& sender = *sender_;
+    sender.setBaseOts(outputs,
+            {ext.baseReceiverInput.get_ptr(), sender.baseOtCount()});
+    auto& co_socket = *co_sockets[ext.player->my_num()];
+    coproto::Socket socket({}, co_socket);
+    co_socket.tamper = OnlineOptions::singleton.has_option("tamper_libote_sender");
+    sendMessages.resize(n);
+    osuCrypto::cp::sync_wait(sender.send(sendMessages, prng, socket));
+    osuCrypto::cp::sync_wait(socket.flush());
+    delete sender_;
+#endif
+
+    if (just_bits)
+    {
+        assert(n % 64 == 0);
+        for (auto& x : ext.ot_lsbs.first)
+            x.resize(n);
+        for (size_t i = 0; i < n; i += 64)
+            for (int j = 0; j < 2; j++)
+            {
+                word tmp = 0;
+#ifdef USE_LIBOTE1
+                auto it = sendMessages.get() + i;
+#else
+                auto it = sendMessages.begin() + i;
+#endif
+                for (int k = 0; k < 64; k++)
+                    tmp ^= word((*it++)[j].data()[0] & 1) << k;
+                ext.ot_lsbs.first[j].set_word(i / 64, tmp);
+            }
+    }
+    else
+    {
+        for (int j = 0; j < 2; j++)
+            for (int i = 0; i < DIV_CEIL(n, 128); i++)
+            {
+                auto& square = ext.senderOutputMatrices[j].squares.at(i);
+                for (size_t k = 0; k < min(128lu, n - 128 * i); k++)
+                    square.rows[k] = sendMessages[i * 128 + k][j];
+            }
+    }
 }
 
-void OTExtensionWithMatrix::soft_receiver(size_t n,
-        const BitVector& newReceiverInput)
+
+void SoftState::soft_receiver(size_t n, const BitVector& newReceiverInput,
+        bool just_bits)
 {
-    if (not (ot_role & RECEIVER))
+    if (not (ext.ot_role & RECEIVER))
         return;
 
     if (OnlineOptions::singleton.has_option("verbose_ot"))
         fprintf(stderr, "%zu OTs as receiver\n", n);
 
     osuCrypto::PRNG prng(osuCrypto::sysRandomSeed());
-    osuCrypto::SoftSpokenOT::TwoOneMaliciousReceiver recver(softspoken_k);
 
     vector<array<osuCrypto::block, 2>> inputs;
-    for (auto& x : G_sender)
+    for (auto& x : ext.G_sender)
     {
         inputs.push_back({});
         for (int i = 0; i < 2; i++)
             inputs.back()[i] = x[i].get_doubleword();
     }
-    recver.malicious = not passive_only;
-    recver.setBaseOts(inputs, prng, *channel);
 
     // Choose which messages should be received.
-    osuCrypto::BitVector choices(newReceiverInput.get_ptr(), n);
+    BitVector tmp(newReceiverInput);
+    osuCrypto::BitVector choices(tmp.get_ptr(), n);
     assert (n == newReceiverInput.size());
+
+#ifdef USE_LIBOTE1
+    auto& channel = *channels[1 - ext.player->my_num()];
+    auto& tamper = sockets[1 - ext.player->my_num()]->tamper;
+    osuCrypto::SoftSpokenOT::TwoOneMaliciousReceiver recver(ext.softspoken_k);
+    recver.malicious = not ext.passive_only;
+    tamper = OnlineOptions::singleton.has_option("tamper_libote_base");
+    recver.setBaseOts(inputs, prng, channel);
 
     // Receive the messages
     std::vector<osuCrypto::block, osuCrypto::AlignedBlockAllocator> messages(n);
-    recver.receive(choices, messages, prng, *channel);
-
-    for (int i = 0; i < DIV_CEIL(n, 128); i++)
+    tamper = OnlineOptions::singleton.has_option("tamper_libote");
+    recver.receive(choices, messages, prng, channel);
+#else
+    osuCrypto::OtExtReceiver* recver_;
+    if (OnlineOptions::singleton.has_option("silentot"))
     {
-        auto& square = receiverOutputMatrix.squares.at(i);
-        for (size_t j = 0; j < min(128lu, n - 128 * i); j++)
-            square.rows[j] = messages[128 * i + j];
+        auto recver = new osuCrypto::SilentOtExtReceiver;
+        recver_ = recver;
+        if (ext.passive_only)
+            recver->mSecurityType = osuCrypto::SilentSecType::SemiHonest;
+        else
+            recver->mSecurityType = osuCrypto::SilentSecType::Malicious;
     }
+    else if(ext.passive_only)
+        recver_ = new osuCrypto::SoftSpokenShOtReceiver(ext.softspoken_k);
+    else
+        recver_ = new osuCrypto::SoftSpokenMalOtReceiver(ext.softspoken_k);
+
+    auto& recver = *recver_;
+    recver.setBaseOts(inputs);
+    messages.resize(n);
+    auto& co_socket = *co_sockets[1 - ext.player->my_num()];
+    coproto::Socket socket({}, co_socket);
+    co_socket.tamper = OnlineOptions::singleton.has_option("tamper_libote");
+    osuCrypto::cp::sync_wait(recver.receive(choices, messages, prng, socket));
+    osuCrypto::cp::sync_wait(socket.flush());
+    delete recver_;
+#endif
+
+    if (just_bits)
+    {
+        ext.ot_lsbs.second.resize(n);
+        assert(n % 64 == 0);
+        for (size_t i = 0; i < n; i += 64)
+        {
+            word tmp = 0;
+            auto it = messages.begin() + i;
+            for (int j = 0; j < 64; j++)
+                tmp ^= word((*it++).data()[0] & 1) << j;
+            ext.ot_lsbs.second.set_word(i / 64, tmp);
+         }
+    }
+    else
+        for (int i = 0; i < DIV_CEIL(n, 128); i++)
+        {
+            auto& square = ext.receiverOutputMatrix.squares.at(i);
+            for (size_t j = 0; j < min(128lu, n - 128 * i); j++)
+                square.rows[j] = messages[128 * i + j];
+        }
 }
 #endif
 
@@ -389,6 +611,57 @@ octet* OTExtensionWithMatrix::get_receiver_output(int i)
 octet* OTExtensionWithMatrix::get_sender_output(int choice, int i)
 {
     return (octet*)&senderOutputMatrices[choice].squares[i/128].rows[i%128];
+}
+
+OTExtensionWithMatrix::OtBits OTExtensionWithMatrix::bit_extension(
+        const BitVector& choices, bool multithread)
+{
+    assert(choices.size() % 128 == 0);
+    OtBits res(choices.size());
+    if (multithread and BaseMachine::has_singleton()
+            and not OnlineOptions::singleton.has_option("no_multithread_ot"))
+    {
+        auto& queues = BaseMachine::s().queues;
+        OtLsbJob job(&res, choices);
+        auto dist_state = queues.distribute_multi(job, choices.size(), 0, 128);
+        auto start = dist_state.first;
+        bit_extension(res, choices, start, choices.size());
+        if (start)
+            queues.wrap_up(job, dist_state.second);
+    }
+    else
+        bit_extension(res, choices, 0, choices.size());
+    return res;
+}
+
+void OTExtensionWithMatrix::bit_extension(OtBits& res, const BitVector& choices, size_t start, size_t end)
+{
+    size_t budget = 1 << 20;
+    for (size_t i = start; i < end; i += budget)
+    {
+        auto part = choices.part(i, min(budget, end - i));
+        extend(part.size(), part, true, true);
+        if (ot_lsbs.second.size())
+        {
+            assert(ot_lsbs.second.size() == ot_lsbs.first[0].size());
+            if (ot_lsbs.second.size() == choices.size())
+            {
+                res = ot_lsbs;
+                return;
+            }
+
+            res.second.set_part(i, ot_lsbs.second);
+            for (int j = 0; j < 2; j++)
+                res.first[j].set_part(i, ot_lsbs.first[j]);
+        }
+        else
+        {
+            res.second.set_part(i, receiverOutputMatrix.lsbs());
+            for (int j = 0; j < 2; j++)
+                res.first[j].set_part(i, senderOutputMatrices[j].lsbs());
+        }
+    }
+    ot_lsbs.clear();
 }
 
 void OTExtensionWithMatrix::print(BitVector& newReceiverInput, int i)

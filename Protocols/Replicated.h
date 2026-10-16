@@ -27,6 +27,16 @@ template<class T> class SecureShuffle;
 template<class T> class Rep3Shuffler;
 class Instruction;
 
+class NoExtension
+{
+public:
+    template<class T, class U>
+    void bit_extension(T&, U&, size_t, size_t)
+    {
+        throw runtime_error("OT extension not available");
+    }
+};
+
 /**
  * Base class for replicated three-party protocols
  */
@@ -89,9 +99,13 @@ public:
     virtual ~ProtocolBase();
 
     void mulrs(const ArgVector& reg, SubProcessor<T>& proc);
+    void mulbits(const ArgVector& reg, SubProcessor<T>& proc);
 
     void multiply(vector<T>& products, vector<pair<T, T>>& multiplicands,
             int begin, int end, SubProcessor<T>& proc);
+
+    virtual void multiply_mixed(vector<T>& products,
+            vector<pair<T, T>>& multiplicands, SubProcessor<T>& proc);
 
     /// Single multiplication
     T mul(const T& x, const T& y);
@@ -150,7 +164,7 @@ public:
     virtual void check() {}
 
     virtual void cisc(SubProcessor<T>&, const StackedVector<Integer>&,
-            const Instruction&)
+            MemoryPart<T>&, const Instruction&)
     { throw runtime_error("CISC instructions not implemented"); }
 
     virtual vector<int> get_relevant_players();
@@ -171,6 +185,8 @@ public:
     double randomness_time() { return 0; }
 
     TimerWithComm prep_time() { return {}; }
+
+    NoExtension get_ot_extension() { return {}; }
 };
 
 /**

@@ -76,6 +76,9 @@ public:
     template<class T>
     static string proto_fake_opts() { return " -Z " + to_string(K) + " -S " + to_string(S); }
 
+    static void set_secrets_filename(string filename)
+    { prep_check_type::secrets_filename = filename; }
+
     Spdz2kShare() {}
     template<class T, class V>
     Spdz2kShare(const Share_<T, V>& x) : super(x) {}

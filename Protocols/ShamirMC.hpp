@@ -104,6 +104,18 @@ void ShamirMC<T>::exchange(const Player& P)
 }
 
 template<class T>
+void ShamirMC<T>::start_exchange(const Player& P)
+{
+    P.send_all(os->mine);
+}
+
+template<class T>
+void ShamirMC<T>::stop_exchange(const Player& P)
+{
+    P.receive_all(*os);
+}
+
+template<class T>
 void ShamirMC<T>::POpen_End(vector<typename T::open_type>& values,
         const vector<T>& S, const Player& P)
 {

@@ -10,11 +10,7 @@
 #include "BitMatrix.h"
 #include "Math/gf2n.h"
 
-#ifndef USE_KOS
-namespace osuCrypto {
-class Channel;
-}
-#endif
+class SoftState;
 
 template <class U>
 class OTCorrelator : public OTExtension
@@ -33,7 +29,7 @@ public:
             senderOutputMatrices(2), matrices(2),
             receiverOutputMatrix(matrices[0]), t1(matrices[1]) {}
 
-    OTCorrelator(BaseOT& baseOT, TwoPartyPlayer* player, bool passive) :
+    OTCorrelator(const BaseOT& baseOT, TwoPartyPlayer* player, bool passive) :
             OTExtension(baseOT, player, passive),
             senderOutputMatrices(2), matrices(2),
             receiverOutputMatrix(matrices[0]), t1(matrices[1]) {}
@@ -53,17 +49,53 @@ public:
 
 class OTExtensionWithMatrix : public OTCorrelator<BitMatrix>
 {
+    friend class SoftState;
+
     static bool warned;
 
     int nsubloops;
 
-#ifndef USE_KOS
-    osuCrypto::Channel* channel;
-#endif
+    SoftState* state;
 
     bool agreed;
 
     int softspoken_k;
+
+    bool delete_player;
+
+public:
+    class OtBits : public pair<array<BitVector, 2>, BitVector>
+    {
+    public:
+        OtBits(size_t size = 0)
+        {
+            resize(size);
+        }
+
+        void resize(size_t size)
+        {
+            for (auto& x : first)
+                x.resize(size);
+            second.resize(size);
+        }
+
+        void clear()
+        {
+            for (auto& x : first)
+                x.resize_exact(0);
+            second.resize_exact(0);
+        }
+
+        void set_part(size_t begin, const OtBits& part)
+        {
+            for (int k = 0; k < 2; k++)
+                first[k].set_part(begin, part.first[k]);
+            second.set_part(begin, part.second);
+        }
+    };
+
+private:
+    OtBits ot_lsbs;
 
     void init_me();
 
@@ -83,7 +115,8 @@ public:
       init_me();
     }
 
-    OTExtensionWithMatrix(BaseOT& baseOT, TwoPartyPlayer* player, bool passive);
+    OTExtensionWithMatrix(const BaseOT& baseOT, TwoPartyPlayer* player, bool passive);
+    OTExtensionWithMatrix(Player& P, bool passive);
 
     ~OTExtensionWithMatrix();
 
@@ -91,7 +124,8 @@ public:
     void protocol_agreement();
 
     void transfer(int nOTs, const BitVector& receiverInput, int nloops);
-    void extend(int nOTs, const BitVector& newReceiverInput, bool hash = true);
+    void extend(int nOTs, const BitVector& newReceiverInput, bool hash = true,
+            bool just_bits = false);
     void extend_correlated(const BitVector& newReceiverInput);
     void extend_correlated(int nOTs, const BitVector& newReceiverInput);
     void transpose(int start = 0, int slice = -1);
@@ -116,6 +150,9 @@ public:
 
     octet* get_receiver_output(int i);
     octet* get_sender_output(int choice, int i);
+
+    OtBits bit_extension(const BitVector& choices, bool multithread = false);
+    void bit_extension(OtBits& res, const BitVector& choices, size_t start, size_t end);
 
 protected:
     void hash_outputs(int nOTs);

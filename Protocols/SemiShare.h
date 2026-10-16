@@ -37,6 +37,8 @@ class SemiSecret;
 class NoValue;
 }
 
+template<int K> class Semi2kShare;
+
 template<class T>
 class BasicSemiShare : public T
 {
@@ -165,6 +167,11 @@ public:
             dest = source >> inst.get_n();
         }
     }
+
+    template<class U>
+    static void split(StackedVector<U>& dest, const ArgVector& regs, int n_bits,
+            const SemiShare* source, int n_inputs,
+            typename U::Protocol& protocol);
 };
 
 template<class T>

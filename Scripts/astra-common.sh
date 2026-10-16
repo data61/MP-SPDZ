@@ -24,7 +24,10 @@ run_player $PROTOCOL-prep-party.x $*  &
 
 export PLAYERS=2
 export LOG_SUFFIX=
-export PORT=$[PORT+3]
+
+if test $PORT; then
+    export PORT=$[PORT+3]
+fi
 
 . $HERE/run-common.sh
 

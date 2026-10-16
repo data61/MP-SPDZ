@@ -17,21 +17,14 @@ void Rep3Shuffler<T>::generate(int n_shuffle, shuffle_type& shuffle)
 {
     for (int i = 0; i < 2; i++) {
         auto &perm = shuffle[i];
-        perm.reserve(n_shuffle);
-        for (int j = 0; j < n_shuffle; j++)
-            perm.push_back(j);
         auto& G = proc.protocol.shared_prngs[i];
-        for (int j = 0; j < n_shuffle; j++)
-        {
-            int k = G.get_uint_lemire(n_shuffle - j);
-            swap(perm[j], perm[k + j]);
-        }
+        G.random_permutation(n_shuffle, perm);
     }
 }
 
 template<class T>
 void Rep3Shuffler<T>::apply_multiple(StackedVector<T> &a,
-        vector<ShuffleTuple<T>> &shuffles, bool multithread)
+        vector<ShuffleTuple<shuffle_type>> &shuffles, bool multithread)
 {
     CODE_LOCATION
 
@@ -85,7 +78,7 @@ void Rep3Shuffler<T>::apply_multiple(StackedVector<T> &a,
 
 template<class T>
 void Rep3Shuffler<T>::shuffle_job(StackedVector<T>& a,
-        const vector<ShuffleTuple<T> >& shuffles, long begin, long end,
+        const vector<ShuffleTuple<shuffle_type> >& shuffles, long begin, long end,
         Player& P, ThreadQueues* queues)
 {
     const auto n_shuffles = shuffles.size();

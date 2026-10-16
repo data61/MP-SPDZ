@@ -108,6 +108,7 @@ opcodes = dict(
     OPEN = 0xA5,
     MULS = 0xA6,
     MULRS = 0xA7,
+    MULBITS = 0xA4,
     DOTPRODS = 0xA8,
     TRUNC_PR = 0xA9,
     MATMULS = 0xAA,
@@ -193,6 +194,8 @@ opcodes = dict(
     PRINTINT = 0x9F,
     INCINT = 0xD1,
     SHUFFLE = 0xD2,
+    GROUPSUMINT = 0xD3,
+    QS_PERM = 0xD4,
     # Conversion
     CONVINT = 0xC0,
     CONVMODP = 0xC1,
@@ -1267,7 +1270,10 @@ class VectorInstruction(Instruction):
 
     def get_code(self):
         return super(VectorInstruction, self).get_code(
-            len(self.args[self.vector_index]))
+            self.get_size())
+
+    def get_size(self):
+        return len(self.args[self.vector_index])
 
 class Ciscable(Instruction):
     def copy(self, size, subs):
@@ -1339,6 +1345,10 @@ class DirectMemoryInstruction(MemoryInstruction):
 
 class IndirectMemoryInstruction(MemoryInstruction):
     __slots__ = []
+
+    def __init__(self, *args, **kwargs):
+        super(IndirectMemoryInstruction, self).__init__(*args, **kwargs)
+        assert len(args[0]) == len(args[1])
 
     def get_direct(self, address):
         return self.direct(self.args[0], address, add_to_prog=False)

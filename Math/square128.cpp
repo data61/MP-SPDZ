@@ -11,6 +11,8 @@
 #include "Tools/intrinsics.h"
 #include "Math/Square.h"
 
+#include "OT/BitMatrix.hpp"
+
 union matrix16x8
 {
     __m128i whole;
@@ -155,8 +157,10 @@ const int perm2[] = { 0, 4, 2, 6, 1, 5, 3, 7, 8, 0xc, 0xa, 0xe, 9, 0xd, 0xb, 0xf
 #endif
 
 UNROLL_LOOPS
-void square128::transpose()
+void square128::transpose(int n_rows, int n_cols)
 {
+    assert(n_rows <= 128);
+    assert(n_cols <= 128);
 #ifdef USE_SUBSQUARES
     for (int j = 0; j < N_SUBSQUARES; j++)
         for (int k = 0; k < j; k++)
@@ -207,7 +211,7 @@ void square128::transpose()
     }
 
     square128 tmp;
-    for (int k = 0; k < 4; k++)
+    for (int k = 0; k < DIV_CEIL(n_rows, 32); k++)
     {
         int base = k * 16 * 2;
         X(8)
@@ -230,7 +234,7 @@ void square128::transpose()
         }
     }
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < DIV_CEIL(n_cols, 8); i++)
     {
         for (int k = 0; k < 4; k++)
             matrix32x8(tmp.doublerows[k * 16 + i]).transpose(*this, i, k);
@@ -440,6 +444,12 @@ BitMatrix::BitMatrix(int length)
     resize(length);
 }
 
+__m128i& BitMatrix::at(size_t i)
+{
+    assert(i < vertical_size());
+    return (*this)[i];
+}
+
 void BitMatrix::resize(int length)
 {
     if (length % 128 != 0)
@@ -482,6 +492,23 @@ void BitMatrix::vertical_to(vector<BitVector>& output)
         output[i].resize(128);
         output[i].set_int128(0, squares[i / 128].rows[i % 128]);
     }
+}
+
+BitVector BitMatrix::lsbs() const
+{
+    BitVector res(vertical_size());
+    for (size_t i = 0; i < squares.size(); i++)
+    {
+        for (int k = 0; k < 2; k++)
+        {
+            word tmp = 0;
+            for (int j = 0; j < 64; j++)
+                tmp ^= word(int128(squares[i].rows[k * 64 + j]).get_bit(0)) << j;
+            assert(tmp);
+            res.set_word(2 * i + k, tmp);
+        }
+    }
+    return res;
 }
 
 template <>

@@ -30,11 +30,20 @@ for protocol in sorted(protocols()):
 
 refs = defaultdict(set)
 
-for filename in glob.glob('../Compiler/*.py'):
+for filename in glob.glob('../Compiler/*.py') + \
+        glob.glob('../Compiler/GC/*.py'):
     for line in open(filename):
-        m = re.search(r"reading.'([^']*)', '([^']*)'", line)
+        m = re.search(r"reading\((.*)\)", line)
         if m:
-            refs[m.group(2)].add(m.group(1))
+            try:
+                x = eval(m.group(1))
+                if isinstance(x[1], tuple):
+                    for xx in x[1]:
+                        refs[xx].add(x[0])
+                else:
+                    refs[x[1]].add(x[0])
+            except:
+                print('bad', m.group(1), file=sys.stderr)
 
 out = csv.writer(open('other-reading.csv', 'w'))
 

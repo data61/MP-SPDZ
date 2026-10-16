@@ -23,6 +23,12 @@ void octetStream::reset()
     end = 0;
 }
 
+void octetStream::reset_reserve(size_t size)
+{
+	reset_write_head();
+	reserve(size);
+}
+
 void octetStream::clear()
 {
     if (data)

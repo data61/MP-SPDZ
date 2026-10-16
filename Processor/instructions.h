@@ -209,6 +209,8 @@
     X(BITDECINT, bitdecint(Proc),) \
     X(RAND, auto dest = &Ci[r[0]]; auto source = &Ci[r[1]], \
             *dest++ = Proc.shared_prng.get_uint() % (1 << (*source++).get())) \
+    X(GROUPSUMINT, groupsumint(Ci),) \
+    X(QS_PERM, qs_perm(Ci),) \
 
 #define CLEAR_GF2N_INSTRUCTIONS \
     X(GLDI, auto dest = &C2[r[0]]; cgf2n tmp = int(n), \
@@ -318,6 +320,7 @@
     X(GMULS, throw not_implemented(),) \
     X(MULRS, throw not_implemented(),) \
     X(GMULRS, throw not_implemented(),) \
+    X(MULBITS, throw not_implemented(),) \
     X(DOTPRODS, throw not_implemented(),) \
     X(GDOTPRODS, throw not_implemented(),) \
     X(MATMULS, throw not_implemented(),) \

@@ -135,14 +135,20 @@ void DealerInput<T>::add_other(int player, int)
 template<class T>
 void DealerInput<T>::add_from_dealer(const typename T::open_type& input)
 {
-    add_from_dealer(vector<typename T::open_type>({input}));
+    add_from_dealer(span(&input, &input + 1));
 }
 
 template<class T>
 void DealerInput<T>::add_from_dealer(const vector<typename T::open_type>& inputs)
 {
+    add_from_dealer(span(inputs));
+}
+
+template<class T>
+void DealerInput<T>::add_from_dealer(span<const typename T::open_type> inputs)
+{
     int n = P.num_players() - 1;
-    os.reserve(inputs.size() * T::open_type::size());
+    os.reserve_min(inputs.size() * T::open_type::size());
 
     for (auto& input : inputs)
     {

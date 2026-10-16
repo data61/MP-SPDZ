@@ -159,13 +159,18 @@ def TruncRing(d, a, k, m, signed):
         program.reading('truncation', 'ABY3')
         if signed:
             a += (1 << (k - 1))
-        from Compiler.types import sint
+        from Compiler.types import sint, _bitint
         from .GC.types import sbitint
         length = int(program.options.ring)
         summands = a.split_to_n_summands(length, program.use_split())
         x = sbitint.wallace_tree_without_finish(summands, True)
         if program.use_split() == 2:
-            carries = sbitint.get_carries(*x)
+            if program.linear_rounds():
+                carries = [0]
+                for aa, bb in zip(*x):
+                    carries.append(_bitint.full_adder(aa, bb, carries[-1])[1])
+            else:
+                carries = sbitint.get_carries(*x)
             low = carries[m]
             high = sint.conv(carries[length])
         else:
@@ -477,7 +482,7 @@ def CarryOutRaw(a, b, c=0):
     from . import types
     if program.linear_rounds():
         carry = 0
-        for (ai, bi) in zip(a, b):
+        for (ai, bi) in reversed(list(zip(a, b))):
             carry = bi.carry_out(ai, carry)
         return carry
     d = [program.curr_block.new_reg('s') for i in range(k)]

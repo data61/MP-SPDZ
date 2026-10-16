@@ -4,6 +4,7 @@
  */
 
 #include "TimerWithComm.h"
+#include "Processor/OnlineOptions.h"
 
 TimerWithComm::TimerWithComm(const Timer& other) :
         Timer(other), cpu_timer(CLOCK_PROCESS_CPUTIME_ID)
@@ -92,6 +93,10 @@ const ExecutionStats& TimerWithComm::exe_stats() const
 ostream& operator<<(ostream& os, const TimerWithComm& stats)
 {
     os << stats.mb_sent() << " MB, " << stats.rounds() << " rounds, "
-            << stats.cpu_timer.elapsed() << " CPU seconds";
+            << stats.cpu_timer.elapsed() << " CPU seconds, "
+            << stats.total_stats.comm_stats.total_time()
+            << " communication seconds";
+    if (OnlineOptions::singleton.has_option("ratio"))
+        os << ", ratio " << (stats.cpu_timer.elapsed() / stats.elapsed());
     return os;
 }

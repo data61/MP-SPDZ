@@ -92,6 +92,14 @@ bigint& bigint::operator =(const GC::Clear& x)
   return *this = SignedZ2<64>(x);
 }
 
+bigint& bigint::operator=(const int128& x)
+{
+  *this = x.get_upper();
+  *this <<= 64;
+  *this += x.get_lower();
+  return *this;
+}
+
 bigint::bigint(const mp_limb_t* data, size_t n_limbs)
 {
   mpz_import(get_mpz_t(), n_limbs, -1, 8, -1, 0, data);

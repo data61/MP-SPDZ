@@ -3,6 +3,9 @@
  *
  */
 
+#ifndef PROTOCOLS_SEMIPREP_HPP_
+#define PROTOCOLS_SEMIPREP_HPP_
+
 #include "SemiPrep.h"
 
 #include "ReplicatedPrep.hpp"
@@ -51,11 +54,14 @@ void SemiPrep<T>::buffer_dabits(ThreadQueues* queues)
         CODE_LOCATION
         assert(this->triple_generator);
         this->triple_generator->set_batch_size(
-                BaseMachine::batch_size<T>(DATA_DABIT, this->buffer_size, 0, 10));
+                BaseMachine::batch_size<T>(DATA_DABIT, this->buffer_size, 0,
+                        T::length()), false);
         this->triple_generator->generatePlainBits();
         for (auto& x : this->triple_generator->plainBits)
             this->dabits.push_back({x.first, x.second});
         this->triple_generator->set_batch_size(OnlineOptions::singleton.batch_size);
+        if (OnlineOptions::singleton.has_option("debug_plain"))
+            cerr << "Generated " << this->dabits.size() << " plain bits" << endl;
     }
     else
         SemiHonestRingPrep<T>::buffer_dabits(queues);
@@ -75,3 +81,5 @@ void SemiPrep<T>::get_one_no_count(Dtype dtype, T& a)
     else
         SemiHonestRingPrep<T>::get_one_no_count(dtype, a);
 }
+
+#endif

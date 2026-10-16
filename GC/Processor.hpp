@@ -18,6 +18,7 @@ using namespace std;
 #include "Math/BitVec.h"
 
 #include "GC/Machine.hpp"
+#include "GC/ShareSecret.hpp"
 #include "Processor/Processor.hpp"
 #include "Processor/IntInput.hpp"
 #include "Math/bigint.hpp"
@@ -216,6 +217,42 @@ void Processor<T>::mem_op(int n, U& dest, const V& source,
     }
 }
 
+template<class T>
+template<class U, class V>
+void Processor<T>::indirect_mem_load(U& dest, const V& source,
+        const StackedVector<Integer>& Ci, const BaseInstruction& instruction)
+{
+    size_t n = instruction.get_size();
+    size_t dest_address = instruction.get_r(0);
+    size_t source_address = instruction.get_r(1);
+    dest.check_index(dest_address + n - 1);
+    Ci.check_index(source_address + n - 1);
+    auto d = &dest[dest_address];
+    auto s = &Ci[source_address];
+    for (size_t i = 0; i < n; i++)
+    {
+        *d++ = source.at((*s++).get());
+    }
+}
+
+template<class T>
+template<class U, class V>
+void Processor<T>::indirect_mem_store(U& dest, const V& source,
+        const StackedVector<Integer>& Ci, const BaseInstruction& instruction)
+{
+    size_t n = instruction.get_size();
+    size_t dest_address = instruction.get_r(1);
+    size_t source_address = instruction.get_r(0);
+    Ci.check_index(dest_address + n - 1);
+    source.check_index(source_address + n - 1);
+    auto d = &Ci[dest_address];
+    auto s = &source[source_address];
+    for (size_t i = 0; i < n; i++)
+    {
+        dest.at((*d++).get()) = *s++;
+    }
+}
+
 template <class T>
 void Processor<T>::xors(const ArgVector& args)
 {
@@ -409,28 +446,53 @@ void Processor<T>::convcbitvec(const BaseInstruction& instruction,
         bits.push_back(bit);
     }
 
+    if (instruction.get_r(2))
+        T::sync(bits, P);
+    assert(bits.size() == n);
+
+    auto dest = Ci.iterator_for_size(instruction.get_r(0), n);
+    for (auto& bit : bits)
+        *dest++ = bit;
+}
+
+template<class T>
+void Processor<T>::convcbit(const BaseInstruction& instruction,
+        StackedVector<Integer>& Ci, Player* P)
+{
+    vector<Integer> values;
+    size_t n = instruction.get_size();
+    values.reserve(n);
+    auto it = C.iterator_for_size(instruction.get_r(1), n);
+    for (size_t i = 0; i < n; i++)
+        values.push_back(*it++);
+
+    T::sync(values, P);
+    assert(values.size() == n);
+
+    auto dest = Ci.iterator_for_size(instruction.get_r(0), n);
+    for (auto& value : values)
+        *dest++ = value;
+}
+
+template<class T>
+void ShareSecret<T>::sync(vector<Integer>& values, Player* P)
+{
     try
     {
         auto proto = ShareThread<T>::s().protocol;
         auto P = ShareThread<T>::s().P;
-        // The default use case in the compiler doesn't require synchronization
-        // with function-dependent protocols, but testing does.
-        if (proto and OnlineOptions::singleton.has_option("convcbitvec_sync"))
-            proto->sync(bits, *P);
+        if (proto)
+            proto->sync(values, *P);
         else
             throw no_singleton();
     }
     catch (no_singleton&)
     {
         if (P)
-            ProtocolBase<T>::sync(bits, *P);
+            ProtocolBase<T>::sync(values, *P);
         else if (not T::symmetric)
-            ProtocolBase<T>::sync(bits, *Thread<T>::s().P);
+            ProtocolBase<T>::sync(values, *Thread<T>::s().P);
     }
-
-    auto dest = Ci.iterator_for_size(instruction.get_r(0), n);
-    for (auto& bit : bits)
-        *dest++ = bit;
 }
 
 template <class T>
@@ -576,6 +638,157 @@ void Processor<T>::call_tape(const BaseInstruction& instruction, U& dynamic_memo
     PC_stack.pop_back();
     this->arg = arg_stack.back();
     arg_stack.pop_back();
+}
+
+template<class T>
+void GC::Processor<T>::generate_secure_shuffle(
+        const BaseInstruction& instruction, StackedVector<Integer>& Ci)
+{
+    size_t n = instruction.get_n();
+    vector<typename T::Shuffler::shuffle_type*> shuffles;
+    for (int i = 0; i < instruction.get_size(); i++)
+    {
+        auto res = memories.shuffle_store.add(n);
+        Ci[instruction.get_r(0) + i] = res;
+        shuffles.push_back(&memories.shuffle_store.get(res).second);
+    }
+    shuffler.generate(n, shuffles, instruction.get_r(1));
+}
+
+template<class T>
+void GC::Processor<T>::apply_shuffle(int handle,
+        const BaseInstruction& instruction)
+{
+    if (shuffle_store.find(handle) == shuffle_store.end())
+        shuffle_store[handle] = memories.shuffle_store.get(handle).second;
+    shuffler.apply(S, shuffle_store.at(handle), instruction);
+}
+
+template<class T>
+void GC::Processor<T>::delete_shuffle(int handle)
+{
+    memories.shuffle_store.del(handle);
+}
+
+template<class T>
+void Processor<T>::concats(const BaseInstruction& instruction)
+{
+    auto dest = S.begin() + instruction.get_r(0);
+    auto& args = instruction.get_start();
+    int dl = T::default_length;
+    int base = 0;
+    for (auto it = args.begin(); it < args.end(); it++)
+    {
+        int n = *it++;
+        auto source = S.begin() + *it;
+        assert(source < S.end());
+        for (int i = 0; i < n; i += dl)
+        {
+            assert(source < S.end());
+            int left = min(n - i, dl);
+            T tmp = source->mask(left);
+            if (base % dl == 0)
+            {
+                assert(dest < S.end());
+                *dest = T();
+            }
+            int free = dl - (base % dl);
+            *dest ^= tmp.mask(free) << (base % dl);
+            int now_left = left - free;
+            base = base + left - max(0, now_left);
+            if (now_left >= 0)
+            {
+                dest++;
+            }
+            if (now_left > 0)
+            {
+                assert(dest < S.end());
+                *dest = T();
+                *dest ^= tmp >> (left - now_left);
+                base += now_left;
+            }
+            source++;
+        }
+    }
+}
+
+template<class T>
+void Processor<T>::picks(const BaseInstruction& instruction)
+{
+    auto& args = instruction.get_start();
+    assert(args.size() == 4);
+    auto dest = S.begin() + args[0];
+    auto source = S.begin() + args[1] + args[2];
+    auto skip = args[3];
+    size_t size = instruction.get_size();
+    assert(dest + size <= S.end());
+    assert(source + size * skip <= S.end());
+    for (size_t i = 0; i < size; i++)
+        *dest++ = *(source + i * skip);
+}
+
+template<class T>
+void Processor<T>::zips(const BaseInstruction& instruction)
+{
+    size_t size = instruction.get_size();
+    auto dest = S.begin() + instruction.get_r(0);
+    for (int i = 1; i < 3; i++)
+    {
+        auto op = S.begin() + instruction.get_r(i);
+        assert(op + size <= S.end());
+        assert(op <= dest - size or op > dest + size);
+    }
+    auto op1 = S.begin() + instruction.get_r(1);
+    auto op2 = S.begin() + instruction.get_r(2);
+    assert(dest + 2 * size <= S.end());
+    for (int i = 0; i < instruction.get_size(); i++)
+    {
+        *dest++ = *op1++;
+        *dest++ = *op2++;
+    }
+}
+
+template<class T>
+void Processor<T>::transvec(const BaseInstruction& instruction)
+{
+    auto& args = instruction.get_start();
+    assert(args.size() == 4);
+    int n_outputs = args[0];
+    int dest_base = args[1];
+    int n_inputs = args[2];
+    int source_base = args[3];
+    int dl = T::default_length;
+    auto it = S.begin() + source_base;
+    int n_input_units = n_inputs * DIV_CEIL(n_outputs, dl);
+    int n_output_units = n_outputs * DIV_CEIL(n_inputs, dl);
+    StackedVector<T> source, dest(n_output_units);
+    assert(it + n_input_units <= S.end());
+    for (int i = 0; i < n_input_units; i++)
+        source.push_back(*it++);
+    ArgVector trans_args;
+    for (int i = 0; i < n_outputs; i++)
+        trans_args.push_back(i * DIV_CEIL(n_inputs, dl));
+    for (int i = 0; i < n_inputs; i++)
+        trans_args.push_back(i * DIV_CEIL(n_outputs, dl));
+    T::trans(dest, source, n_outputs, trans_args);
+    it = S.begin() + dest_base;
+    assert(it + dest.size() <= S.end());
+    auto dit = dest.begin();
+    for (int i = 0; i < n_output_units; i++)
+        *it++ = *dit++;
+}
+
+template<class T>
+void Processor<T>::convcint(const StackedVector<Integer>& Ci,
+        const BaseInstruction& instruction)
+{
+    auto dest = C.begin() + instruction.get_r(0);
+    auto source = Ci.begin() + instruction.get_r(1);
+    size_t size = instruction.get_size();
+    assert(dest + size <= C.end());
+    assert(source + size <= Ci.end());
+    for (size_t i = 0; i < size; i++)
+        *dest++ = *source++;
 }
 
 } /* namespace GC */

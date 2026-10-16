@@ -1,3 +1,5 @@
+#ifndef PROCESSOR_ONLINETHREAD_HPP_
+#define PROCESSOR_ONLINETHREAD_HPP_
 
 #include "Processor/Program.h"
 #include "Processor/Online-Thread.h"
@@ -9,6 +11,7 @@
 #include "Protocols/ShuffleSacrifice.h"
 #include "Protocols/LimitedPrep.h"
 #include "FHE/FFT.h"
+#include "OT/OTExtensionWithMatrix.h"
 
 #include "Processor/Processor.hpp"
 #include "Processor/Instruction.hpp"
@@ -230,7 +233,7 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
         {
           typedef typename sint::bit_type B;
           auto &party = GC::ShareThread<B>::s();
-          TripleShuffleSacrifice<B>().triple_sacrifice(
+          TripleShuffleSacrifice<B>(job.arg).triple_sacrifice(
               *(vector<array<B, 3>>*) job.output,
               *(vector<array<B, 3>>*) job.input, *party.P, *party.MC, job.begin,
               job.end);
@@ -266,8 +269,18 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
           assert(job.supply);
           ((typename sint::Protocol::Shuffler*) job.output)->shuffle_job(
               *(StackedVector<sint>*) job.output2,
-              *(const vector<ShuffleTuple<sint>>*) job.supply, job.begin,
+              *(const vector<ShuffleTuple<typename sint::Protocol::Shuffler::shuffle_type>>*)
+              job.supply, job.begin,
               job.end, P, &machine.queues);
+          queues->finished(job);
+        }
+      else if (job.type == OTLSB_JOB)
+        {
+          assert(job.output);
+          assert(job.input);
+          Proc.Procp.protocol.get_ot_extension().bit_extension(
+                  *(OTExtensionWithMatrix::OtBits*) job.output,
+                  *(const BitVector*) job.input, job.begin, job.end);
           queues->finished(job);
         }
       else if (job.type == TAPE_JOB)
@@ -488,3 +501,5 @@ void thread_info<sint, sgf2n>::purge_preprocessing(const Names& N, int thread_nu
       cerr << "Reason: " << e.what() << endl;
   }
 }
+
+#endif

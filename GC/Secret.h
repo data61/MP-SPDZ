@@ -26,6 +26,7 @@
 
 class ProcessorBase;
 template<class T> class NoProtocol;
+template<class T> class SecureShuffleBase;
 
 namespace GC
 {
@@ -71,6 +72,8 @@ public:
     typedef void DefaultMC;
     typedef void MC;
     typedef NoProtocol<Secret> Protocol;
+
+    typedef SecureShuffleBase<Secret> Shuffler;
 
     static string type_string() { return "evaluation secret"; }
     static string phase_name() { return T::name(); }
@@ -134,12 +137,11 @@ public:
     { T::reveal_inst(processor, args); }
 
     template<class U>
-    static void trans(Processor<U>& processor, int n_inputs, const ArgVector& args);
+    static void trans(StackedVector<U>& dest, const StackedVector<U>& source,
+            int n_inputs, const ArgVector& args);
 
-    template<class U>
-    static void convcbit(Integer& dest, const Clear& source,
-            Processor<U>& proc)
-    { T::convcbit(dest, source, proc); }
+    static void sync(vector<Integer>& values, Player* P)
+    { T::sync(values, P); }
 
     template<class U>
     static void convcbit2s(Processor<U>& processor, const BaseInstruction& instruction)
@@ -169,6 +171,7 @@ public:
 
     Secret<T> operator+(const Secret<T>& x) const;
     Secret<T>& operator+=(const Secret<T>& x) { *this = *this + x; return *this; }
+    Secret<T>& operator^=(const Secret<T>& x) { *this += x; return *this; }
 
     void xor_(int n, const Secret<T>& x, const Secret<T>& y)
     {
@@ -197,6 +200,9 @@ public:
     const T& get_reg(int i) const { return registers.at(i); }
     T& get_reg(int i) { return registers.at(i); }
     void resize_regs(size_t n);
+
+    void mask(Secret& res, size_t n) const;
+    Secret mask(size_t n) const;
 };
 
 template <class T>

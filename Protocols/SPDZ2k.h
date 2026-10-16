@@ -19,7 +19,8 @@ public:
 
     void exchange()
     {
-        for (size_t i = 0; i < this->shares.size(); i++)
+        for (size_t i = 0;
+                i < this->shares.size() + 2 * this->multiplicands.size(); i++)
             this->MC->set_random_element({});
         SPDZ<T>::exchange();
     }

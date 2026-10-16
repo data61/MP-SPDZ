@@ -81,8 +81,7 @@ BufferPrep<T>::~BufferPrep()
     auto& my_usage = this->usage.files.at(field_type);
 
     this->print_left("triples", triples.size() * T::default_length, type_string,
-            this->usage.files.at(T::clear::field_type()).at(DATA_TRIPLE)
-                    * T::default_length,
+            this->usage.files.at(T::clear::field_type()).at(DATA_TRIPLE),
             T::LivePrep::homomorphic or T::expensive_triples);
 
     size_t used_bits = my_usage.at(DATA_BIT);
@@ -204,22 +203,28 @@ void generate_triples(vector<array<T, 3>>& triples, int n_triples,
 }
 
 template<class T, class U>
-void generate_triples_initialized(vector<array<T, 3>>& triples, int n_triples,
+void generate_triples_initialized(vector<array<T, 3>>& triples, size_t n_triples,
         U* protocol, int n_bits = -1)
 {
+    assert(n_bits == -1 or n_bits == T::default_length);
     CODE_LOCATION
-    triples.resize(n_triples);
-    BufferScope scope(*protocol, 2 * triples.size());
-    for (size_t i = 0; i < triples.size(); i++)
+    triples.clear();
+    triples.reserve(n_triples);
+    BufferScope scope(*protocol, 2 * n_triples);
+    protocol->set_fast_mode(true);
+    for (size_t i = 0; i < n_triples; i++)
     {
-        auto& triple = triples[i];
+        array<T, 3> triple;
         triple[0] = protocol->get_random();
         triple[1] = protocol->get_random();
-        protocol->prepare_mul(triple[0], triple[1], n_bits);
+        protocol->prepare_mul_fast(triple[0], triple[1]);
+        triples.push_back(triple);
     }
     protocol->exchange();
-    for (size_t i = 0; i < triples.size(); i++)
-        triples[i][2] = protocol->finalize_mul(n_bits);
+    for (auto& triple : triples)
+        triple[2] = protocol->finalize_mul_fast();
+    protocol->set_fast_mode(false);
+    assert(triples.size() == n_triples);
 }
 
 template<class T>

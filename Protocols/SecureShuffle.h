@@ -7,12 +7,16 @@
 #define PROTOCOLS_SECURESHUFFLE_H_
 
 #include <vector>
+#include <deque>
 using namespace std;
 
 #include "Tools/Lock.h"
 
 template<class T> class SubProcessor;
 template<class T> class ShuffleTuple;
+template<class T> class StackedVector;
+
+class ThreadQueues;
 
 template<class T>
 class ShuffleStore
@@ -23,6 +27,7 @@ public:
 
 private:
     deque<store_type> shuffles;
+    int n_live_shuffles, max_n_live_shuffles;
 
     Lock store_lock;
 
@@ -30,6 +35,11 @@ private:
     void unlock();
 
 public:
+    ShuffleStore() :
+            n_live_shuffles(0), max_n_live_shuffles(0)
+    {
+    }
+
     int add(unsigned n_shuffles);
     store_type& get(int handle);
     void del(int handle);
@@ -39,8 +49,22 @@ template<class T>
 class SecureShuffleBase
 {
 public:
-    void shuffle_job(StackedVector<T>&, const vector<ShuffleTuple<T>>&, int, int,
-            Player&, ThreadQueues*)
+    typedef vector<vector<int>> shuffle_type;
+
+    void generate(int, const vector<shuffle_type*>&, bool = false)
+    {
+        throw runtime_error("shuffling not implemented");
+    }
+
+    template<class U>
+    void apply(U&, shuffle_type&, const BaseInstruction&)
+    {
+        throw runtime_error("single shuffle not implemented");
+    }
+
+    template<class U>
+    void shuffle_job(StackedVector<T>&, const vector<ShuffleTuple<U>>&, int,
+            int, Player&, ThreadQueues*)
     {
         throw runtime_error("multithreaded shuffling not implemented");
     }
@@ -84,15 +108,15 @@ private:
     vector<vector<T>> configure(int config_player, vector<int>* perm, int n);
 
     int prep_multiple(StackedVector<T> &a,
-            vector<ShuffleTuple<T>> &shuffles,
+            vector<ShuffleTuple<shuffle_type>> &shuffles,
             vector<vector<T>> &to_shuffle, vector<bool>& is_exact);
     void finalize_multiple(StackedVector<T> &a,
-            vector<ShuffleTuple<T>> &shuffles,
+            vector<ShuffleTuple<shuffle_type>> &shuffles,
             vector<vector<T>> &to_shuffle, vector<bool>& isExact);
 
     void parallel_waksman_round(size_t pass, int depth, bool inwards,
             vector<vector<T>>& toShuffle,
-            vector<ShuffleTuple<T>>& shuffles);
+            vector<ShuffleTuple<shuffle_type>>& shuffles);
 
     vector<array<int, 5>> waksman_round_init(vector<T> &toShuffle,
             size_t shuffle_unit_size, int depth,
@@ -107,7 +131,7 @@ public:
 
     void generate(int n_shuffle, shuffle_type& shuffle);
 
-    void apply_multiple(StackedVector<T> &a, vector<ShuffleTuple<T>> &shuffles);
+    void apply_multiple(StackedVector<T> &a, vector<ShuffleTuple<shuffle_type>> &shuffles);
 
     /**
      * Calculate the secret inverse permutation of stack given secret permutation.

@@ -214,14 +214,14 @@ void YaoEvalWire::set(Key key, bool external)
 	set(key);
 }
 
-void YaoEvalWire::convcbit(Integer& dest, const GC::Clear& source,
-		GC::Processor<GC::Secret<YaoEvalWire>>&)
+void YaoEvalWire::sync(vector<Integer>& values, Player*)
 {
-	dest = source;
+	octetStream os;
+	os.store(values);
 	auto &evaluator = YaoEvaluator::s();
 	if (not evaluator.continuous())
 	{
-		evaluator.P->send_long(0, source.get());
+		evaluator.P->send_to(0, os);
 		throw needs_cleaning();
 	}
 }

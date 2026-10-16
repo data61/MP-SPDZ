@@ -20,7 +20,7 @@ void P2Data::forward(vector<poly_type>& ans,const vector<gf2n_short>& a) const
       for (int j=0; j<n && rep!=0; j++)
         { if ((rep&1)==1)
 	     { int jj=i*n+j;
-	       bv.add(A[jj]);
+	       bv ^= A[jj];
              }
           rep>>=1;
         }

@@ -684,7 +684,14 @@ class TwoQuadOutput(MultiOutput):
         N = len(batch)
         @for_range_opt_multithread(self.n_threads, N)
         def _(i):
-            self.nabla_X[i] = -self.Y[batch[i]][:] + self.exp[i][:]
+            added = self.X[i][:] + 5
+            squares = added ** 2
+            ss = sum(squares)
+            p = self.exp[i][:]
+            sign_from_y = self.Y[batch[i]][:].if_else(-1, 1)
+            top = (sign_from_y + sum(-sign_from_y * p)) * 2 * added
+            bottom = len(added) * ss
+            self.nabla_X[i] = top / bottom
 
 class ReluMultiOutput(MultiOutputBase):
     """
@@ -862,6 +869,7 @@ class Dense(DenseBase):
         self.activation = activation
 
         self.X = Tensor([N, d, d_in], sfix)
+        self.X.alloc()
         self.Y = Tensor([N, d, d_out], sfix)
         self.W = Tensor([d_in, d_out], sfix)
         self.b = sfix.Array(d_out)

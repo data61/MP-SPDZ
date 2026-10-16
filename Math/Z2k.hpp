@@ -149,6 +149,20 @@ Z2<K> Z2<K>::sqrRoot()
 }
 
 template<int K>
+void Z2<K>::from_random(const int128& other)
+{
+	if (K > 128)
+	{
+		PRNG G;
+		G.SetSeedFrom(other);
+		G.next<true>();
+		randomize(G);
+	}
+	else
+		*this = other.a;
+}
+
+template<int K>
 void Z2<K>::input(istream& s, bool human)
 {
 	if (human)

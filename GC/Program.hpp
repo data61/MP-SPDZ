@@ -101,8 +101,9 @@ BreakType Program::execute(Processor<T>& Proc, U& dynamic_memory,
         }
         catch (exception& e)
         {
-            cerr << "Fatal error at " << Proc.last_PC << " ("
-                    << p[Proc.last_PC].get_name() << "): " << e.what() << endl;
+            auto inst = p[Proc.last_PC].get_name();
+            fprintf(stderr, "Fatal error at %d (%s): %s\n", Proc.last_PC,
+                    inst.c_str(), e.what());
             exit(1);
         }
     }

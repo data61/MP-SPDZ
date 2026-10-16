@@ -134,7 +134,7 @@ public:
 
 	int threshold;
 
-	Integer convcbit;
+	vector<Integer> convcbit;
 
 	static ProgramParty& s();
 

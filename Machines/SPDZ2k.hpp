@@ -15,6 +15,7 @@
 #include "Processor/Data_Files.hpp"
 #include "Processor/Instruction.hpp"
 #include "Processor/Machine.hpp"
+#include "Processor/OnlineMachine.hpp"
 #include "Protocols/MAC_Check.hpp"
 #include "Protocols/fake-stuff.hpp"
 #include "Protocols/Beaver.hpp"

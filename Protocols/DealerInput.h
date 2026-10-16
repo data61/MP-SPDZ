@@ -42,6 +42,7 @@ public:
     void add_other(int player, int n_bits = -1);
     void add_from_dealer(const typename T::open_type& input);
     void add_from_dealer(const vector<typename T::open_type>& input);
+    void add_from_dealer(span<const typename T::open_type> input);
     void add_n_from_dealer(size_t n_inputs, bool random = false);
     typename T::open_type random_for_dealer();
     void exchange();

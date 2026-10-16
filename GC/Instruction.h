@@ -65,6 +65,11 @@ enum
     SPLIT = 0x248,
     CONVCBIT2S = 0x249,
     ANDRSVEC = 0x24a,
+    APPLYSHUFFLEB = 0x24b,
+    CONCATSB = 0x24c,
+    TRANSVEC = 0x24e,
+    PICKSB = 0x24f,
+    ZIPSB = 0x280,
     // write to clear
     CLEAR_WRITE = 0x210,
     XORCBI = 0x210,
@@ -94,6 +99,8 @@ enum
     // write to regint
     CONVCBIT = 0x230,
     CONVCBITVEC = 0x231,
+    GENSECSHUFFLEB = 0x232,
+    DELSHUFFLEB = 0x233,
 };
 
 #endif /* PROCESSOR_GC_INSTRUCTION_H_ */

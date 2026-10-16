@@ -271,11 +271,9 @@ void RealGarbleWire<T>::load(
 }
 
 template<class T>
-void RealGarbleWire<T>::convcbit(Integer& dest, const GC::Clear& source,
-        GC::Processor<GC::Secret<RealGarbleWire>>& processor)
+void RealGarbleWire<T>::sync(vector<Integer>& values, Player*)
 {
-	(void) source;
 	auto& party = RealProgramParty<T>::s();
-	processor.untaint();
-	dest = party.convcbit;
+	party.garble_processor.untaint();
+	values = party.convcbit;
 }

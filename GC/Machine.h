@@ -10,6 +10,7 @@
 #include "GC/Memory.h"
 
 #include "Processor/BaseMachine.h"
+#include "Protocols/SecureShuffle.h"
 
 #include <vector>
 using namespace std;
@@ -25,6 +26,8 @@ class Memories
 public:
     Memory<T> MS;
     Memory<Clear> MC;
+
+    ShuffleStore<typename T::Shuffler::shuffle_type> shuffle_store;
 
     template<class U>
     void reset(const U& program);

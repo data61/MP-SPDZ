@@ -29,9 +29,11 @@ template<class share_type>
 void MascotMacKey<T>::read_or_generate(Player& P)
 {
     auto filename = get_ot_secrets_filename<share_type>(P);
+    share_type::set_secrets_filename(filename);
     octetStream os;
 
     auto& key = *this;
+    string reason;
 
     try
     {
@@ -44,16 +46,34 @@ void MascotMacKey<T>::read_or_generate(Player& P)
     }
     catch (exception& e)
     {
+        reason = e.what();
+    }
+
+    try
+    {
+        Bundle<octetStream> bundle(P);
+        bundle.mine.store(int(reason.empty()));
+        bundle.compare(P);
+    }
+    catch (mismatch_among_parties& e)
+    {
+        if (reason.empty())
+            reason = e.what();
+    }
+
+    if (not reason.empty())
+    {
         cerr << "No proper key material found in " << filename
-                << ", generating from scratch (" << e.what() << ")" << endl;
+                << ", generating from scratch (" << reason << ")" << endl;
         SeededPRNG G;
         key.randomize(G);
         key.ot = OTTripleSetup(P, true);
         key.ot.base_receiver_inputs.set(key);
         auto ot_setup = BaseMachine::fresh_ot_setup(P);
-        for (int i = 0; i < P.num_players(); i++)
-            if (i != P.my_num())
-                OTMultiplierBase::init(key, P, i, ot_setup);
+        if (not OTExtensionWithMatrix(0).use_kos())
+            P.fork("soft");
+        for (int i : P.balanced_others())
+            OTMultiplierBase::init(key, P, i, ot_setup);
     }
 
     os.reset_write_head();

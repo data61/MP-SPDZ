@@ -24,8 +24,13 @@ public:
     virtual ~SemiMC() {}
 
     virtual void init_open(const Player& P, int n = 0);
-    virtual void prepare_open(const T& secret, int n_bits = -1);
+    virtual void prepare_open(const T& secret, int n_bits);
     virtual void exchange(const Player& P);
+
+    void prepare_open(const T& secret)
+    {
+        this->values.push_back(secret);
+    }
 
     void Check(const Player& P) { (void)P; }
 
@@ -38,6 +43,8 @@ public:
 template<class T>
 class DirectSemiMC : public SemiMC<T>
 {
+    void send(const Player& P, vector<typename T::open_type>& values);
+
 public:
     DirectSemiMC() {}
     // emulate Direct_MAC_Check
@@ -49,8 +56,11 @@ public:
     void POpen_Begin(vector<typename T::open_type>& values,const vector<T>& S,const Player& P);
     void POpen_End(vector<typename T::open_type>& values,const vector<T>& S,const Player& P);
 
-    void exchange(const Player& P) { exchange_(P); }
+    void exchange(const Player& P);
+    template<bool USE_LENGTHS>
     void exchange_(const PlayerBase& P);
+
+    void start_exchange(const Player& P);
 
     void Check(const Player& P) { (void)P; }
 };

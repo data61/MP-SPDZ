@@ -23,6 +23,9 @@ using namespace std;
 #include "Processor/ProcessorBase.h"
 #include "Processor/Instruction.h"
 
+template <class T>
+class SecureShuffleBase;
+
 namespace GC
 {
 
@@ -48,6 +51,9 @@ public:
 
     typedef Memory<U> DynamicMemory;
     typedef SwitchableOutput out_type;
+
+    typedef vector<vector<int>> shuffle_type;
+    typedef SecureShuffleBase<ShareSecret> Shuffler;
 
     static const bool is_real = true;
     static const bool actual_inputs = true;
@@ -82,8 +88,7 @@ public:
             const ArgVector& args);
     static void reveal_inst(Processor<U>& processor, const ArgVector& args);
 
-    template<class T>
-    static void convcbit(Integer& dest, const Clear& source, T&) { dest = source; }
+    static void sync(vector<Integer>& values, Player* P);
 
     template<class T>
     static void convcbit2s(Processor<T>& processor, const BaseInstruction& instruction)
@@ -154,7 +159,8 @@ public:
         return 1;
     }
 
-    static void trans(Processor<U>& processor, int n_outputs,
+    static void trans(StackedVector<U>& dest,
+            const StackedVector<U>& source, int n_outputs,
             const ArgVector& args);
 
     template<class T>

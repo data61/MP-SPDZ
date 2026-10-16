@@ -10,7 +10,7 @@
 #include "Tools/BitVector.h"
 
 template <class U>
-size_t Matrix<U>::vertical_size()
+size_t Matrix<U>::vertical_size() const
 {
     return squares.size() * U::N_ROWS;
 }

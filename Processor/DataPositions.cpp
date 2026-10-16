@@ -82,6 +82,25 @@ DataPositions& DataPositions::operator-=(const DataPositions& delta)
   return *this;
 }
 
+DataPositions& DataPositions::operator/=(int divisor)
+{
+  for (unsigned int field_type = 0; field_type < N_DATA_FIELD_TYPE;
+      field_type++)
+    {
+      for (unsigned int dtype = 0; dtype < N_DTYPE; dtype++)
+        files[field_type][dtype] /= divisor;
+      for (unsigned int j = 0; j < inputs.size(); j++)
+        inputs[j][field_type] /= divisor;
+
+      for (auto it = extended[field_type].begin();
+          it != extended[field_type].end(); it++)
+        it->second /= divisor;
+    }
+  for (auto it = edabits.begin(); it != edabits.end(); it++)
+    it->second /= divisor;
+  return *this;
+}
+
 DataPositions DataPositions::operator-(const DataPositions& other) const
 {
   DataPositions res = *this;

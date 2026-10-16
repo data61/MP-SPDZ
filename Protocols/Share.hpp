@@ -7,6 +7,9 @@
 template<class T, class V>
 typename Share_<T, V>::mac_key_type Share_<T, V>::mac_key;
 
+template<class T, class V>
+string Share_<T, V>::secrets_filename;
+
 
 template<class T, class V>
 typename Share_<T, V>::mac_key_type Share_<T, V>::get_mac_key()

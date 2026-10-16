@@ -5,6 +5,7 @@
 
 #include "Memory.hpp"
 #include "Online-Thread.hpp"
+#include "OnlineMachine.hpp"
 #include "Protocols/Hemi.hpp"
 #include "Protocols/fake-stuff.hpp"
 
@@ -254,8 +255,15 @@ DataPositions Machine<sint, sgf2n>::run_tapes(const ArgVector& args,
     Data_Files<sint, sgf2n>& DataF)
 {
   assert(args.size() % 3 == 0);
+  size_t max_thread = 0;
   for (unsigned i = 0; i < args.size(); i += 3)
+  {
     fill_buffers(args[i], args[i + 1], &DataF.DataFp, &DataF.DataFb);
+    if (max_thread < args[i])
+      max_thread = args[i];
+  }
+  queues.set_n_tape_threads(max_thread + 1);
+
   DataPositions res(N.num_players());
   for (unsigned i = 0; i < args.size(); i += 3)
     res.increase(
@@ -382,6 +390,9 @@ DataPositions Machine<sint, sgf2n>::run_tape(int thread_number, int tape_number,
   if (size_t(tape_number) >= progs.size())
     throw overflow("invalid tape number", tape_number, progs.size());
 
+  if (BaseMachine::thread_num == 0)
+    active_threads.insert(thread_number);
+
   queues[thread_number]->schedule({tape_number, arg, pos});
   //printf("Send signal to run program %d in thread %d\n",tape_number,thread_number);
   //printf("Running line %d\n",exec);
@@ -409,6 +420,12 @@ DataPositions Machine<sint, sgf2n>::join_tape(int i)
   //printf("Waiting for client to terminate\n");
   auto pos = queues[i]->result().pos;
   join_timer[i].stop();
+  if (BaseMachine::thread_num == 0)
+  {
+      active_threads.erase(i);
+      if (active_threads == set({0}))
+          queues.set_n_tape_threads(1);
+  }
   return pos;
 }
 

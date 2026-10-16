@@ -8,6 +8,7 @@
 
 #include "Tools/intrinsics.h"
 #include "Tools/Exceptions.h"
+#include "Math/gf2nlong.h"
 
 #include <vector>
 #include <iostream>
@@ -64,7 +65,7 @@ union square128 {
     void randomize(PRNG& G);
     void randomize(int row, PRNG& G);
     void conditional_add(BitVector& conditions, square128& other, int offset);
-    void transpose();
+    void transpose(int n_rows = 128, int n_cols = 128);
     template <class T>
     void to(T& result);
 
@@ -129,7 +130,7 @@ public:
     typename U::RowType& operator[](int i)
     { return squares[i / U::n_rows()].rows[i % U::n_rows()]; }
 
-    size_t vertical_size();
+    size_t vertical_size() const;
 
     void resize_vertical(int length)
     { squares.resize(DIV_CEIL(length, U::n_rows())); }
@@ -155,6 +156,10 @@ public:
     BitMatrix(int length);
 
     __m128i& operator[](int i) { return squares[i / 128].rows[i % 128]; }
+    __m128i& at(size_t i);
+
+    bool lsb(size_t i) { return int128((*this)[i]).get_bit(0); }
+    BitVector lsbs() const;
 
     void resize(int length);
 

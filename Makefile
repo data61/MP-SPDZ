@@ -11,8 +11,8 @@ PROCESSOR = $(patsubst %.cpp,%.o,$(wildcard Processor/*.cpp)) Protocols/ShamirOp
 
 FHEOBJS = $(patsubst %.cpp,%.o,$(wildcard FHEOffline/*.cpp FHE/*.cpp)) Protocols/CowGearOptions.o
 
-GC = $(patsubst %.cpp,%.o,$(wildcard GC/*.cpp)) $(PROCESSOR)
-GC_SEMI = GC/SemiPrep.o GC/square64.o GC/Semi.o
+GC = $(filter-out GC/SemiSecureShuffle.o, $(patsubst %.cpp,%.o,$(wildcard GC/*.cpp)) $(PROCESSOR))
+GC_SEMI = GC/SemiPrep.o GC/square64.o GC/Semi.o GC/SemiSecureShuffle.o GC/F3.o GC/F3Code.o
 
 OT = $(patsubst %.cpp,%.o,$(wildcard OT/*.cpp)) $(LIBSIMPLEOT)
 OT_EXE = ot.x ot-offline.x
@@ -42,17 +42,35 @@ endif
 
 STATIC_OTE = local/lib/liblibOTe.a
 SHARED_OTE = local/lib/liblibOTe.so
+SECUREJOIN_DEPS = local/lib/libmacoro.a local/lib/libcryptoTools.a local/lib/libcoproto.a
+SJ_STATIC = local/lib/libsecureJoin.a
+
+ifeq ($(USE_LIBOTE2), 1)
+ifeq ($(USE_TUNGSTEN), 1)
+SECUREJOIN = $(SJ_STATIC)
+endif
+SECUREJOIN += $(STATIC_OTE) $(SECUREJOIN_DEPS)
+endif
+
+BINSHUFFLE = GC/SemiSecureShuffle.o
+GC_STATIC = $(BINSHUFFLE) $(SECUREJOIN)
 
 ifeq ($(USE_KOS), 0)
 ifeq ($(USE_SHARED_OTE), 1)
-OT += $(SHARED_OTE) local/lib/libcryptoTools.so
+OT += $(SHARED_OTE) local/lib/libcryptoTools.so local/lib/libcoproto.so
+else
+ifeq ($(USE_LIBOTE2), 1)
+OT += $(STATIC_OTE) local/lib/libmacoro.a local/lib/libcryptoTools.a local/lib/libcoproto.a
 else
 OT += $(STATIC_OTE) local/lib/libcryptoTools.a
 endif
 endif
+endif
+
+GC_SEMI += $(SECUREJOIN) $(OT)
 
 # used for dependency generation
-OBJS = $(patsubst %.cpp,%.o,$(wildcard */*.cpp */*/*.cpp)) $(STATIC_OTE)
+OBJS = $(patsubst %.cpp,%.o,$(wildcard */*.cpp */*/*.cpp)) $(SECUREJOIN)
 DEPS := $(wildcard */*.d */*/*.d)
 
 # never delete
@@ -66,16 +84,17 @@ vm: arithmetic binary
 doc:
 	cd doc; $(MAKE) html
 
-arithmetic: rep-ring rep-field shamir semi2k-party.x semi-party.x mascot sy dealer-ring-party.x fd emulate.x
+arithmetic: rep-ring rep-field shamir mascot sy dealer-ring-party.x fd emulate.x
 binary: rep-bin yao semi-bin-party.x tinier-party.x tiny-party.x ccd-party.x malicious-ccd-party.x real-bmr
 
 all: overdrive she-offline
-arithmetic: semi-he gear
+arithmetic: semi gear
+semi: semi-bin-party.x semi2k-party.x semi-party.x semi-he
 
 -include $(DEPS)
 include $(wildcard *.d static/*.d)
 
-$(OBJS): CONFIG CONFIG.mine
+$(OBJS) $(STATIC_OTE): CONFIG CONFIG.mine
 CONFIG.mine:
 	touch CONFIG.mine
 
@@ -146,6 +165,13 @@ $(LIBRELEASE): Protocols/MalRepRingOptions.o $(PROCESSOR) $(COMMONOBJS) $(TINIER
 
 CFLAGS += -fPIC
 LDLIBS += -Wl,-rpath -Wl,$(CURDIR)
+LIBOTE = -llibOTe -lcryptoTools
+
+ifeq ($(USE_LIBOTE2), 1)
+LIBOTE := -llibOTe -lcoproto -lcryptoTools
+else
+CFLAGS += -DUSE_LIBOTE1
+endif
 
 $(SHAREDLIB): $(PROCESSOR) $(COMMONOBJS) GC/square64.o GC/Instruction.o
 	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS)
@@ -155,11 +181,11 @@ $(FHEOFFLINE): $(FHEOBJS) $(SHAREDLIB)
 
 static/%.x: Machines/%.o $(LIBRELEASE) $(LIBSIMPLEOT) local/lib/libcryptoTools.a local/lib/liblibOTe.a
 	$(MAKE) static-dir
-	$(CXX) -o $@ $(CFLAGS) $^ -Wl,-Map=$<.map -Wl,-Bstatic -static-libgcc -static-libstdc++ $(LIBRELEASE) -llibOTe -lcryptoTools $(LIBSIMPLEOT) $(BOOST) $(LDLIBS) -lz -Wl,-Bdynamic -ldl
+	$(CXX) -o $@ $(CFLAGS) $^ -Wl,-Map=$<.map -Wl,-Bstatic -static-libgcc -static-libstdc++ $(LIBRELEASE) $(LIBOTE) $(LIBSIMPLEOT) $(BOOST) $(LDLIBS) -lz -Wl,-Bdynamic -ldl
 
 static/%.x: Machines/BMR/%.o $(LIBRELEASE) $(LIBSIMPLEOT) local/lib/libcryptoTools.a local/lib/liblibOTe.a
 	$(MAKE) static-dir
-	$(CXX) -o $@ $(CFLAGS) $^ -Wl,-Map=$<.map -Wl,-Bstatic -static-libgcc -static-libstdc++ $(LIBRELEASE) -llibOTe -lcryptoTools $(LIBSIMPLEOT) $(BOOST) $(LDLIBS) -lz -Wl,-Bdynamic -ldl
+	$(CXX) -o $@ $(CFLAGS) $^ -Wl,-Map=$<.map -Wl,-Bstatic -static-libgcc -static-libstdc++ $(LIBRELEASE) $(LIBOTE) $(LIBSIMPLEOT) $(BOOST) $(LDLIBS) -lz -Wl,-Bdynamic -ldl
 
 static/%.x: ECDSA/%.o ECDSA/P256Element.o $(VMOBJS) $(OT) $(LIBSIMPLEOT)
 	$(CXX) $(CFLAGS) -o $@ $^ -Wl,-Map=$<.map -Wl,-Bstatic -static-libgcc -static-libstdc++ $(BOOST) $(LDLIBS) -lz -Wl,-Bdynamic -ldl
@@ -240,13 +266,13 @@ replicated-field-party.x: GC/square64.o
 brain-party.x: GC/square64.o
 malicious-rep-bin-party.x: GC/square64.o
 ps-rep-bin-party.x: GC/PostSacriBin.o
-semi-bin-party.x: $(OT) $(GC_SEMI)
+semi-bin-party.x: $(GC_SEMI)
 tiny-party.x: $(OT)
 tinier-party.x: $(OT)
 spdz2k-party.x: $(TINIER) $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
 static/spdz2k-party.x: $(patsubst %.cpp,%.o,$(wildcard Machines/SPDZ2*.cpp))
-semi-party.x: $(OT)  $(GC_SEMI)
-semi2k-party.x: $(OT) $(GC_SEMI)
+semi-party.x: $(GC_SEMI)
+semi2k-party.x: $(GC_SEMI)
 hemi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 temi-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
 soho-party.x: $(FHEOFFLINE) $(GC_SEMI) $(OT)
@@ -255,9 +281,12 @@ chaigear-party.x: $(FHEOFFLINE) $(TINIER)
 lowgear-party.x: $(FHEOFFLINE) $(TINIER) Protocols/LowGearKeyGen.o
 highgear-party.x: $(FHEOFFLINE) $(TINIER) Protocols/HighGearKeyGen.o
 atlas-party.x: GC/AtlasSecret.o
-static/hemi-party.x: $(FHEOBJS)
-static/temi-party.x: $(FHEOBJS)
-static/soho-party.x: $(FHEOBJS)
+static/semi-party.x: $(GC_STATIC)
+static/semi2k-party.x: $(GC_STATIC)
+static/semi-bin-party.x: $(GC_STATIC)
+static/hemi-party.x: $(FHEOBJS) $(GC_STATIC)
+static/temi-party.x: $(FHEOBJS) $(GC_STATIC)
+static/soho-party.x: $(FHEOBJS) $(GC_STATIC)
 static/cowgear-party.x: $(FHEOBJS)
 static/chaigear-party.x: $(FHEOBJS)
 static/lowgear-party.x: $(FHEOBJS) Protocols/LowGearKeyGen.o
@@ -271,7 +300,7 @@ malicious-rep-ring-party.x: Protocols/MalRepRingOptions.o
 sy-rep-ring-party.x: Protocols/MalRepRingOptions.o
 rep4-ring-party.x: GC/Rep4Secret.o GC/Rep4Prep.o
 no-party.x: Protocols/ShareInterface.o
-semi-ecdsa-party.x: $(OT) $(LIBSIMPLEOT) $(GC_SEMI)
+semi-ecdsa-party.x: $(GC_SEMI) $(OT) $(LIBSIMPLEOT)
 mascot-ecdsa-party.x: $(OT) $(LIBSIMPLEOT)
 rep4-ecdsa-party.x: GC/Rep4Prep.o
 fake-spdz-ecdsa-party.x: $(OT) $(LIBSIMPLEOT)
@@ -279,8 +308,8 @@ emulate.x: GC/FakeSecret.o
 semi-bmr-party.x: $(GC_SEMI) $(OT)
 real-bmr-party.x: $(OT)
 paper-example.x: $(VM) $(OT) $(FHEOFFLINE)
-binary-example.x: $(VM) $(OT) GC/PostSacriBin.o $(GC_SEMI) GC/AtlasSecret.o GC/Rep4Prep.o
-mixed-example.x: $(VM) $(OT) GC/PostSacriBin.o $(GC_SEMI) GC/AtlasSecret.o GC/Rep4Prep.o Machines/Tinier.o
+binary-example.x: $(VM) $(GC_SEMI) $(OT) GC/PostSacriBin.o GC/AtlasSecret.o GC/Rep4Prep.o
+mixed-example.x: $(VM) $(GC_SEMI) $(OT) GC/PostSacriBin.o GC/AtlasSecret.o GC/Rep4Prep.o Machines/Tinier.o
 l2h-example.x: $(VM) $(OT) Machines/Tinier.o
 he-example.x: $(FHEOFFLINE)
 mascot-offline.x: $(VM) $(TINIER)
@@ -324,6 +353,10 @@ Programs/Circuits:
 
 deps/libOTe/libOTe:
 	git submodule update --init --recursive deps/libOTe || git clone --recurse-submodules https://github.com/mkskeller/softspoken-implementation deps/libOTe
+
+deps/libOTe2/libOTe:
+	git submodule update --init --recursive deps/libOTe2 || git clone --recurse-submodules https://github.com/mkskeller/libOTe deps/libOTe2
+
 boost: deps/libOTe/libOTe
 	cd deps/libOTe; \
 	python3 build.py --setup --boost --install=$(CURDIR)/local
@@ -332,10 +365,18 @@ maybe-boost: deps/libOTe/libOTe
 	PATH="$(CURDIR)/local/bin:$(PATH)" cmake $(CURDIR)/deps/libOTe -DCMAKE_CXX_COMPILER=$(CXX) || \
 	{ cd -; make boost; }
 
-OTE_OPTS += -DENABLE_SOFTSPOKEN_OT=ON -DCMAKE_CXX_COMPILER=$(OTE_CXX) -DCMAKE_INSTALL_LIBDIR=lib
+deps/secure-join/secure-join:
+	git submodule update --init --recursive deps/secure-join || git clone --recurse-submodules https://github.com/mkskeller/secure-join deps/secure-join
+
+OTE_OPTS += -DENABLE_SOFTSPOKEN_OT=ON -DENABLE_SILENTOT=ON -DCMAKE_CXX_COMPILER=$(OTE_CXX) -DCMAKE_INSTALL_LIBDIR=lib -DFETCH_COPROTO=ON -DENABLE_PORTABLE_AES=ON
+
+ifeq ($(USE_TUNGSTEN), 1)
+OTE_OPTS += -DENABLE_CIRCUITS=ON -DENABLE_SILENT_VOLE=ON
+endif
 
 ifeq ($(ARM), 1)
 OTE_OPTS += -DENABLE_AVX=OFF -DENABLE_SSE=OFF
+SJ_OPTS += -DSECUREJOIN_ENABLE_SSE=OFF
 else
 ifeq ($(AVX_OT), 0)
 OTE_OPTS += -DENABLE_AVX=OFF
@@ -356,16 +397,26 @@ libote:
 
 local/lib/libcryptoTools.a: $(STATIC_OTE)
 local/lib/libcryptoTools.so: $(SHARED_OTE)
+$(SECUREJOIN_DEPS):
 
 ifeq ($(USE_KOS), 0)
 OT/OTExtensionWithMatrix.o: $(OTE)
 endif
 
+GC/SemiPrep.o GC/SemiSecureShuffle.o: $(SECUREJOIN)
+
+ifeq ($(USE_LIBOTE2), 1)
+local/lib/liblibOTe.a: deps/libOTe2/libOTe
+	cd deps/libOTe2; \
+	PATH="$(CURDIR)/local/bin:$(PATH)" python3 build.py --install=$(CURDIR)/local -DBUILD_SHARED_LIBS=0 $(OTE_OPTS) && \
+	touch ../../local/lib/liblibOTe.a
+else
 local/lib/liblibOTe.a: deps/libOTe/libOTe
 	make maybe-boost; \
 	cd deps/libOTe; \
 	PATH="$(CURDIR)/local/bin:$(PATH)" python3 build.py --install=$(CURDIR)/local -- -DBUILD_SHARED_LIBS=0 $(OTE_OPTS) && \
 	touch ../../local/lib/liblibOTe.a
+endif
 
 $(SHARED_OTE): deps/libOTe/libOTe maybe-boost
 	cd deps/libOTe; \
@@ -376,6 +427,18 @@ cmake:
 	tar xzvf cmake-3.24.1.tar.gz
 	cd cmake-3.24.1; \
 	./bootstrap --parallel=8 --prefix=../local && make -j8 && make install
+
+$(SECUREJOIN_DEPS): $(STATIC_OTE)
+$(SJ_STATIC): $(SECUREJOIN_DEPS)
+
+SJ_OPTS += -DENABLE_SODIUM=OFF -DENABLE_MRR=OFF -DENABLE_RELIC=OFF -DENABLE_SIMPLESTOT_ASM=OFF -DENABLE_SOFTSPOKEN_OT=ON -DCMAKE_CXX_COMPILER=$(CXX) $(OTE_OPTS) -DFETCH_LIBOTE=OFF -DCMAKE_PREFIX_PATH=$(CURDIR)/lib -DEXTRA_INCLUDES="$(CURDIR)/local/include:$(CURDIR)/deps" -DEXTRA_LINKS=$(CURDIR)/local/lib
+
+secure-join: $(SJ_STATIC)
+$(SJ_STATIC): deps/secure-join/secure-join $(STATIC_OTE)
+	cd deps/secure-join; \
+	python3 build.py --install=$(CURDIR)/local $(SJ_OPTS) && \
+	cd ../.. && \
+	test -e local/lib/libsecureJoin.a && touch local/lib/libsecureJoin.a
 
 mac-setup: mac-machine-setup
 	Scripts/get-brew.sh
@@ -391,7 +454,7 @@ deps/sse2neon/sse2neon.h:
 	git submodule update --init deps/sse2neon || git clone https://github.com/DLTcollab/sse2neon deps/sse2neon
 
 clean-deps:
-	-rm -rf local/lib/liblibOTe.* deps/libOTe/out deps/SimplestOT_C/{.git*,*} deps/SimpleOT/{.git*,*}
+	-bash -c "rm -rf local/lib/{liblibOTe.*,libsecureJoin.a} deps/*/out deps/SimplestOT_C/{.git*,*} deps/SimpleOT/{.git*,*}"
 
 clean: clean-deps
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so

@@ -23,6 +23,7 @@
 #include "GC/DealerPrep.h"
 #include "GC/SemiPrep.h"
 #include "GC/SemiSecret.hpp"
+#include "Semi.hpp"
 
 int main(int argc, const char** argv)
 {

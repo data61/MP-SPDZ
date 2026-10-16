@@ -59,8 +59,7 @@ public:
 	static void inputbvec(Processor& processor, ProcessorBase& input_processor,
 			const ArgVector& args);
 
-	static void convcbit(Integer& dest, const GC::Clear& source,
-			GC::Processor<GC::Secret<YaoGarbleWire>>&);
+	static void sync(vector<Integer>& values, Player* P);
 	static void reveal_inst(Processor& processor, const ArgVector& args);
 
 	static void convcbit2s(GC::Processor<whole_type>& processor,

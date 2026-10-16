@@ -260,9 +260,8 @@ public:
 	static void reveal_inst(GC::Processor<U>& processor, const ArgVector& args)
 	{ processor.reveal(args); }
 
-	template<class T>
-	static void convcbit(Integer& dest, const GC::Clear& source, T&)
-	{ (void) dest, (void) source; throw not_implemented(); }
+	static void sync(vector<Integer>&, Player*)
+	{ throw not_implemented(); }
 
 	void input(party_id_t from, char value = -1) { (void)from; (void)value; }
 	void public_input(bool value) { (void)value; }
@@ -409,8 +408,7 @@ public:
 		throw runtime_error("use EvalRegister::inputb()");
 	}
 
-	static void convcbit(Integer& dest, const GC::Clear& source,
-	        GC::Processor<GC::Secret<EvalRegister>>& proc);
+	static void sync(vector<Integer>& values, Player* P);
 
 	void op(const ProgramRegister& left, const ProgramRegister& right, Function func);
 	void XOR(const Register& left, const Register& right);

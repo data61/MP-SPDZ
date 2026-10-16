@@ -69,9 +69,11 @@ void MamaPrep<T>::buffer_triples()
 #endif
     }
 
+    typename T::MAC_Check MC(this->proc->MC.get_alphai());
+
     if (use_shuffling)
         sacrifice.triple_sacrifice(triples, triples, this->proc->P,
-                this->proc->MC);
+                MC);
     else
     {
         auto& proc = this->proc;
@@ -96,7 +98,7 @@ void MamaPrep<T>::buffer_triples()
                 masked.push_back(t * x[0][0] - x[i][0]);
                 masked.push_back(x[0][1] - x[i][1]);
             }
-        proc->MC.POpen(opened, masked, P);
+        MC.POpen(opened, masked, P);
         vector<T> checks;
         for (auto& x : check_triples)
         {
@@ -111,7 +113,7 @@ void MamaPrep<T>::buffer_triples()
                                         proc->MC.get_alphai()));
             }
         }
-        proc->MC.CheckFor(0, checks, P);
+        MC.CheckFor(0, checks, P);
     }
 
     this->triples = triples;

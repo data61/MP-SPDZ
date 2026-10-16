@@ -26,7 +26,7 @@ void ThreadQueue::schedule(const ThreadJob& job)
 
     if (debug)
         fprintf(stderr, "schedule for thread %lx from %lx at %f\n", long(this),
-                pthread_self(), timer.elapsed());
+                long(pthread_self()), timer.elapsed());
 }
 
 ThreadJob ThreadQueue::next()

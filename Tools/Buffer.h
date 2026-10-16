@@ -125,6 +125,12 @@ bool has_mac(false_type)
 template<class T>
 octetStream check_file_signature(ifstream& file, const string& filename)
 {
+#ifdef DEBUG_FILE_SIGNATURE
+    bool debug = true;
+#else
+    bool debug = OnlineOptions::singleton.has_option("debug_file_signature");
+#endif
+
     octetStream file_spec;
     try
     {
@@ -132,19 +138,22 @@ octetStream check_file_signature(ifstream& file, const string& filename)
     }
     catch (bad_alloc&)
     {
+        if (debug)
+            printf("malformed signature in %s\n", filename.c_str());
         throw signature_mismatch(filename);
     }
     catch (IO_Error&)
     {
+        if (debug)
+            printf("IO error in %s\n", filename.c_str());
         throw signature_mismatch(filename);
     }
     if (file_signature<T>() != file_spec)
     {
-#ifndef DEBUG_FILE_SIGNATURE
-        if (OnlineOptions::singleton.has_option("debug_file_signature"))
-#endif
+        if (debug)
         {
             auto exp = file_signature<T>();
+            printf("signature mismatch in %s:\n", filename.c_str());
             pprint_bytes("found   ", file_spec.get_data(), file_spec.get_length());
             pprint_bytes("expected", exp.get_data(), exp.get_length());
         }

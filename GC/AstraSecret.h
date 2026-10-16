@@ -18,10 +18,10 @@ template<class T>
 class AstraSecretBase : public ShareSecret<T>
 {
 public:
-    static void trans(Processor<T>& processor, int n_outputs,
-            const ArgVector& args)
+    static void trans(StackedVector<T>& dest, const StackedVector<T>& source,
+            int n_outputs, const ArgVector& args)
     {
-        vec_trans(processor, n_outputs, args);
+        vec_trans(dest, source, n_outputs, args);
     }
 };
 

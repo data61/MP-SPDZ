@@ -127,6 +127,13 @@ void ProtocolBase<T>::mulrs(const ArgVector& reg,
 }
 
 template<class T>
+void ProtocolBase<T>::mulbits(const ArgVector& reg,
+        SubProcessor<T>& proc)
+{
+    proc.muls(reg);
+}
+
+template<class T>
 void ProtocolBase<T>::multiply(vector<T>& products,
         vector<pair<T, T> >& multiplicands, int begin, int end,
         SubProcessor<T>& proc)
@@ -136,6 +143,7 @@ void ProtocolBase<T>::multiply(vector<T>& products,
             BaseMachine::thread_num);
 #endif
 
+    assert(products.size() == multiplicands.size());
     init(proc.DataF, proc.MC);
     init_mul();
     for (int i = begin; i < end; i++)
@@ -143,6 +151,13 @@ void ProtocolBase<T>::multiply(vector<T>& products,
     exchange();
     for (int i = begin; i < end; i++)
         products[i] = finalize_mul();
+}
+
+template<class T>
+void ProtocolBase<T>::multiply_mixed(vector<T>&, vector<pair<T, T> >&,
+        SubProcessor<T>&)
+{
+    throw runtime_error("mixed multiplication not implemented");
 }
 
 template<class T>

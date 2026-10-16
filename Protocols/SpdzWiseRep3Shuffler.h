@@ -27,7 +27,7 @@ public:
 
     void generate(int n_shuffle, shuffle_type& shuffle);
 
-    void apply_multiple(StackedVector<T>& a, vector<ShuffleTuple<T>>& shuffles);
+    void apply_multiple(StackedVector<T>& a, vector<ShuffleTuple<shuffle_type>>& shuffles);
 };
 
 #endif /* PROTOCOLS_SPDZWISEREP3SHUFFLER_H_ */

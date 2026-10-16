@@ -196,16 +196,15 @@ char YaoGarbleWire::get_output()
 	return 0;
 }
 
-void YaoGarbleWire::convcbit(Integer& dest, const GC::Clear& source,
-		GC::Processor<GC::Secret<YaoGarbleWire>>&)
+void YaoGarbleWire::sync(vector<Integer>& values, Player*)
 {
 	auto &garbler = YaoGarbler::s();
-	if (garbler.continuous())
-		dest = source;
-	else
+	if (not garbler.continuous())
 	{
 		garbler.untaint();
-		dest = garbler.P->receive_long(1);
+		octetStream os;
+		garbler.P->receive_player(1, os);
+		os.get(values);
 	}
 }
 

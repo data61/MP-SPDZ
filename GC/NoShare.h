@@ -16,6 +16,8 @@ class ArithmeticProcessor;
 class BlackHole;
 class SwitchableOutput;
 
+template<class T> class SecureShuffleBase;
+
 namespace GC
 {
 
@@ -112,6 +114,7 @@ public:
     typedef NoInput<NoShare> Input;
     typedef DummyLivePrep<NoShare> LivePrep;
     typedef DummyMC<NoShare> MAC_Check;
+    typedef SecureShuffleBase<NoShare> Shuffler;
 
     typedef NoValue open_type;
     typedef NoValue clear;
@@ -161,9 +164,11 @@ public:
     static void andrs(Processor<NoShare>&, const ArgVector&) { fail(); }
     static void andrsvec(Processor<NoShare>&, const ArgVector&) { fail(); }
 
-    static void trans(Processor<NoShare>&, Integer, const ArgVector&) { fail(); }
+    static void trans(StackedVector<NoShare>&, StackedVector<NoShare>&, Integer, const ArgVector&) { fail(); }
 
     static void andm(GC::Processor<NoShare>&, const BaseInstruction&) { fail(); }
+
+    static void sync(vector<Integer>&, Player*) { fail(); }
 
     static NoShare constant(const GC::Clear&, int, mac_key_type, int = -1) { fail(); return {}; }
 

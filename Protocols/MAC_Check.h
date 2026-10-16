@@ -49,6 +49,8 @@ class TreeSum
   void pack_or_unpack(vector<T>& values, octetStream& os, false_type);
   template<bool PACK, bool ADD>
   void pack_or_unpack(vector<T>& values, octetStream& os, true_type);
+  template<bool PACK, bool ADD, bool USE_LENGTH>
+  void pack_or_unpack(T& value, octetStream& os, int length, T& tmp);
 
 protected:
   int base_player;
@@ -133,6 +135,9 @@ public:
   MAC_Check_(const typename U::mac_key_type::Scalar& ai, int opening_sum = 10,
       int max_broadcast = 10, int send_player = 0);
   virtual ~MAC_Check_() {}
+
+  void start_exchange(const Player& P);
+  void stop_exchange(const Player& P);
 
   virtual void Check(const Player& P);
 };
@@ -301,19 +306,51 @@ template<class T>
 template<bool PACK, bool ADD>
 void TreeSum<T>::pack_or_unpack(vector<T>& values, octetStream& os, false_type)
 {
-  bool use_lengths = lengths.size() == values.size();
-  T tmp = values.at(0);
-  for (unsigned int i = 0; i < values.size(); i++)
-    if (PACK)
-      values[i].pack(os, use_lengths ? lengths[i] : -1);
-    else
+  bool use_lengths = false;
+  for (auto length : lengths)
+    if (length != -1)
       {
-        tmp.unpack(os, use_lengths ? lengths[i] : -1);
-        if (ADD)
-          values[i] += tmp;
-        else
-          values[i] = tmp;
+        use_lengths = true;
+        break;
       }
+
+  T tmp = values.at(0);
+
+  if (use_lengths)
+    {
+      for (unsigned int i = 0; i < values.size(); i++)
+        pack_or_unpack<PACK, ADD, true>(values[i], os, lengths[i], tmp);
+    }
+  else
+    {
+      for (auto it = values.begin(); it < values.end(); it++)
+        pack_or_unpack<PACK, ADD, false>(*it, os, -1, tmp);
+    }
+}
+
+template<class T>
+template<bool PACK, bool ADD, bool USE_LENGTH>
+void TreeSum<T>::pack_or_unpack(T& value, octetStream& os, int length, T& tmp)
+{
+  if (PACK)
+    {
+      if (USE_LENGTH)
+        value.pack(os, length);
+      else
+        value.pack(os);
+    }
+  else
+    {
+      if (USE_LENGTH)
+        tmp.unpack(os, length);
+      else
+        tmp.unpack(os);
+
+      if (ADD)
+        value += tmp;
+      else
+        value = tmp;
+    }
 }
 
 template<class T>

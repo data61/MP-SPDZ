@@ -104,10 +104,11 @@ Spdz2kTripleGenerator<T>::Spdz2kTripleGenerator(const OTTripleSetup& setup,
 }
 
 template<class T>
-void OTTripleGenerator<T>::set_batch_size(int batch_size)
+void OTTripleGenerator<T>::set_batch_size(int batch_size, bool limit)
 {
     // limit to ~1 GB
-    batch_size = min(batch_size, int(1e7 / sizeof(T) / sizeof(T)));
+    if (limit)
+        batch_size = min(batch_size, int(1e7 / sizeof(T) / sizeof(T)));
     if (OnlineOptions::singleton.has_option("verbose_ot"))
         fprintf(stderr, "OT batch size %d (share size %d)\n", batch_size,
                 int(sizeof(T)));
@@ -561,6 +562,9 @@ void OTTripleGenerator<T>::generatePlainBits()
 
     int batch_size = nPreampTriplesPerLoop;
     int n = multiple_minimum(batch_size, T::Rectangle::n_rows_allocated());
+
+    if (OnlineOptions::singleton.has_option("debug_plain"))
+        cerr << "Generating " << n << " plain bits" << endl;
 
     valueBits.resize(1);
     valueBits[0].resize(n);

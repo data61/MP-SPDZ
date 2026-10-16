@@ -8,6 +8,7 @@
 
 #include "Player.h"
 #include "Tools/Lock.h"
+#include "Processor/OnlineOptions.h"
 
 #include <cryptoTools/Network/SocketAdapter.h>
 
@@ -72,8 +73,10 @@ class PlayerCtSocket : public osuCrypto::SocketInterface
     }
 
 public:
+    bool tamper;
+
     PlayerCtSocket(TwoPartyPlayer& P) :
-            P(P)
+            P(P), tamper(false)
     {
         pthread_create(&send_thread, 0, run_send, this);
         pthread_create(&receive_thread, 0, run_receive, this);
@@ -144,6 +147,11 @@ public:
             {
                 auto& buffer = pack.buffers.front();
                 auto sent = P.recv(buffer, true);
+                if (tamper and sent > 100)
+                {
+                    fprintf(stderr, "changing last byte of %zu\n", sent);
+                    buffer.data[sent - 1] ^= 1;
+                }
                 buffer.data += sent;
                 buffer.size -= sent;
                 pack.total += sent;

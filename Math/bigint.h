@@ -31,6 +31,7 @@ class Integer;
 template<int K> class Z2;
 template<int K> class SignedZ2;
 template<int L> class fixint;
+class int128;
 
 namespace GC
 {
@@ -95,6 +96,7 @@ public:
   bigint& operator=(const fixint<L>& x);
   bigint& operator=(const Integer& x);
   bigint& operator=(const GC::Clear& x);
+  bigint& operator=(const int128& x);
 
   /// Convert to signed representation in :math:`[-p/2,p/2]`.
   template<int X, int L>

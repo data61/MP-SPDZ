@@ -273,6 +273,7 @@ class Program(object):
         self.keep_cisc = (options.keep_cisc or "").split(",")
         self.timeout = None
         self.expansion_timeout = 10
+        self.use_binary_shuffle = False
         self.warned_about_mem = False
 
         Program.prog = self
@@ -576,8 +577,8 @@ class Program(object):
                     size, mem_type, addr, self.curr_block.name))
             if addr + size >= MEM_MAX:
                 raise CompilerError(
-                    "allocation exceeded for type '%s' after adding %d" % \
-                    (mem_type, size))
+                    "allocation exceeded for type '%s' after adding %d to %d" \
+                    % (mem_type, size, addr))
         self.allocated_mem_blocks[addr, mem_type] = size, self.curr_block.alloc_pool
         if single_size:
             from .library import get_arg, runtime_error_if
@@ -775,8 +776,6 @@ class Program(object):
                 self.relevant_opts.add("split")
                 return False
         else:
-            if change and not self.options.ring:
-                raise CompilerError("splitting only supported for rings")
             if change:
                 self._split = util.tuplify(change)
                 for x in self._split:
@@ -892,7 +891,8 @@ class Program(object):
         if m:
             schedule = m.group(1)
         if not os.path.exists(schedule):
-            schedule = "Programs/Schedules/%s.sch" % schedule
+            schedule = "Programs/Schedules/%s.sch" % \
+                re.sub(r'\.sch$', '', schedule)
 
         try:
             return open(schedule).readlines()
@@ -920,7 +920,7 @@ class Program(object):
             if t == "R" and n <= 32:
                 return 4
             elif n:
-                return (n + 63) // 64
+                return (n + 63) // 64 * 8
         except:
             pass
         from Compiler.instructions import reqbl_class
@@ -1316,10 +1316,10 @@ class Tape:
             # make addresses available in functions
             for addr in self.program.base_addresses:
                 if addr.program == self and self.basicblocks:
-                    allocator.alloc_reg(addr, self.basicblocks[-1].alloc_pool)
+                    allocator.alloc_reg(addr, self.basicblocks[-1])
 
             for reg in self.return_values:
-                allocator.alloc_reg(reg, self.basicblocks[-1].alloc_pool)
+                allocator.alloc_reg(reg, self.basicblocks[-1])
 
             seen = set()
 
@@ -1328,7 +1328,7 @@ class Tape:
                 for reg in sorted(
                     block.used_from_scope, key=lambda x: (x.reg_type, x.i)
                 ):
-                    allocator.alloc_reg(reg, block.alloc_pool)
+                    allocator.alloc_reg(reg, block)
                 seen.add(block)
 
             def alloc_loop(block):
@@ -1355,7 +1355,7 @@ class Tape:
                     ):
                         alloc_loop(block.exit_block.scope)
                 usage = allocator.max_usage.copy()
-                allocator.process(block.instructions, block.alloc_pool)
+                allocator.process(block)
                 if self.program.verbose and usage != allocator.max_usage:
                     print("Allocated registers in %s " % block.name, end="")
                     for t, n in allocator.max_usage.items():
@@ -1728,7 +1728,9 @@ class Tape:
 
     @staticmethod
     def read_instructions(tapename):
-        tape = open("Programs/Bytecode/%s.bc" % tapename, "rb")
+        if not os.path.exists(tapename):
+            tapename = "Programs/Bytecode/%s.bc" % tapename
+        tape = open(tapename, "rb")
         while tape.peek():
             yield inst_base.ParsedInstruction(tape)
 
@@ -1946,6 +1948,7 @@ class Tape:
 
             """
             other = type(self)(other)
+            assert len(self) == len(other)
             same_block = other.block == self.block
             if same_block or self.reg_type[0] != "s":
                 self.program.start_new_basicblock(name="update")

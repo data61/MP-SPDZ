@@ -44,6 +44,8 @@ public:
     void and_(Processor<T>& processor, const ArgVector& args, bool repeat);
     void andrsvec(Processor<T>& processor, const ArgVector& args);
     void xors(Processor<T>& processor, const ArgVector& args);
+
+    TimerWithComm prep_time();
 };
 
 template<class T>

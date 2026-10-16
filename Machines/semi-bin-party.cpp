@@ -15,12 +15,8 @@
 #include "GC/ThreadMaster.hpp"
 #include "GC/Processor.hpp"
 #include "GC/SemiSecret.hpp"
-#include "Protocols/MAC_Check_Base.hpp"
-#include "Protocols/SemiMC.hpp"
-#include "Protocols/SemiInput.hpp"
-#include "Protocols/ReplicatedInput.hpp"
-#include "Processor/Instruction.hpp"
-#include "Processor/Input.hpp"
+
+#include "Semi.hpp"
 
 int main(int argc, const char** argv)
 {

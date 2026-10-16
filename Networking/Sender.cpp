@@ -75,7 +75,13 @@ void Sender<T>::wait(const octetStream& os)
     const octetStream* queued = 0;
     out.pop(queued);
     if (queued != &os)
-      throw not_implemented();
+      throw runtime_error("error in send thread");
+}
+
+template<class T>
+void Sender<T>::fail()
+{
+    out.push(0);
 }
 
 template class Sender<int>;

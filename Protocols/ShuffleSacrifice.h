@@ -63,6 +63,7 @@ public:
     static int batch_size();
 
     TripleShuffleSacrifice();
+    TripleShuffleSacrifice(int B);
     TripleShuffleSacrifice(int B, int C);
 
     void triple_sacrifice(vector<array<T, 3>>& triples,

@@ -25,6 +25,10 @@ public:
     static const false_type optimized_packing;
     static const true_type is_clear;
 
+    typedef void Square;
+
+    static int length() { return -1; }
+
     template<class T>
     static void init(bool mont = true) { (void) mont; }
     static void init_default(int, bool = true) {}

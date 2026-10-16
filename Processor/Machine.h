@@ -55,6 +55,8 @@ class Machine : public BaseMachine
   int max_trunc_size;
   Lock warn_lock;
 
+  set<int> active_threads;
+
   size_t load_program(const string& threadname, const string& filename);
 
   void prepare(const string& progname_str);

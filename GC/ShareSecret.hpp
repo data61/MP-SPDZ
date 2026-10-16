@@ -315,14 +315,14 @@ void ShareSecret<U>::xors(Processor<U>& processor, const ArgVector& args)
 }
 
 template<class U, int L>
-void RepSecretBase<U, L>::trans(Processor<U>& processor,
-        int n_outputs, const ArgVector& args)
+void RepSecretBase<U, L>::trans(StackedVector<U>& dest,
+        const StackedVector<U>& source, int n_outputs, const ArgVector& args)
 {
-    vec_trans(processor, n_outputs, args);
+    vec_trans(dest, source, n_outputs, args);
 }
 
 template<class U>
-void vec_trans(Processor<U>& processor,
+void vec_trans(StackedVector<U>& dest, const StackedVector<U>& source,
         int n_outputs, const ArgVector& args)
 {
     int N_BITS = U::default_length;
@@ -335,14 +335,14 @@ void vec_trans(Processor<U>& processor,
                 square64 square;
                 size_t input_base = n_outputs + l * N_BITS;
                 for (size_t i = input_base; i < min(input_base + N_BITS, args.size()); i++)
-                    square.rows[i - input_base] = processor.S[args[i] + j][k].get();
+                    square.rows[i - input_base] = source[args[i] + j][k].get();
                 square.transpose(
                         min(size_t(N_BITS), args.size() - n_outputs - l * N_BITS),
                         min(N_BITS, n_outputs - j * N_BITS));
                 int output_base = j * N_BITS;
                 for (int i = output_base; i < min(n_outputs, output_base + N_BITS); i++)
                 {
-                    processor.S[args[i] + l][k] = square.rows[i - output_base];
+                    dest[args[i] + l][k] = square.rows[i - output_base];
                 }
             }
     }

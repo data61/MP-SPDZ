@@ -239,9 +239,10 @@ ShareMatrix<T> Hemi<T>::matrix_multiply(const ShareMatrix<T>& A,
                 for (size_t k = 0; k < AA.entries.size() + BB.entries.size();
                         k++)
                     mc->inner.set_random_element({});
-                beaver.exchange();
-                C.add_from_col(j, beaver.finalize_mul());
             }
+            beaver.exchange();
+            if (for_real)
+                C.add_from_col(j, beaver.finalize_mul());
         }
     }
 

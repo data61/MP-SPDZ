@@ -185,34 +185,34 @@ def get_bit(x, index, bit_length):
     else:
         return get_block(x, index, 1, bit_length).get_slice()[0]
 
-def demux(x):
+def demux(x, n_threads=None):
     """ Demuxing like in the Galois paper. """
     # res = Array(2**len(x), x[0].reg_type)
     # for i,v in enumerate(demux_list(x)):
     #     res[i] = v
     # return res
 
-    if 2**len(x) <= n_parallel:
+    if 2**len(x) <= n_parallel and not (n_threads and len(x) > 1):
         return demux_list(x)
     else:
-        return demux_array(x)
+        return demux_array(x, n_threads=n_threads)
 
 def demux_list(x):
     n = len(x)
     if n == 0:
         return [1]
     elif n == 1:
-        return [1 - x[0], x[0]]
+        return [util.bit_not(x[0], 1), x[0]]
     a = demux_list(x[:n//2])
     b = demux_list(x[n//2:])
     n_a = len(a)
     a *= len(b)
     b = reduce(operator.add, ([i] * n_a for i in b))
-    res = list(map(operator.mul, a, b))
+    res = list(map(util.bit_and, a, b))
     return res
 
-def demux_array(x, res=None):
-    tmp = demux_matrix(x).array
+def demux_array(x, res=None, n_threads=None):
+    tmp = demux_matrix(x, n_threads=n_threads).array
     if res:
         try:
             assert issubclass(x.value_type, _register)
@@ -226,26 +226,74 @@ def demux_array(x, res=None):
     return res
 
 def demux_matrix(x, n_threads=None):
+    r""" Demuxing (converting from binary to unary represention).
+
+    :param x: :math:`n \times m`-matrix of secret bits (:math:`m`
+      entries of :math:`n` bits)
+    :param res: array for result if given (default is to allocate)
+    :param n_threads: number of threads (default is running in same thread)
+    :returns: :math:`2^n \times m`-matrix of secret bits
+    """
+    have_matrix = isinstance(x, SubMultiArray) and len(x.shape) == 2
     n = len(x)
     if n == 0:
         return [1]
     m = len(x[0])
-    t = type(x[0])
-    res = Matrix(2**n, m, type(x[0]))
-    if n == 1:
-        res[0] = 1 - x[0]
-        res[1] = x[0]
+    if have_matrix:
+        t = x.value_type
     else:
-        a = Matrix(2**(n//2), m, type(x[0]))
-        a.assign(demux(x[:n//2]))
-        b = Matrix(2**(n-n//2), m, type(x[0]))
-        b.assign(demux(x[n//2:]))
-        @for_range_opt_multithread(n_threads, len(a))
-        def f(i):
-            @for_range_opt(len(b))
-            def f(j):
-                res[j * len(a) + i][:] = a[i][:] * b[j][:]
+        assert isinstance(x, (list, tuple))
+        t = type(x[0])
+    res = t.Matrix(2**n, m)
+    if n == 1:
+        if have_matrix:
+            @multithread(n_threads, m)
+            def _(base, size):
+                part = x[0].get_vector(base=base, size=size)
+                res[0].assign_vector(part.bit_not(), base=base)
+                res[1].assign_vector(part, base=base)
+        else:
+            res[0] = util.bit_not(x[0], 1)
+            res[1] = x[0]
+    else:
+        if have_matrix:
+            a = demux_matrix(x.get_part(start=0, size=n // 2))
+            b = demux_matrix(x.get_part(start=n // 2, size=n - n // 2))
+        else:
+            a = Matrix(2**(n//2), m, type(x[0]))
+            a.assign(demux(x[:n//2], n_threads=n_threads))
+            b = Matrix(2**(n-n//2), m, type(x[0]))
+            b.assign(demux(x[n//2:], n_threads=n_threads))
+        @multithread(n_threads, m)
+        def _(base, size):
+            @for_range_opt(len(a))
+            def f(i):
+                @for_range_opt(len(b))
+                def f(j):
+                    kwargs = {'base': base, 'size': size}
+                    res[j * len(a) + i].assign_vector(
+                        a[i].get_vector(**kwargs) * b[j].get_vector(**kwargs),
+                        base=base)
+        a.delete()
+        b.delete()
     return res
+
+def decompose_demux(x, n_bits, n_threads=None):
+    r""" Bit decomposition followed by :py:func:`demux_matrix`.
+
+    :param x: secret inputs (vector, :py:class:`Array`, or list)
+    :param n_bits: number of bits in entries
+    :param n_threads: number of threads (default is running in same thread)
+    :returns: :math:`2^n \times m`-matrix of secret bits
+    """
+    tmp = Array.create_from(x)
+    bits = tmp.value_type.bit_type.Matrix(n_bits, len(x))
+    @multithread(n_threads, len(x))
+    def _(base, size):
+        for i, part in enumerate(
+                tmp.get_vector(base=base, size=size).bit_decompose(n_bits)):
+            bits[i].assign_vector(part, base=base)
+    return demux_matrix(bits, n_threads=n_threads)
 
 def get_first_one(x):
     prefix_list = [0] + floatingpoint.PreOR(x, Program.prog.security)

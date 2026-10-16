@@ -62,18 +62,25 @@ OTTripleSetup OTTripleSetup::get_fresh()
     OTTripleSetup res = *this;
     for (int i = 0; i < nparties - 1; i++)
     {
-        BaseOT bot(get_nbase(), 0);
-        bot.sender_inputs = baseSenderInputs.at(i);
-        bot.receiver_outputs = baseReceiverOutputs.at(i);
-        bot.set_seeds();
-        bot.extend_length();
-        baseSenderInputs.at(i) = bot.sender_inputs;
-        baseReceiverOutputs.at(i) = bot.receiver_outputs;
-        bot.extend_length();
+        auto bot = get_base(i);
         res.baseSenderInputs.at(i) = bot.sender_inputs;
         res.baseReceiverOutputs.at(i) = bot.receiver_outputs;
     }
     return res;
+}
+
+BaseOT OTTripleSetup::get_base(size_t index)
+{
+    BaseOT bot(get_nbase(), 0);
+    bot.receiver_inputs = base_receiver_inputs;
+    bot.sender_inputs = baseSenderInputs.at(index);
+    bot.receiver_outputs = baseReceiverOutputs.at(index);
+    bot.set_seeds();
+    bot.extend_length();
+    baseSenderInputs.at(index) = bot.sender_inputs;
+    baseReceiverOutputs.at(index) = bot.receiver_outputs;
+    bot.extend_length();
+    return bot;
 }
 
 void OTTripleSetup::pack(octetStream& os) const

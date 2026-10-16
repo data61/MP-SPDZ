@@ -12,7 +12,6 @@
 #include "Tools/ezOptionParser.h"
 #include "Math/gf2n.h"
 #include "Protocols/Spdz2kPrep.h"
-#include "OnlineMachine.hpp"
 #include "OnlineOptions.hpp"
 
 

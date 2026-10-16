@@ -79,8 +79,12 @@ void Rep4<T>::init_mul()
 
     send_os.reset(P);
     receive_os.reset(P);
-    channels.clear();
-    channels.resize(P.num_players(), vector<bool>(P.num_players(), false));
+    channels.resize(P.num_players());
+    for (auto& channel : channels)
+    {
+        channel.clear();
+        channel.resize(P.num_players(), false);
+    }
 }
 
 template<class T>
@@ -329,7 +333,7 @@ void Rep4<T>::append_hashes(octetStreams& to_send)
             {
                 if (not channels[P.my_num()][receiver])
                     throw runtime_error("missing channel activation");
-                to_send[receiver].concat(hash.final());
+                hash.append_final(to_send[receiver]);
             }
         }
 }
@@ -337,15 +341,13 @@ void Rep4<T>::append_hashes(octetStreams& to_send)
 template<class T>
 void Rep4<T>::check_hashes(octetStreams& to_receive)
 {
-    octetStream tmp;
     for (int i = 1; i < 4; i++)
         for (int j = 0; j < 4; j++)
         {
             auto& hash = receive_hashes[j][P.get_player(-i)];
             if (hash.size > 0)
             {
-                to_receive[P.get_player(-i)].consume(tmp, Hash::hash_length);
-                if (hash.final() != tmp)
+                if (not hash.matches(to_receive[P.get_player(-i)]))
                     throw runtime_error(
                             "hash mismatch for sender " + to_string(j)
                             + " and backup " + to_string(P.get_player(-i)));

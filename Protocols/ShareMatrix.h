@@ -281,9 +281,13 @@ public:
     static This constant(const clear& other, int my_num, mac_key_type key)
     {
         This res(other.n_rows, other.n_cols);
-        for (size_t i = 0; i < other.entries.size(); i++)
-            res.entries.v.push_back(T::constant(other.entries[i], my_num, key));
-        res.check();
+        if (not other.entries.v.empty())
+        {
+            other.check();
+            for (size_t i = 0; i < other.entries.size(); i++)
+                res.entries.v.push_back(T::constant(other.entries[i], my_num, key));
+            res.check();
+        }
         return res;
     }
 

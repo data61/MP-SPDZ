@@ -200,10 +200,11 @@ template <class U>
 void Secret<T>::bitcom(StackedVector<U>& S, const ArgVector& regs)
 {
     registers.clear();
+    bool strict = OnlineOptions::singleton.has_option("strict_bitcoms");
     for (unsigned int i = 0; i < regs.size(); i++)
     {
-    	if (S[regs[i]].registers.size() != 1)
-    		throw Processor_Error("can only compose bits");
+        if (strict and S[regs[i]].registers.size() != 1)
+            throw Processor_Error("can only compose bits");
         registers.push_back(S[regs[i]].registers.at(0));
     }
 }
@@ -212,20 +213,28 @@ template <class T>
 template <class U>
 void Secret<T>::bitdec(StackedVector<U>& S, const ArgVector& regs) const
 {
-    if (regs.size() > registers.size())
+    bool strict = OnlineOptions::singleton.has_option("strict_bitdec");
+    if (strict and regs.size() > registers.size())
         throw overflow("not enough bits for bit decomposition", regs.size(),
             registers.size());
     for (unsigned int i = 0; i < regs.size(); i++)
     {
         Secret& secret = S[regs[i]];
         secret.registers.clear();
-        secret.registers.push_back(registers.at(i));
+        if (i < registers.size())
+            secret.registers.push_back(registers.at(i));
+        else
+        {
+            secret.registers.push_back({});
+            secret.registers.back().public_input(0);
+        }
     }
 }
 
 template<class T>
 template<class U>
-void Secret<T>::trans(Processor<U>& processor, int n_outputs,
+void Secret<T>::trans(StackedVector<U>& dest_stack,
+        const StackedVector<U>& source_stack, int n_outputs,
         const ArgVector& args)
 {
     int n_inputs = args.size() - n_outputs;
@@ -233,11 +242,11 @@ void Secret<T>::trans(Processor<U>& processor, int n_outputs,
     for (int i = 0; i < n_outputs; i++)
     {
         for (int j = 0; j < DIV_CEIL(n_inputs, dl); j++)
-            processor.S[args[i] + j].resize_regs(min(dl, n_inputs - j * dl));
+            dest_stack[args[i] + j].resize_regs(min(dl, n_inputs - j * dl));
         for (int j = 0; j < n_inputs; j++)
         {
-            auto& source = processor.S[args[n_outputs + j] + i / dl].registers;
-            auto& dest = processor.S[args[i] + j / dl].registers[j % dl];
+            auto& source = source_stack[args[n_outputs + j] + i / dl].registers;
+            auto& dest = dest_stack[args[i] + j / dl].registers[j % dl];
             if (size_t(i % dl) < source.size())
                 dest = source[i % dl];
             else
@@ -285,6 +294,29 @@ void Secret<T>::reveal(size_t n_bits, U& x)
         cout << registers[i].get_id() << " ";
     cout << endl;
 #endif
+}
+
+template<class T>
+void Secret<T>::mask(Secret& res, size_t n_bits) const
+{
+    if (this != &res)
+        res.get_regs().assign(this->get_regs().begin(),
+                this->get_regs().begin()
+                        + min(size_t(n_bits), this->get_regs().size()));
+
+    while (res.registers.size() < n_bits)
+    {
+        res.registers.push_back({});
+        res.registers.back().public_input(0);
+    }
+}
+
+template<class T>
+Secret<T> Secret<T>::mask(size_t n_bits) const
+{
+    Secret res;
+    mask(res, n_bits);
+    return res;
 }
 
 } /* namespace GC */

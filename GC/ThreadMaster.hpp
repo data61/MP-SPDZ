@@ -129,7 +129,7 @@ void ThreadMaster<T>::run_with_error()
 
     machine.queues.clear();
 
-    if (not exe_stats.empty())
+    if (not exe_stats.empty() and opts.verbose)
         exe_stats.print();
 
     if (opts.verbose)

@@ -1,6 +1,7 @@
 from Compiler.types import *
 from Compiler.sorting import *
 from Compiler.library import *
+from Compiler.GC.types import sbitintvec, sbits
 from Compiler import util, oram
 
 from itertools import accumulate
@@ -38,16 +39,46 @@ def PrefixSumR_inv(x):
     return x - x.concat((x.get_vector(base=1, size=len(x) - 1), type(x)(0)))
 
 class SortPerm:
-    def __init__(self, x):
-        self.perm = Array.create_from(gen_bit_perm(x))
+    @staticmethod
+    def get_perm(x, n_threads=None):
+        if 'sort' in (program.options.keep_cisc or ()):
+            class FakeSort():
+                delete = lambda *args: None
+            res = FakeSort()
+            res.key = x.get_vector().pre_mul()
+            return res
+            res = Array.create_from(sint(regint.inc(len(x))))
+            assert maybe_fake_sort(x, res, reverse=True)
+            return res
+        perm = gen_bit_perm(x, n_threads=n_threads, get_array=True)
+        if get_program().use_binary_shuffle:
+            tmp = sbitintvec.get_type(util.log2(len(x))).Array(len(x))
+            @multithread(n_threads, len(x))
+            def _(base, size):
+                tmp.assign_vector(tmp.value_type.from_right_length(
+                    perm.get_vector(base=base, size=size)), base=base)
+            perm = tmp
+        return perm
+    def __init__(self, x, n_threads=None):
+        self.perm = self.get_perm(x, n_threads=n_threads)
+        self.n_threads = n_threads
     def apply(self, x):
         res = Array.create_from(x)
-        reveal_sort(self.perm, res, False)
+        reveal_sort(self.perm, res, False, n_threads=self.n_threads)
         return res
     def unapply(self, x):
         res = Array.create_from(x)
-        reveal_sort(self.perm, res, True)
+        reveal_sort(self.perm, res, True, n_threads=self.n_threads)
         return res
+
+class LocalSortPerm:
+    def __init__(self, x, n_threads=None):
+        self.perm = SortPerm.get_perm(x, n_threads=n_threads)
+        self.n_threads = n_threads
+    def apply(self, x):
+        reveal_sort(self.perm, x, False, n_threads=self.n_threads)
+    def unapply(self, x):
+        reveal_sort(self.perm, x, True, n_threads=self.n_threads)
 
 def Sort(keys, *to_sort, n_bits=None, time=False):
     if time:
@@ -55,9 +86,12 @@ def Sort(keys, *to_sort, n_bits=None, time=False):
     for k in keys:
         assert len(k) == len(keys[0])
     n_bits = n_bits or [None] * len(keys)
-    bs = Matrix.create_from(
-        sum([k.get_vector().bit_decompose(nb)
-             for k, nb in reversed(list(zip(keys, n_bits)))], []))
+    bs = sum([k.get_vector().bit_decompose(
+        nb, maybe_mixed=program.use_binary_shuffle)
+              for k, nb in reversed(list(zip(keys, n_bits)))], [])
+    if isinstance(bs[0], sbits):
+        bs = [sbitintvec.get_type(1).from_vec([x]) for x in bs]
+    bs = Matrix.create_from(bs)
     get_vec = lambda x: x[:] if isinstance(x, Array) else x
     res = Matrix.create_from(get_vec(x).v if isinstance(get_vec(x), sfix) else x
                              for x in to_sort)
@@ -88,23 +122,37 @@ def VectMax(key, *data, debug=False):
         print_ln('vect max res=%s', util.reveal(res))
     return res
 
-def GroupSum(g, x):
+def GroupSum(g, x, n_threads=None):
     assert len(g) == len(x)
+    if 'GroupSum' in (types.program.options.keep_cisc or ()):
+        class GS(instructions.cisc, instructions.base.Instruction):
+            arg_format = ['str','int','int','sw','s','s']
+            has_var_args = staticmethod(lambda: True)
+        res = types.sint(size=len(g))
+        x = x.get_vector()
+        GS('GroupSum', 5, len(g), res, g.get_vector(), x.pre_mul())
+        return x._new(res)
     p = PrefixSumR(x) * g
-    pi = SortPerm(g.get_vector().bit_not())
+    pi = SortPerm(g.get_vector().bit_not(), n_threads=n_threads)
     p1 = pi.apply(p)
     s1 = PrefixSumR_inv(p1)
     d1 = PrefixSum_inv(s1)
-    d = pi.unapply(d1) * g
+    d1 = pi.unapply(d1)
+    d = d1 * g
+    p1.delete()
+    pi.perm.delete()
+    d1.delete()
     return PrefixSum(d)
 
-def GroupPrefixSum(g, x):
+def GroupPrefixSum(g, x, debug=False):
     assert len(g) == len(x)
-    s = get_type(x).Array(len(x) + 1)
+    s = get_type(x).int_type.Array(len(x) + 1)
     s[0] = 0
     s.assign_vector(PrefixSum(x), base=1)
     q = get_type(s).Array(len(x))
     q.assign_vector(s.get_vector(size=len(x)) * g)
+    if debug:
+        print_ln('s=%s q=%s', s.reveal(), q.reveal())
     return s.get_vector(size=len(x), base=1) - GroupSum(g, q)
 
 def GroupMax(g, keys, *x):
@@ -213,9 +261,11 @@ def GroupSame(g, y):
         print_ln('group same y=%s', util.reveal(y))
     return (s == s0).bit_or(s == s1)
 
-def GroupFirstOne(g, b):
+def GroupFirstOne(g, b, debug=False):
     assert len(g) == len(b)
-    s = GroupPrefixSum(g, b)
+    s = GroupPrefixSum(g, b, debug=debug)
+    if debug:
+        print_ln('s=%s', s.reveal())
     return s * b == 1
 
 class TreeTrainer:
@@ -380,9 +430,15 @@ class TreeTrainer:
                 print_ln(' %s: %s', name, data.reveal())
         NID[:] = 2 ** k * b + NID
         b_not = b.bit_not()
-        if self.debug > 1:
+        debug = self.debug > 1
+        if debug:
+            print_ln('b=%s', b.reveal())
             print_ln('b_not=%s', b_not.reveal())
-        g[:] = GroupFirstOne(g, b_not) + GroupFirstOne(g, b)
+            print_ln('g=%s', g.reveal())
+        g[:] = GroupFirstOne(g, b_not, debug=debug) + \
+            GroupFirstOne(g, b, debug=debug)
+        if debug:
+            print_ln('g=%s', g.reveal())
         y[:], g[:], NID[:], *xx = Sort([b], y, g, NID, *x, n_bits=[1])
         for i, xxx in enumerate(xx):
             x[i] = xxx

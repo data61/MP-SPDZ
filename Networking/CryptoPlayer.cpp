@@ -71,18 +71,8 @@ CryptoPlayer::CryptoPlayer(const Names& Nms, const string& id_base) :
         player.sockets.clear();
     }
 
-    for (int offset = 1; offset <= num_players() / 2; offset++)
-    {
-        int others[] = { get_player(offset), get_player(-offset) };
-        if (my_num() % (2 * offset) < offset)
-            swap(others[0], others[1]);
-
-        if (num_players() % 2 == 0 and offset == num_players() / 2)
-            connect(others[0], plaintext_sockets);
-        else
-            for (int i = 0; i < 2; i++)
-                connect(others[i], plaintext_sockets);
-    }
+    for (auto& other : balanced_others())
+        connect(other, plaintext_sockets);
 
     for (int i = 0; i < num_players(); i++)
     {
@@ -216,11 +206,12 @@ void CryptoPlayer::send_receive_all_no_stats(const vector<vector<bool>>& channel
         vector<octetStream>& to_receive) const
 {
     to_receive.resize(num_players());
+    bool global = channels.empty();
     for (int offset = 1; offset < num_players(); offset++)
     {
         int other = get_player(offset);
-        bool receive = channels[other][my_num()];
-        if (channels[my_num()][other])
+        bool receive = global or channels[other][my_num()];
+        if (global or channels[my_num()][other])
             this->senders[other]->request(to_send[other]);
         if (receive)
             this->receivers[other]->request(to_receive[other]);
@@ -228,8 +219,8 @@ void CryptoPlayer::send_receive_all_no_stats(const vector<vector<bool>>& channel
     for (int offset = 1; offset < num_players(); offset++)
     {
         int other = get_player(offset);
-        bool receive = channels[other][my_num()];
-        if (channels[my_num()][other])
+        bool receive = global or channels[other][my_num()];
+        if (global or channels[my_num()][other])
             this->senders[other]->wait(to_send[other]);
         if (receive)
             this->receivers[other]->wait(to_receive[other]);
@@ -278,4 +269,9 @@ void CryptoPlayer::Broadcast_Receive_no_stats(vector<octetStream>& os) const
         this->senders[other]->wait(os[my_num()]);
         receivers[other]->wait(os[other]);
     }
+}
+
+Player* CryptoPlayer::fresh_fork(string suffix)
+{
+    return new CryptoPlayer(N, get_id() + "-" + suffix);
 }

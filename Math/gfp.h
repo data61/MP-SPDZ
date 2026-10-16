@@ -169,6 +169,7 @@ class gfp_ : public ValueInterface
   gfp_(word x) : gfp_(bigint::tmp = x) {}
   template<class T>
   gfp_(IntBase<T> x) : gfp_(x.get()) {}
+  gfp_(const int128& x) : gfp_(bigint::tmp = x) {}
   /**
    * Convert from different domain via canonical integer representation.
    */
@@ -219,6 +220,8 @@ class gfp_ : public ValueInterface
 
   bool msb() const { throw runtime_error("msb not available"); }
 
+  bool get_bit(int i) const;
+
   /**
    * Deterministic square root.
    */
@@ -233,6 +236,8 @@ class gfp_ : public ValueInterface
     { (void) n; a.randomize(G,ZpD); }
   // faster randomization, see implementation for explanation
   void almost_randomize(PRNG& G);
+
+  void from_random(const int128& other);
 
   /**
    * Output.

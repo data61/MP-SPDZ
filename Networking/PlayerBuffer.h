@@ -14,6 +14,11 @@ public:
     octet* data;
     size_t size;
 
+    PlayerBuffer() :
+            data(0), size(0)
+    {
+    }
+
     PlayerBuffer(octet* data, size_t size) :
             data(data), size(size)
     {

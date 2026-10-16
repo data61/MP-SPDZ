@@ -19,13 +19,15 @@ void SpdzWiseRep3Shuffler<T>::generate(int n_shuffle, shuffle_type& shuffle)
 
 template<class T>
 void SpdzWiseRep3Shuffler<T>::apply_multiple(StackedVector<T> &a,
-        vector<ShuffleTuple<T>>& shuffles)
+        vector<ShuffleTuple<shuffle_type>>& shuffles)
 {
     CODE_LOCATION
     const size_t n_shuffles = shuffles.size();
 
     StackedVector<typename T::part_type::Honest> temporary_memory(0);
-    vector<ShuffleTuple<typename T::part_type::Honest>> mapped_shuffles;
+    vector<
+            ShuffleTuple<
+                    typename T::part_type::Honest::Protocol::Shuffler::shuffle_type>> mapped_shuffles;
 
     for (size_t current_shuffle = 0; current_shuffle < n_shuffles;
             current_shuffle++)

@@ -281,9 +281,9 @@ void pinv(imatrix& Ai,const imatrix& B)
       for (k=0; k<nr; k++)
         { if (k!=r && A[k][c]==1)
 	    { // Only have to go from c onwards as rest are done
-            A[k].add(A[r]);
+            A[k] ^= A[r];
               // Need to do all cols here
-            Ai[k].add(Ai[r]);
+            Ai[k] ^= Ai[r];
 	    }
         }
       r++; c++;

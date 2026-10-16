@@ -48,3 +48,15 @@ istream& operator>>(istream& s, int128& a)
   s >> dec;
   return s;
 }
+
+void int128::pack(octetStream& os) const
+{
+  os.store(get_lower());
+  os.store(get_upper());
+}
+
+void int128::unpack(octetStream& os)
+{
+  word lower = os.get<word>();
+  *this = {os.get<word>(), lower};
+}

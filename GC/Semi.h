@@ -12,6 +12,8 @@
 namespace GC
 {
 
+class SemiSecureShuffle;
+
 class Semi : public Beaver<SemiSecret>
 {
     typedef Beaver<SemiSecret> super;

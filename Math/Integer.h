@@ -64,6 +64,8 @@ public:
   bool is_one() const       { return a == 1; }
   bool is_bit() const       { return is_zero() or is_one(); }
 
+  explicit operator bool() const noexcept { return a; }
+
   long operator>>(const IntBase<long>& other) const
   {
     if (other.get() < N_BITS)

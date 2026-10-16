@@ -66,15 +66,16 @@ void FakeSecret::ands(Processor<FakeSecret>& processor,
 	processor.ands(regs);
 }
 
-void FakeSecret::trans(Processor<FakeSecret>& processor, int n_outputs,
+void FakeSecret::trans(StackedVector<FakeSecret>& dest,
+        const StackedVector<FakeSecret>& source, int n_outputs,
         const ArgVector& args)
 {
 	square64 square;
 	for (size_t i = n_outputs; i < args.size(); i++)
-		square.rows[i - n_outputs] = processor.S[args[i]].a;
+		square.rows[i - n_outputs] = source[args[i]].a;
 	square.transpose(args.size() - n_outputs, n_outputs);
 	for (int i = 0; i < n_outputs; i++)
-		processor.S[args[i]] = square.rows[i];
+		dest[args[i]] = square.rows[i];
 }
 
 FakeSecret FakeSecret::input(GC::Processor<FakeSecret>& processor, const InputArgs& args)

@@ -92,4 +92,16 @@ void MAC_Check_Base<T>::CheckFor(const typename T::open_type& value,
     Check(P);
 }
 
+template<class T>
+void MAC_Check_Base<T>::start_exchange(const Player& P)
+{
+    POpen_Begin(values, secrets, P);
+}
+
+template<class T>
+void MAC_Check_Base<T>::stop_exchange(const Player& P)
+{
+    POpen_End(values, secrets, P);
+}
+
 #endif /* PROTOCOLS_MAC_CHECK_BASE_HPP_ */

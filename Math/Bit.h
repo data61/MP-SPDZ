@@ -20,6 +20,11 @@ public:
         return 1;
     }
 
+    static int p()
+    {
+        return 2;
+    }
+
     Bit()
     {
     }
@@ -51,6 +56,11 @@ public:
         return this->a ? other : T();
     }
 
+    void randomize(PRNG& G)
+    {
+        *this = G.get_bit();
+    }
+
     void pack(octetStream& os, int = -1) const
     {
         super::pack(os, 1);
@@ -69,5 +79,15 @@ public:
         throw runtime_error("never call this");
     }
 };
+
+inline Bit operator+(bool a, const Bit& b)
+{
+    return b + a;
+}
+
+inline Bit operator*(bool a, const Bit& b)
+{
+    return b * a;
+}
 
 #endif /* MATH_BIT_H_ */

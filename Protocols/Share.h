@@ -61,6 +61,8 @@ class Share_ : public ShareInterface
    const static bool has_mac = true;
    static const bool malicious = true;
 
+   static string secrets_filename;
+
    static int size()
      { return T::size() + V::size(); }
 
@@ -74,6 +76,9 @@ class Share_ : public ShareInterface
 
    static mac_key_type get_mac_key();
    static void set_mac_key(const mac_key_type& mac_key);
+
+   static void set_secrets_filename(string filename)
+     { Share_::secrets_filename = filename; }
 
    static Share_ constant(const open_type& aa, int my_num, const typename V::Scalar& alphai)
      { Share_ res; res.assign(aa, my_num, alphai); return res; }

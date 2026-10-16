@@ -19,6 +19,7 @@ import itertools
 import operator
 import math
 import re
+import os
 from . import tools
 from random import randint
 from functools import reduce
@@ -2474,8 +2475,22 @@ class mul_base(base.VarArgsInstruction, base.DataInstruction):
         req_node.increment((self.field_type, 'simple multiplication'),
                            self.get_repeat() * self.get_size())
 
+class muls_base(mul_base, base.Ciscable, base.Mergeable):
+    arg_format = tools.cycle(['int','sw','s','s'])
+    data_type = 'triple'
+    is_vec = lambda self: True
+
+    def __init__(self, *args, **kwargs):
+        super(muls_base, self).__init__(*args, **kwargs)
+        for i in range(0, len(args), 4):
+            for j in range(3):
+                assert args[i + j + 1].size == args[i]
+
+    def get_repeat(self):
+        return sum(x or 0 for x in self.args[::4])
+
 @base.gf2n
-class muls(mul_base, base.Ciscable):
+class muls(muls_base):
     """ (Element-wise) multiplication of secret registers (vectors).
 
     :param: number of arguments to follow (multiple of four)
@@ -2487,18 +2502,6 @@ class muls(mul_base, base.Ciscable):
     """
     __slots__ = []
     code = base.opcodes['MULS']
-    arg_format = tools.cycle(['int','sw','s','s'])
-    data_type = 'triple'
-    is_vec = lambda self: True
-
-    def __init__(self, *args, **kwargs):
-        super(muls_class, self).__init__(*args, **kwargs)
-        for i in range(0, len(args), 4):
-            for j in range(3):
-                assert args[i + j + 1].size == args[i]
-
-    def get_repeat(self):
-        return sum(x or 0 for x in self.args[::4])
 
     # def expand(self):
     #     s = [program.curr_block.new_reg('s') for i in range(9)]
@@ -2514,6 +2517,25 @@ class muls(mul_base, base.Ciscable):
     #     adds(s[7], s[2], s[5])
     #     adds(s[8], s[7], s[6])
     #     addm(self.args[0], s[8], c[2])
+
+class mulbits(muls_base):
+    """ (Element-wise) multiplication of secret registers (vectors).
+
+    :param: number of arguments to follow (multiple of four)
+    :param: vector size (int)
+    :param: result (sint)
+    :param: factor (sint)
+    :param: bit factor (sint)
+    :param: (repeat the last four)...
+    """
+    __slots__ = []
+    code = base.opcodes['MULBITS']
+
+    def __init__(self, *args, **kwargs):
+        if 'emi' in (base.program.options.execute or '') and \
+           int(os.getenv('PLAYERS', 2)) == 2:
+            base.program.reading('two-party MUX', 'RRKCGR20', 'Algorithm 6')
+        super(mulbits, self).__init__(*args, **kwargs)
 
 # compatibility
 try:
@@ -2935,6 +2957,33 @@ class inverse_permutation(base.VectorInstruction, shuffle_base):
         self.add_gen_usage(req_node, len(self.args[0]))
         self.add_apply_usage(req_node, len(self.args[0]), 1)
 
+class groupsumint(base.VectorInstruction):
+    """ Group-sum. Every output element is the sum of all in
+    input elements in the group.
+
+    :param: destination (regint)
+    :param: group markers (regint; 1 for the start of the group, 0
+      otherwise)
+    :param: input elements (regint)
+
+    """
+    code = base.opcodes['GROUPSUMINT']
+    arg_format = ['ciw', 'ci', 'ci']
+    read_after_write = True
+
+class qs_perm(base.VectorInstruction):
+    """ Quicksort permutation as in `Keller
+    <https://eprint.iacr.org/2026/2457>`_
+
+    :param: permutation (regint)
+    :param: output groups (regint)
+    :param: input groups (regint)
+    :param: comparison results (regint)
+
+    """
+    code = base.opcodes['QS_PERM']
+    arg_format = ['ciw', 'ciw', 'ci', 'ci']
+    read_after_write = True
 
 class check(base.Instruction):
     """

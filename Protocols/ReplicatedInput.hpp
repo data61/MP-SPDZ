@@ -197,10 +197,10 @@ void ReplicatedInput<T>::finalize_vector_sum(const vector<int>& players,
         auto& G = protocol.shared_prngs[1];
         if (im_in)
             for (auto& x : target)
-                x[1] += G.get<typename T::open_type>();
+                x[1] += G.template get<typename T::open_type>();
         else
             for (auto& x : target)
-                x[1] = G.get<typename T::open_type>();
+                x[1] = G.template get<typename T::open_type>();
     }
 }
 

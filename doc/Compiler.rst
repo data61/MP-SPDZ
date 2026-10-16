@@ -155,6 +155,15 @@ Compiler.dijkstra module
 
 Compiler.sorting module
 -----------------------
+
 .. automodule:: Compiler.sorting
+   :members:
+   :no-undoc-members:
+
+
+Compiler.sparse module
+-----------------------
+
+.. automodule:: Compiler.sparse
    :members:
    :no-undoc-members:

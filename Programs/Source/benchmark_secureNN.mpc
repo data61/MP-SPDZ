@@ -82,4 +82,5 @@ for l, n, typ in network:
             aa = a.get_vector()
             bb = b.get_vector()
             # store in memory to prevent dead code elimination
-            squant.dot_product(aa, bb, res_params=p3).store_in_mem(regint(0))
+            squant.dot_product(aa, bb, res_params=p3).store_in_mem(
+	         regint(cint(0)))

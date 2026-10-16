@@ -17,7 +17,7 @@
 using namespace std;
 
 BaseMachine* BaseMachine::singleton = 0;
-thread_local int BaseMachine::thread_num;
+thread_local int BaseMachine::thread_num = -1;
 thread_local OnDemandOTTripleSetup BaseMachine::ot_setup;
 thread_local const Program* BaseMachine::program = 0;
 
@@ -42,10 +42,14 @@ bool BaseMachine::has_program()
 
 DataPositions BaseMachine::get_offline_data_used()
 {
+  DataPositions res;
   if (program)
-    return program->get_offline_data_used();
+    res = program->get_offline_data_used();
   else
-    return s().progs[0].get_offline_data_used();
+    res = s().progs[0].get_offline_data_used();
+  if (singleton and s().nthreads > 2 and thread_num > 0)
+    res /= (s().nthreads - 1);
+  return res;
 }
 
 int BaseMachine::edabit_bucket_size(int n_bits)
@@ -199,7 +203,9 @@ void BaseMachine::load_schedule(const string& progname, bool load_bytecode)
 
 void BaseMachine::print_compiler()
 {
-  if (compiler.size() != 0 and OnlineOptions::singleton.verbose)
+  auto& opts = OnlineOptions::singleton;
+  if (compiler.size() != 0 and (opts.verbose or
+      opts.has_option("print_compiler")))
     cerr << "Compiler: " << compiler << endl;
 }
 

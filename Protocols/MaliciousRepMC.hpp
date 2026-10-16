@@ -59,8 +59,9 @@ void HashMaliciousRepMC<T>::prepare(const vector<T>& secrets, const Player& P)
 {
     to_send.resize(3);
     auto& value_buffer = to_send.at(P.get_player(-1));
-    value_buffer.reset_write_head();
-    hash_buffer.reset_write_head();
+    auto buffer_size = secrets.size() * T::open_type::size();
+    value_buffer.reset_reserve(buffer_size);
+    hash_buffer.reset_reserve(buffer_size);
     for (auto& x : secrets)
     {
         x[0].pack(value_buffer);
@@ -78,7 +79,8 @@ void HashMaliciousRepMC<T>::finalize(vector<typename T::open_type>& values,
     for (auto& x : secrets)
     {
         values.push_back(
-                x.sum() + received_values.get<typename T::open_type>());
+                x.sum() + received_values.template
+                get<typename T::open_type>());
     }
     received_values.hash(hash_buffer);
     if (hash_buffer != to_receive.at(P.get_player(-1)))
@@ -124,13 +126,16 @@ template<class T>
 void HashMaliciousRepMC<T>::CheckFor(const typename T::open_type& value,
         const vector<T>& check_shares, const Player& P)
 {
-    os.reset_write_head();
+    os.reset_reserve(check_shares.size() * T::size());
+    array<int, 3> js;
+    for (int i = 0; i < 3; i++)
+        js[i] = (i + P.my_num()) % 3;
     for (auto& share : check_shares)
     {
         typename T::value_type shares[3];
         for (int i = 0; i < 3; i++)
         {
-            int j = (i + P.my_num()) % 3;
+            int j = js[i];
             if (j < 2)
                 shares[i] = share[j];
             else

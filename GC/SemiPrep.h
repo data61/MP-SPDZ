@@ -10,6 +10,7 @@
 #include "OT/MascotParams.h"
 #include "SemiSecret.h"
 #include "ShiftableTripleBuffer.h"
+#include "SemiSecureShuffle.h"
 
 template<class T> class Beaver;
 template<class T> class SubProcessor;
@@ -27,6 +28,10 @@ class SemiPrep : public BufferPrep<SemiSecret>, ShiftableTripleBuffer<SemiSecret
     SeededPRNG secure_prng;
 
     vector<array<SemiSecret, 3>> mixed_triples;
+
+    SemiSecureTripleState* state;
+
+    OTExtensionWithMatrix* rot_ext;
 
 public:
     SemiPrep(DataPositions& usage, bool = true);

@@ -100,7 +100,7 @@ Protocol options
    the relevant functionality to match this. Instead, it is meant for
    external software to provide preprocessing in a streaming manner
    via a named pipe. See
-   :download:`../Utils/stream-fake-mascot-triples.cpp`` for an example
+   :download:`../Utils/stream-fake-mascot-triples.cpp` for an example
    and `this GitHub issue
    <https://github.com/data61/MP-SPDZ/issues/418>`_ for further discussion.
 

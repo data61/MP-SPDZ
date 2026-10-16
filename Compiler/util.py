@@ -117,6 +117,9 @@ def round_to_int(x):
     else:
         return x.round_to_int()
 
+def min_multiple(x, y):
+    return int(math.ceil(x / y)) * y
+
 def tree_reduce(function, sequence):
     try:
         return sequence.tree_reduce(function)
@@ -155,7 +158,7 @@ def bit_and(a, b):
     else:
         return a.bit_and(b)
 
-def bit_not(a, n):
+def bit_not(a, n=None):
     if is_constant(a):
         return ~a & (2 ** n - 1)
     else:

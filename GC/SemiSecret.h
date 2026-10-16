@@ -20,6 +20,7 @@ namespace GC
 class SemiPrep;
 class DealerPrep;
 class Semi;
+class SemiSecureShuffle;
 
 template<class T, class V>
 class SemiSecretBase : public V, public ShareSecret<T>
@@ -52,6 +53,8 @@ public:
 
     static void trans(Processor<T>& processor, int n_outputs,
             const ArgVector& args);
+    static void trans(StackedVector<T>& dest, StackedVector<T>& source,
+            int n_outputs, const ArgVector& args);
 
     static size_t maximum_size()
     {
@@ -106,6 +109,8 @@ public:
     typedef SemiInput<This> Input;
     typedef SemiPrep LivePrep;
     typedef Semi Protocol;
+
+    typedef SemiSecureShuffle Shuffler;
 
     static MC* new_mc(typename SemiShare<BitVec>::mac_key_type);
 

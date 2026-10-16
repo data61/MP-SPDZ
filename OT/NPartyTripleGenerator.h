@@ -82,7 +82,7 @@ protected:
 
 public:
     // TwoPartyPlayer's for OTs, n-party Player for sacrificing
-    vector<TwoPartyPlayer*> players;
+    vector<VirtualTwoPartyPlayer*> players;
     vector<typename T::Multiplier*> ot_multipliers;
     //vector<OTMachine*> machines;
     BitVector baseReceiverInput; // same for every set of OTs
@@ -118,7 +118,7 @@ public:
             Player* parentPlayer = 0);
     ~OTTripleGenerator();
 
-    void set_batch_size(int nTriples);
+    void set_batch_size(int nTriples, bool limit = true);
 
     void generate() { throw not_implemented(); }
 

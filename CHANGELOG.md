@@ -1,5 +1,23 @@
 The changelog explains changes pulled through from the private development repository. Bug fixes and small enhancements are committed between releases and not documented here.
 
+## 0.4.4 (Oct 16, 2026)
+
+- Secure two-party binary shuffle as in [Peceny et al.](https://eprint.iacr.org/2024/547)
+- Secure Quicksort
+- [Sparse matrix multiplication](https://eprint.iacr.org/2026/2457)
+- [Graph cycle detection](https://eprint.iacr.org/2026/2457)
+- More efficient radix sort as in [Asharov et al.](https://eprint.iacr.org/2022/1595)
+- Efficient two-party MUX as in [CrypTFlow2](https://eprint.iacr.org/2020/1002)
+- Efficiency improvements in binary VM functionality
+- Efficiency improvements in Beaver online phase
+- Use newer version of libOTe if possible
+- More efficient emulation of sorting and shuffling
+- Fixed security bug: missing context in Fiat-Shamir.
+- Fixed security bug: earlier checking in malicious replicated secret sharing.
+- Fixed security bug: insufficient length check in commitment open.
+- Fixed security bug: buffer overflow in malicious Shamir private output with sub-maximal threshold.
+- Fixed security bug: remove secrets file in case of OT extension failure.
+
 ## 0.4.3 (Jul 6, 2026)
 
 - Fixed security bug: malicious parties not committed to MAC key across threads and executions

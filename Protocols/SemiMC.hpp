@@ -41,29 +41,43 @@ void DirectSemiMC<T>::POpen_(vector<typename T::open_type>& values,
     this->lengths.reserve(S.size());
     for (auto& secret : S)
         this->prepare_open(secret);
-    this->exchange_(P);
+    if (this->lengths.empty())
+        exchange_<false>(P);
+    else
+        exchange_<true>(P);
     values = this->values;
 }
 
 template<class T>
+void DirectSemiMC<T>::exchange(const Player& P)
+{
+    if (this->lengths.empty())
+        exchange_<false>(P);
+    else
+        exchange_<true>(P);
+}
+
+template<class T>
+template<bool USE_LENGTHS>
 void DirectSemiMC<T>::exchange_(const PlayerBase& P)
 {
     CODE_LOCATION
     Bundle<octetStream> oss(P);
     oss.mine.reserve(this->values.size());
-    assert(this->values.size() == this->lengths.size());
-    for (size_t i = 0; i < this->lengths.size(); i++)
-        this->values[i].pack(oss.mine, this->lengths[i]);
+    if (USE_LENGTHS)
+        assert(this->values.size() == this->lengths.size());
+    for (size_t i = 0; i < this->values.size(); i++)
+        this->values[i].pack(oss.mine, USE_LENGTHS ? this->lengths[i] : -1);
     oss.mine.append(0);
     P.unchecked_broadcast(oss);
     size_t n = P.num_players();
     size_t me = P.my_num();
-    for (size_t i = 0; i < this->lengths.size(); i++)
+    for (size_t i = 0; i < this->values.size(); i++)
         for (size_t j = 0; j < n; j++)
             if (j != me)
             {
                 T tmp;
-                tmp.unpack(oss[j], this->lengths[i]);
+                tmp.unpack(oss[j], USE_LENGTHS ? this->lengths[i] : -1);
                 this->values[i] += tmp;
             }
 }
@@ -74,6 +88,19 @@ void DirectSemiMC<T>::POpen_Begin(vector<typename T::open_type>& values,
 {
     values.clear();
     values.insert(values.begin(), S.begin(), S.end());
+    send(P, values);
+}
+
+template<class T>
+void DirectSemiMC<T>::start_exchange(const Player& P)
+{
+    send(P, this->values);
+}
+
+template<class T>
+void DirectSemiMC<T>::send(const Player& P,
+        vector<typename T::open_type>& values)
+{
     octetStream os;
     for (auto& x : values)
         x.pack(os);

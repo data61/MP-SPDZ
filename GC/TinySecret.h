@@ -89,6 +89,11 @@ public:
         part_type::set_mac_key(mac_key);
     }
 
+    static void set_secrets_filename(string filename)
+    {
+        T::input_check_type::set_secrets_filename(filename);
+    }
+
     template<class U>
     static void reveal_inst(U& processor, const ArgVector& args)
     {
@@ -158,16 +163,6 @@ public:
     {
         auto& regs = res.get_regs();
         regs.assign(n_bits, this->get_reg(0));
-    }
-
-    void mask(This& res, int n_bits) const
-    {
-        if (this != &res)
-            res.get_regs().assign(this->get_regs().begin(),
-                    this->get_regs().begin()
-                            + min(size_t(n_bits), this->get_regs().size()));
-
-        res.resize_regs(n_bits);
     }
 
     T get_bit(int i) const

@@ -168,8 +168,7 @@ void HemiPrep<T>::buffer_dabits(ThreadQueues* queues)
     if (this->proc->P.num_players() == 2)
     {
         auto& prep = get_two_party_prep();
-        prep.buffer_size = BaseMachine::batch_size<T>(DATA_DABIT,
-                this->buffer_size);
+        prep.buffer_size = this->buffer_size;
         prep.buffer_dabits(queues);
         this->dabits = prep.dabits;
         prep.dabits.clear();

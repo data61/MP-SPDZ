@@ -370,6 +370,65 @@ void OTMultiplier<W>::multiplyForTriples()
     }
 }
 
+template<class T>
+void SemiMultiplier<T>::multiplyForTriples(false_type)
+{
+    OTMultiplier<T>::multiplyForTriples();
+}
+
+template<class T>
+void SemiMultiplier<T>::multiplyForTriples(true_type)
+{
+    if (this->generator.machine.use_extension)
+    {
+        CODE_LOCATION
+        MultJob job;
+        this->outbox.push(job);
+
+        for (int i = 0; i < this->generator.nloops; i++)
+        {
+            this->inbox.pop(job);
+            const auto& a_bits = this->generator.valueBits[0];
+            const auto& b_bits = this->generator.valueBits[1];
+            auto tmp = a_bits;
+            tmp.resize(multiple_minimum(tmp.size(), 128));
+            auto ot_bits = this->rot_ext.bit_extension(tmp);
+            ot_bits.second.resize(a_bits.size());
+            for (auto& x : ot_bits.first)
+                x.resize(a_bits.size());
+            auto diff = ot_bits.first[0] ^ ot_bits.first[1] ^ b_bits;
+            auto my_diff = diff;
+            octetStream os;
+            diff.pack(os);
+            this->generator.players[this->thread_num]->exchange(os);
+            diff.unpack(os);
+            assert(T::n_bits == 64);
+            assert(a_bits.size() % 64 == 0);
+            size_t n_chunks = a_bits.size() / 64;
+            c_output.clear();
+            c_output.reserve(n_chunks);
+            assert(diff.size() >= ot_bits.second.size());
+            for (size_t i = 0; i < n_chunks; i++)
+            {
+                auto c = ot_bits.second.get_word(i);
+                c ^= ot_bits.first[0].get_word(i);
+                c ^= a_bits.get_word(i) & diff.get_word(i);
+                c_output.push_back(c);
+            }
+        }
+
+        this->outbox.push(job);
+    }
+    else
+        multiplyForTriples(false_type());
+}
+
+template<class T>
+void SemiMultiplier<T>::multiplyForTriples()
+{
+    multiplyForTriples(T::clear::binary);
+}
+
 template <class T>
 void MascotMultiplier<T>::init_authenticator(const BitVector& keyBits,
 		const vector< array<BitVector, 2> >& senderOutput,

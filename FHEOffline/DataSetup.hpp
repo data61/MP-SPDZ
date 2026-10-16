@@ -22,6 +22,7 @@ string full_secrets_filename(T& setup, U& machine, const Player& P,
             + (covert ? to_string(num_runs) : to_string(machine.sec)) + "-"
             + os.check_sum(20).get_str(16) + "-P" + to_string(P.my_num()) + "-"
             + to_string(P.num_players());
+    Share<typename T::T>::secrets_filename = filename;
     return filename;
 }
 

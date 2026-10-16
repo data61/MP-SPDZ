@@ -26,6 +26,7 @@ enum ThreadJobType
     CIPHER_PLAIN_MULT_JOB,
     MATRX_RAND_MULT_JOB,
     SHUFFLE_JOB,
+    OTLSB_JOB,
     NO_JOB
 };
 
@@ -157,11 +158,12 @@ public:
 class TripleSacrificeJob : public ThreadJob
 {
 public:
-    TripleSacrificeJob(void* triples, const void* check_triples)
+    TripleSacrificeJob(void* triples, const void* check_triples, int B)
     {
         type = TRIPLE_SACRIFICE_JOB;
         output = triples;
         input = check_triples;
+        arg = B;
     }
 };
 
@@ -194,12 +196,23 @@ class ShuffleJob : public ThreadJob
 public:
     template<class T>
     ShuffleJob(typename T::Protocol::Shuffler* shuffler, StackedVector<T>& a,
-            vector<ShuffleTuple<T>>& shuffles)
+            vector<ShuffleTuple<typename T::Protocol::Shuffler::shuffle_type>>& shuffles)
     {
         type = SHUFFLE_JOB;
         output = shuffler;
         output2 = &a;
         supply = &shuffles;
+    }
+};
+
+class OtLsbJob : public ThreadJob
+{
+public:
+    OtLsbJob(void* res, const BitVector& choices)
+    {
+        type = OTLSB_JOB;
+        output = res;
+        input = &choices;
     }
 };
 

@@ -11,6 +11,7 @@ two registers etc. Similarly, a memory cell holds 64 bits.
 import Compiler.instructions_base as base
 import Compiler.instructions as spdz
 import Compiler.tools as tools
+import Compiler.util as util
 import collections
 import itertools
 import math
@@ -54,6 +55,11 @@ opcodes = dict(
     SPLIT = 0x248,
     CONVCBIT2S = 0x249,
     ANDRSVEC = 0x24a,
+    APPLYSHUFFLEB = 0x24b,
+    CONCATSB = 0x24c,
+    TRANSVEC = 0x24e,
+    PICKSB = 0x24f,
+    ZIPSB = 0x280,
     XORCBI = 0x210,
     BITDECC = 0x211,
     NOTCB = 0x212,
@@ -79,6 +85,8 @@ opcodes = dict(
     PRINTREGPLAINSB = 0x225,
     CONVCBIT = 0x230,
     CONVCBITVEC = 0x231,
+    GENSECSHUFFLEB = 0x232,
+    DELSHUFFLEB = 0x233,
 )
 
 class BinaryCiscable(base.Ciscable):
@@ -230,7 +238,12 @@ class ands(BinaryVectorInstruction):
     read_after_write = True
 
     def add_usage(self, req_node):
-        req_node.increment(('bit', 'triple'), sum(self.args[::4]))
+        n = sum(self.args[::4])
+        # consider fast mode as in ShareThread<T>::and_
+        unit = self.args[1].unit
+        if 0.1 * n > len(self.args[::4]) * unit:
+            n = sum(util.min_multiple(x, unit) for x in self.args[::4])
+        req_node.increment(('bit', 'triple'), n)
 
 class andm(BinaryVectorInstruction):
     """ Bitwise AND of single secret and clear bit registers.
@@ -483,18 +496,17 @@ class convsint(NonVectorInstruction1):
     code = opcodes['CONVSINT']
     arg_format = ['int','sbw','ci']
 
-class convcint(NonVectorInstruction):
+class convcint(base.VectorInstruction):
     """ Copy clear integer register to clear bit register.
 
-    :param: number of bits (int)
     :param: destination (cbit)
     :param: source (regint)
     """
     code = opcodes['CONVCINT']
     arg_format = ['cbw','ci']
 
-class convcbit(NonVectorInstruction1):
-    """ Copy clear bit register to clear integer register.
+class convcbit(base.VectorInstruction):
+    """ Copy clear bit vector to clear integer vector.
 
     :param: destination (regint)
     :param: source (cbit)
@@ -525,7 +537,7 @@ class convcbitvec(BinaryVectorInstruction):
     :param: source (cbit)
     """
     code = opcodes['CONVCBITVEC']
-    arg_format = ['int','ciw','cb']
+    arg_format = ['int','ciw','cb','int']
     def __init__(self, *args, **kwargs):
         super(convcbitvec, self).__init__(*args, **kwargs)
         assert(args[2].n == args[0])
@@ -601,6 +613,23 @@ class trans(base.VarArgsInstruction, base.DynFormatInstruction):
                 next(args)
             except StopIteration:
                 break
+
+class transvec(BinaryVectorInstruction):
+    """ Secret bit register vector transpose.
+
+    :param: number of outputs (int)
+    :param: destination (sbit)
+    :param: number of inputs (int)
+    :param: source (sbit)
+
+    """
+    code = opcodes['TRANSVEC']
+    arg_format = ['int','sbw','int','sb']
+
+    def __init__(self, *args, **kwargs):
+        super(transvec, self).__init__(*args, **kwargs)
+        assert len(args[1]) == args[0] * math.ceil(args[2] / 64)
+        assert len(args[3]) == args[2] * math.ceil(args[0] / 64)
 
 class bitb(NonVectorInstruction):
     """ Copy fresh secret random bit to secret bit register.
@@ -754,3 +783,102 @@ class cond_print_strb(base.IOInstruction):
 
     def __init__(self, cond, val):
         super(cond_print_strb, self).__init__(cond, self.str_to_int(val))
+
+class gensecshuffleb(base.VectorInstruction):
+    """ Generate secure random binary shuffle.
+
+    :param: handle (regint)
+    :param: size (int)
+    :param: generate material immediately (int)
+    """
+    code = opcodes['GENSECSHUFFLEB']
+    arg_format = ['ciw', 'int', 'int']
+
+class applyshuffleb(base.Instruction):
+    """ Apply secure random binary shuffle.
+
+    :param: vector size (int)
+    :param: destination (sbit)
+    :param: source (sbit)
+    :param: number of bits to be treated as one (int)
+    :param: handle (regint)
+    :param: reverse (0/1)
+
+    """
+    code = opcodes['APPLYSHUFFLEB']
+    arg_format = tools.chain(['int','ci','int'], tools.cycle(['sbw','sb']))
+
+    def __init__(self, *args, **kwargs):
+        base.program.reading('secure shuffling', 'PRRS25')
+        super(applyshuffleb, self).__init__(*args, **kwargs)
+
+    def add_usage(self, req_node):
+        unit_size = (len(self.args) - 3) // 2
+        req_node.increment(('bit', 'shuffle', self.args[0] // unit_size,
+                            unit_size))
+
+class delshuffleb(base.Instruction):
+    """ Delete secure random binary shuffle.
+
+    :param: handle (regint)
+
+    """
+    code = opcodes['DELSHUFFLEB']
+    arg_format = ['ci']
+
+class concatsb(BinaryVectorInstruction):
+    """ Secret bit concatentation.
+
+    :param: destination (sbit)
+    :param: number of source bits (int)
+    :param: source (sbit)
+    :param: (repeat from number of source bits)
+
+    """
+    code = opcodes['CONCATSB']
+    arg_format = tools.chain(['sbw'], tools.cycle(['int','sb']))
+    read_after_write = True
+
+    def __init__(self, *args, **kwargs):
+        super(concatsb, self).__init__(*args, **kwargs)
+        assert args[0].n == sum(args[1::2])
+        for i in range(1, len(args), 2):
+            assert math.ceil(args[i] / 64) == math.ceil(args[i + 1].n / 64)
+
+class picksb(base.VectorInstruction):
+    """ Secret bit part selection.
+
+    :param: destination (sbit)
+    :param: source (sbit)
+    :param: base (int)
+    :param: skip (int)
+
+    """
+    code = opcodes['PICKSB']
+    arg_format = ['sbw','sb','int','int']
+    read_after_write = True
+
+    def __init__(self, *args, **kwargs):
+        super(picksb, self).__init__(*args, **kwargs)
+        assert len(args[0]) == self.get_size()
+        assert args[2] + (self.get_size() - 1) * args[3] < len(args[1])
+
+class zipsb(base.VectorInstruction):
+    """ Zip vectors.
+
+    :param: result (sbit)
+    :param: operand (sbit)
+    :param: operand (sbit)
+
+    """
+    __slots__ = []
+    code = opcodes['ZIPSB']
+    arg_format = ['sbw','sb','sb']
+    is_vec = lambda self: True
+    read_after_write = True
+    vector_index = 1
+
+    def __init__(self, *args):
+        super(zipsb, self).__init__(*args)
+        assert len(args[0]) == len(args[1]) + len(args[2])
+        assert len(args[1]) == len(args[2]) == self.get_size()

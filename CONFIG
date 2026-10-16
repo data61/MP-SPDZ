@@ -4,6 +4,7 @@ OPTIM= -O3
 #PROF = -pg
 #DEBUG = -DDEBUG
 GDEBUG = -g
+ERROR = -Werror
 
 # set this to your preferred local storage directory
 PREP_DIR = '-DPREP_DIR="Player-Data/"'
@@ -17,6 +18,9 @@ USE_NTL = 0
 # set for using GF(2^128)
 # unset for GF(2^40)
 USE_GF2N_LONG = 1
+
+# libOTe 2 is faster but requires GCC 11 or clang 15
+USE_LIBOTE2 = 1
 
 # set to -march=<architecture> for optimization
 # SSE4.2 is required homomorphic encryption in GF(2^n) when compiling with clang
@@ -48,8 +52,6 @@ ARCH =
 AVX_OT = 0
 endif
 
-AVX_SIMPLEOT := $(AVX_OT)
-
 ifeq ($(OS), Darwin)
 BREW_CFLAGS += -I/usr/local/opt/openssl/include -I`brew --prefix`/opt/openssl/include -I`brew --prefix`/include
 BREW_LDLIBS += -L/usr/local/opt/openssl/lib -L`brew --prefix`/lib -L`brew --prefix`/opt/openssl/lib
@@ -68,6 +70,18 @@ CXX = clang++
 
 # use CONFIG.mine to overwrite DIR settings
 -include CONFIG.mine
+
+OLD := $(shell $(CXX) --version | egrep -q " (10|[7-9])\."; echo $$?)
+ifeq ($(OLD), 0)
+$(error compiler too old: $(shell $(CXX) --version | head -n 1))
+endif
+
+# switch to libOTe 1 if clang is too old
+OLD := $(shell $(CXX) --version | grep -q "clang version 1[0-4]"; echo $$?)
+ifeq ($(OLD), 0)
+$(info defaulting to libOTe 1 due to clang version)
+USE_LIBOTE2 = 0
+endif
 
 AVX_SIMPLEOT := $(AVX_OT)
 
@@ -93,6 +107,10 @@ LDLIBS += -lboost_filesystem -lboost_iostreams
 
 CFLAGS += -I./local/include
 
+ifeq ($(USE_TUNGSTEN), 1)
+CFLAGS += -I./local/include/secureJoin
+endif
+
 ifeq ($(USE_NTL),1)
 CFLAGS += -DUSE_NTL
 LDLIBS := -lntl $(LDLIBS)
@@ -105,7 +123,7 @@ endif
 
 BOOST = -lboost_thread $(MY_BOOST)
 
-CFLAGS += $(ARCH) $(MY_CFLAGS) $(GDEBUG) -Wextra -Wall $(OPTIM) -I$(ROOT) -I$(ROOT)/deps -pthread $(PROF) $(DEBUG) $(MOD) $(GF2N_LONG) $(PREP_DIR) $(SSL_DIR) $(SECURE) -std=c++20 -Werror -Wno-overloaded-virtual
+CFLAGS += $(ARCH) $(MY_CFLAGS) $(GDEBUG) -Wextra -Wall $(OPTIM) -I$(ROOT) -I$(ROOT)/deps -pthread $(PROF) $(DEBUG) $(MOD) $(GF2N_LONG) $(PREP_DIR) $(SSL_DIR) $(SECURE) -std=c++20 $(ERROR) -Wno-overloaded-virtual
 CFLAGS += $(BREW_CFLAGS)
 CPPFLAGS = $(CFLAGS)
 LD = $(CXX)

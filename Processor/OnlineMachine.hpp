@@ -1,3 +1,6 @@
+#ifndef PROCESSOR_ONLINEMACHINE_HPP_
+#define PROCESSOR_ONLINEMACHINE_HPP_
+
 #include "OnlineMachine.h"
 
 #include "Processor/Machine.h"
@@ -15,6 +18,7 @@
 #include "Protocols/Replicated.hpp"
 #include "Protocols/ReplicatedPrep.hpp"
 #include "Protocols/MAC_Check_Base.hpp"
+#include "Online-Thread.hpp"
 
 using namespace std;
 
@@ -211,3 +215,5 @@ int OnlineMachine::run_with_error()
 
     return 0;
 }
+
+#endif

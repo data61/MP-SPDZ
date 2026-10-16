@@ -30,6 +30,7 @@ class Sender : CommunicationThread
     void start();
     void stop();
     void run_with_error();
+    void fail();
 
 public:
     Timer timer;

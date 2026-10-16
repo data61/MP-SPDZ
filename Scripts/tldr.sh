@@ -16,10 +16,11 @@ if test "$flags"; then
     else
 	if test `uname -m` != x86_64; then
 	    echo Binaries are not available for `uname -m`
-	    echo Use the source distribution: https://github.com/data61/MP-SPDZ/#tldr-source-distribution
-	    exit 1
+	else
+	    echo "Binaries are not available for CPUs without ADX support (before 2015 for Intel and 2017 for AMD)"
 	fi
-	cpu=amd64
+	echo Use the source distribution: https://github.com/data61/MP-SPDZ/#tldr-source-from-github
+	exit 1
     fi
 
     if ! cp -av bin/`uname`-$cpu/* .; then

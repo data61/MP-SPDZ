@@ -139,10 +139,11 @@ def print_ln(s='', *args, **kwargs):
     """
     print_str(str(s) + '\n', *args, **kwargs)
 
-def print_both(s, end='\n'):
+def print_both(s, *args, end='\n'):
     """ Print line during compilation and execution. """
-    print(s, end=end)
-    print_str(s + end)
+    print(s % args, end=end)
+    print_str(s, *args)
+    print_str(end)
 
 def print_ln_if(cond, ss, *args):
     """ Print line if :py:obj:`cond` is true. The further arguments
@@ -1185,6 +1186,8 @@ def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
             state = mem_state
             for j in range(loop_rounds * my_n_parallel, n_loops):
                 state = reducer(tuplify(loop_body(j)), state)
+            RegintOptimizer().run(get_program().curr_block.instructions,
+                                  get_program())
         else:
             if n_parallel is None:
                 get_program().warn_about_slow_loop()
@@ -1210,8 +1213,8 @@ def map_reduce_single(n_parallel, n_loops, initializer=lambda *x: [],
                     mem_state[i].write(x)
         def returner():
             return untuplify(tuple(state))
-        return returner
         _vectorizable.check_indices = ci_bak
+        return returner
     return decorator
 
 def for_range_multithread(n_threads, n_parallel, n_loops, thread_mem_req={},
@@ -1269,7 +1272,7 @@ def for_range_opt_multithread(n_threads, n_loops, budget=None, **kwargs):
     """
     return for_range_multithread(n_threads, None, n_loops, budget=budget, **kwargs)
 
-def multithread(n_threads, n_items=None, max_size=None):
+def multithread(n_threads, n_items=None, max_size=None, get_counters=False):
     """
     Distribute the computation of :py:obj:`n_items` to
     :py:obj:`n_threads` threads, but leave the in-thread repetition up
@@ -1308,23 +1311,27 @@ def multithread(n_threads, n_items=None, max_size=None):
         n_items = n_threads
     if max_size is None or n_items <= max_size:
         return map_reduce(n_threads, None, n_items, initializer=lambda: [],
-                          reducer=None, looping=False)
+                          reducer=None, looping=False, get_counters=get_counters)
     else:
         max_size = max(1, max_size)
         def wrapper(function):
-            @multithread(n_threads, n_items)
-            def new_function(base, size):
+            @multithread(n_threads, n_items, get_counters=get_counters)
+            def new_function(base, size, **body_kwargs):
                 @for_range(size // max_size)
                 def _(i):
-                    function(base + i * max_size, max_size)
+                    if get_counters:
+                        body_kwargs['loop_counter'] = i
+                    function(base + i * max_size, max_size, **body_kwargs)
                 rem = size % max_size
                 if rem:
-                    function(base + size - rem, rem)
+                    if get_counters:
+                        body_kwargs['loop_counter'] = size // max_size
+                    function(base + size - rem, rem, **body_kwargs)
         return wrapper
 
 def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
-                   thread_mem_req={}, looping=True, **kwargs):
-    assert(n_threads != 0)
+                   thread_mem_req={}, looping=True, get_counters=False, **kwargs):
+    n_threads = n_threads or None
     if isinstance(n_loops, (list, tuple)):
         split = n_loops
         n_loops = reduce(operator.mul, n_loops)
@@ -1342,7 +1349,11 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
     n_loops = MemValue.if_necessary(n_loops)
     if n_threads == None or util.is_one(n_loops):
         if not looping:
-            return lambda loop_body: loop_body(0, n_loops)
+            if get_counters:
+                return lambda loop_body: loop_body(0, n_loops, loop_counter=0,
+                                                   thread_counter=0)
+            else:
+                return lambda loop_body: loop_body(0, n_loops)
         dec = map_reduce_single(n_parallel, n_loops, initializer, reducer, **kwargs)
         if thread_mem_req:
             thread_mem = Array(thread_mem_req[regint], regint)
@@ -1376,8 +1387,14 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
                 overhang = n_loops % n_threads
                 inc = i < overhang
                 base += inc.if_else(i, overhang)
+            if get_counters:
+                body_kwargs = {'thread_counter': get_arg()}
+            else:
+                body_kwargs = {}
             if not looping:
-                return loop_body(base, thread_rounds + inc)
+                if get_counters:
+                    body_kwargs['loop_counter'] = 0
+                return loop_body(base, thread_rounds + inc, **body_kwargs)
             if thread_mem_req:
                 thread_mem = Array(thread_mem_req[regint], regint, \
                                        args[get_arg()].address + 2)
@@ -1386,9 +1403,9 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
                                    initializer, reducer, mem_state, **kwargs)
             def f(i):
                 if thread_mem_req:
-                    return loop_body(base + i, thread_mem)
+                    return loop_body(base + i, thread_mem, **body_kwargs)
                 else:
-                    return loop_body(base + i)
+                    return loop_body(base + i, **body_kwargs)
         prog = get_program()
         thread_args = []
         if prog.curr_tape.singular:
@@ -1586,7 +1603,7 @@ def while_loop(loop_body, condition, arg=None, g=None,
         if_statement(pre_condition, lambda: do_while(loop_fn, g=g),
                      in_loop=loop_fn)
 
-def while_do(condition, *args):
+def while_do(condition, *args, **kwargs):
     """ While-do loop.
 
     :param condition: function returning public integer (regint/cint/int)
@@ -1604,7 +1621,7 @@ def while_do(condition, *args):
 
     """
     def decorator(loop_body):
-        while_loop(loop_body, condition, *args)
+        while_loop(loop_body, condition, *args, **kwargs)
         return loop_body
     return decorator
 
@@ -1740,7 +1757,8 @@ def end_if():
         # set start block's conditional jump to next block
         state.start_block.set_exit(branch, instructions.program.curr_block)
         # nothing to compute without else
-        state.req_child.aggregator = lambda x: x[0]
+        agg = state.req_child.aggregator
+        state.req_child.aggregator = lambda x: agg((x[0], Tape.ReqNum()))
 
 def if_statement(condition, if_fn, else_fn=None, **kwargs):
     if condition is True or condition is False:
@@ -1757,7 +1775,7 @@ def if_statement(condition, if_fn, else_fn=None, **kwargs):
             else_fn()
         end_if()
 
-def if_(condition):
+def if_(condition, **kwargs):
     """
     Conditional execution without else block. Note that this does not
     work compile-time (Python) data structures, so if you change
@@ -1787,7 +1805,7 @@ def if_(condition):
             if condition:
                 _run_and_link(body)
         else:
-            if_then(condition)
+            if_then(condition, **kwargs)
             _run_and_link(body)
             end_if()
     return decorator
@@ -1879,7 +1897,7 @@ def start_timer(timer_id=0):
     :param timer_id: compile-time (int) """
     get_tape().start_new_basicblock(name='pre-start-timer')
     start(timer_id)
-    get_tape().start_new_basicblock(name='post-start-timer')
+    get_tape().start_new_basicblock(name='post-start-timer-%d' % timer_id)
 
 def stop_timer(timer_id=0):
     """ Stop timer. Fails if not running.
@@ -1887,10 +1905,12 @@ def stop_timer(timer_id=0):
     :param timer_id: compile-time (int) """
     get_tape().start_new_basicblock(name='pre-stop-timer')
     stop(timer_id)
-    get_tape().start_new_basicblock(name='post-stop-timer')
+    get_tape().start_new_basicblock(name='post-stop-timer-%d' % timer_id)
 
 class MultiTimer:
     def __init__(self, timer_id):
+        if isinstance(timer_id, MultiTimer):
+            timer_id = timer_id.timer_id * 10
         self.timer_id = timer_id
         if timer_id:
             start_timer(timer_id)

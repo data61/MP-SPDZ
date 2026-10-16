@@ -167,7 +167,10 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
     verbose = opt.isSet("--verbose");
 #endif
 
-    opt.get("--options")->getStrings(options);
+    vector<vector<string>> multi_options;
+    opt.get("--options")->getMultiStrings(multi_options);
+    for (auto& x : multi_options)
+        options.insert(options.end(), x.begin(), x.end());
 
     for (auto& option : options)
         if (option.find("verbose") == 0)

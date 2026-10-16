@@ -111,6 +111,8 @@ public:
 
     OTTripleSetup get_fresh();
 
+    BaseOT get_base(size_t index);
+
     int index_for(int other)
     {
         assert(other != my_num);

@@ -21,6 +21,8 @@ public:
     BufferScope(T& prep, int buffer_size) :
             prep(prep)
     {
+        if (OnlineOptions::singleton.has_option("debug_batch_size"))
+            cerr << "scope batch_size=" << buffer_size << endl;
         bak = this->prep.buffer_size;
         this->prep.buffer_size = buffer_size;
     }

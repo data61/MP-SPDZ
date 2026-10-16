@@ -143,8 +143,10 @@ void PRNG::print_state() const
 }
 
 
+template<bool SMALL>
 void PRNG::hash()
 {
+  int start = SMALL ? N_CACHE - 1 : 0;
   assert(initialized);
   #ifndef USE_AES
     unsigned char tmp[RAND_SIZE + SEED_SIZE];
@@ -152,7 +154,7 @@ void PRNG::hash()
     memcpy(random, tmp, RAND_SIZE);
     memcpy(seed, tmp + RAND_SIZE, SEED_SIZE);
   #else
-    for (int i = 0; i < N_CACHE; i++)
+    for (int i = start; i < N_CACHE; i++)
       if (useC)
         software_ecb_aes_128_encrypt<PIPELINES>(
             (__m128i*) (random + i * CALL_SIZE),
@@ -163,17 +165,19 @@ void PRNG::hash()
             (__m128i*) (state + i * CALL_SIZE), KeySchedule);
   #endif
   // This is a new random value so we have not used any of it yet
-  cnt=0;
+  cnt = start * CALL_SIZE;
+  assert(cnt < RAND_SIZE);
 }
 
 
-
+template<bool SMALL>
 void PRNG::next()
 {
   timer.start();
-  hash();
+  hash<SMALL>();
   // Increment state
-  for (int i = 0; i < PIPELINES * N_CACHE; i++)
+  for (int i = SMALL ? (PIPELINES - 1) * N_CACHE : 0; i < PIPELINES * N_CACHE;
+      i++)
     {
       int64_t* s = (int64_t*)&state[i*AES_BLK_SIZE];
       s[0] += PIPELINES * N_CACHE;
@@ -294,3 +298,6 @@ bool PRNG::is_initialized()
 {
   return initialized;
 }
+
+template void PRNG::next<true>();
+template void PRNG::next<false>();

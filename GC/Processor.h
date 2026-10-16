@@ -16,6 +16,7 @@ using namespace std;
 #include "Math/Integer.h"
 #include "Processor/ProcessorBase.h"
 #include "Processor/Instruction.h"
+#include "Protocols/SecureShuffle.h"
 #include "Tools/CheckVector.h"
 
 namespace GC
@@ -24,6 +25,9 @@ namespace GC
 template <class T>
 class Processor : public ::ProcessorBase, public GC::RuntimeBranching
 {
+    map<int, typename T::Shuffler::shuffle_type> shuffle_store;
+    typename T::Shuffler shuffler;
+
 public:
     static int check_args(const ArgVector& args, int n);
 
@@ -83,6 +87,15 @@ public:
     void mem_op(int n, U& dest, const V& source,
             Integer dest_address, Integer source_address);
 
+    template<class U, class V>
+    void indirect_mem_load(U& dest, const V& source,
+            const StackedVector<Integer>& Ci,
+            const BaseInstruction& instruction);
+    template<class U, class V>
+    void indirect_mem_store(U& dest, const V& source,
+            const StackedVector<Integer>& Ci,
+            const BaseInstruction& instruction);
+
     void xors(const ArgVector& args);
     void xors(const ArgVector& args, size_t start, size_t end);
     void xorc(const ::BaseInstruction& instruction);
@@ -108,6 +121,8 @@ public:
 
     void convcbitvec(const BaseInstruction& instruction, StackedVector<Integer>& Ci,
             Player* P);
+    void convcbit(const BaseInstruction& instruction, StackedVector<Integer>& Ci,
+            Player* P);
 
     void print_reg(int reg, int n, int size);
     template<class U>
@@ -120,12 +135,25 @@ public:
 
     void incint(const BaseInstruction& instruction);
 
+    void generate_secure_shuffle(const BaseInstruction& instruction,
+            StackedVector<Integer>& Ci);
+    void apply_shuffle(int handle, const BaseInstruction& instruction);
+    void delete_shuffle(int handle);
+
     void push_stack();
     void push_args(const ArgVector& args);
     void pop_stack(const ArgVector& results);
 
     template<class U>
     void call_tape(const BaseInstruction& instruction, U& dynamic_memory);
+
+    void concats(const BaseInstruction& instruction);
+    void picks(const BaseInstruction& instruction);
+    void zips(const BaseInstruction& instruction);
+    void transvec(const BaseInstruction& instruction);
+
+    void convcint(const StackedVector<Integer>& Ci,
+            const BaseInstruction& instruction);
 };
 
 template <class T>

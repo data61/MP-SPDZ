@@ -13,8 +13,9 @@ are thus provided in separate files:
 - cryptoTools
 - simde
 - sse2neon
+- Coproto
 
 The binaries also include code from libstdc++ and libgcc. They have
-been produced using `Scripts/build.sh` and standard GCC from
-Devtoolset-6 on CentOS 6 and therefore satisfy the [GCC Runtime Library
+been produced using `Scripts/build.sh` and standard clang from
+Rocky Linux 8 and therefore satisfy the [GCC Runtime Library
 Exception](https://www.gnu.org/licenses/gcc-exception-3.1.en.html).

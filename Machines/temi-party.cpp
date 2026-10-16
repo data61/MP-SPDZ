@@ -28,6 +28,7 @@
 #include "GC/SemiHonestRepPrep.h"
 #include "GC/SemiSecret.hpp"
 #include "Math/gfp.hpp"
+#include "Semi.hpp"
 
 int main(int argc, const char** argv)
 {

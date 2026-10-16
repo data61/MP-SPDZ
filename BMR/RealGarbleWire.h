@@ -40,8 +40,7 @@ public:
 	static void load(vector<GC::ReadAccess<GC::Secret<RealGarbleWire>>>& accesses,
 			const NoMemory& source);
 
-	static void convcbit(Integer& dest, const GC::Clear& source,
-	        GC::Processor<GC::Secret<RealGarbleWire>>& processor);
+	static void sync(vector<Integer>& values, Player* P);
 
 	static void inputb(GC::Processor<GC::Secret<RealGarbleWire>>& processor,
 			const ArgVector& args);

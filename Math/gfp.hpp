@@ -87,6 +87,14 @@ void gfp_<X, L>::almost_randomize(PRNG& G)
 }
 
 
+template<int X, int L>
+void gfp_<X, L>::from_random(const int128& other)
+{
+    PRNG G;
+    G.SetSeedFrom(other);
+    G.next<true>();
+    randomize(G);
+}
 
 
 template <int X, int L>
@@ -219,6 +227,15 @@ gfp_<X, L> gfp_<X, L>::power_of_two(bool bit, int exp)
     }
     else
         return 0;
+}
+
+template<int X, int L>
+bool gfp_<X, L>::get_bit(int i) const
+{
+    bigint::tmp = *this;
+    assert(bigint::tmp.numBits());
+    assert(i == 0);
+    return bigint::tmp.get_ui() & 1;
 }
 
 #endif

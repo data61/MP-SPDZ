@@ -65,7 +65,7 @@ inline void mpn_add_fixed_n<1>(uint32_t* res, const uint32_t* x, const uint32_t*
     *res = *x + *y;
 }
 
-#ifdef __x86_64__
+#if defined(__x86_64__) and not defined(__clang__)
 template <>
 inline void mpn_add_fixed_n<2>(mp_limb_t* res, const mp_limb_t* x, const mp_limb_t* y)
 {

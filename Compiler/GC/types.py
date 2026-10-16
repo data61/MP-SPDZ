@@ -117,24 +117,35 @@ class bits(Tape.Register, _structure, _bit, _binary):
     def malloc(cls, size, creator_tape=None, **kwargs):
         return Program.prog.malloc(size, cls, creator_tape=creator_tape,
                                    **kwargs)
+    @classmethod
+    def free(cls, addr):
+        Program.prog.free(addr, cls.reg_type)
     @staticmethod
     def n_elements():
         return 1
     @classmethod
     def mem_size(cls):
         return math.ceil(cls.n / cls.unit)
+    @staticmethod
+    def maybe_expand_address(address, size):
+        if isinstance(address, regint) and size and len(address) != size:
+            assert len(address) == 1
+            return regint.inc(size, address)
+        else:
+            return address
     @classmethod
     def load_mem(cls, address, mem_type=None, size=None):
         if size not in (None, 1):
-            v = [cls.load_mem(address + i) for i in range(size)]
-            return cls.vec(v)
+            return cls.vec.load_mem(address, size=size)
         res = cls()
         if mem_type == 'sd':
             return cls.load_dynamic_mem(address)
         else:
+            address = cls.maybe_expand_address(address, res.size)
             cls.mem_op(cls.load_inst, res, address)
             return res
     def store_in_mem(self, address):
+        address = self.maybe_expand_address(address, self.size)
         self.mem_op(self.store_inst, self, address)
     @staticmethod
     def mem_op(inst, reg, address):
@@ -172,9 +183,10 @@ class bits(Tape.Register, _structure, _bit, _binary):
         pass
     def load_int(self, value):
         n_limbs = math.ceil(self.n / self.unit)
+        if value == 0 and not Program.prog.options.garbled:
+            return self.load_other(regint(0, size=n_limbs))
         for i in range(n_limbs):
-            self.conv_regint(min(self.unit, self.n - i * self.unit),
-                             self[i], regint(value % 2 ** self.unit))
+            self[i].load_regint(regint(value % 2 ** self.unit))
             value >>= self.unit
     def load_other(self, other):
         if isinstance(other, cint):
@@ -184,15 +196,8 @@ class bits(Tape.Register, _structure, _bit, _binary):
             self.set_length(self.n or util.int_len(other))
             self.load_int(other)
         elif isinstance(other, regint):
-            assert self.unit == 64
-            n_units = int(math.ceil(self.n / self.unit))
-            n_convs = min(other.size, n_units)
-            for i in range(n_convs):
-                x = self[i]
-                y = other[i]
-                self.conv_regint(min(self.unit, self.n - i * self.unit), x, y)
-            for i in range(n_convs, n_units):
-                inst.ldbits(self[i], min(self.unit, self.n - i * self.unit), 0)
+            assert len(self) == len(other)
+            self.load_regint(other)
         elif (isinstance(self, type(other)) or isinstance(other, type(self))) \
              and self.n == other.n:
             try:
@@ -209,7 +214,10 @@ class bits(Tape.Register, _structure, _bit, _binary):
         else:
             try:
                 bits = other.bit_decompose()
-                for bit in bits:
+                for i, bit in enumerate(bits):
+                    if isinstance(bit, self.vec):
+                        assert len(bit.v) == 1
+                        bits[i] = bit.v[0]
                     if isinstance(bit, sbits):
                         assert bit.n == 1
                 bits = bits[:self.n] + [self.bit_type(0)] * (self.n - len(bits))
@@ -314,7 +322,6 @@ class cbits(bits):
     load_inst = (inst.ldmcbi, inst.ldmcb)
     store_inst = (inst.stmcbi, inst.stmcb)
     bitdec = inst.bitdecc
-    conv_regint = staticmethod(lambda n, x, y: inst.convcint(x, y))
     conv_cint_vec = inst.convcintvec
     mov = staticmethod(lambda x, y: inst.addcbi(x, y, 0))
     @classmethod
@@ -432,18 +439,19 @@ class cbits(bits):
         return self
     def to_regint(self, dest=None):
         if dest is None:
-            dest = regint()
-        if self.n > 64:
-            raise CompilerError('too many bits')
+            dest = regint(size=self.size)
+        assert len(dest) == len(self)
         inst.convcbit(dest, self)
         return dest
-    def to_regint_by_bit(self):
+    def to_regint_by_bit(self, sync=True):
         if self.n != None:
             res = regint(size=self.n)
         else:
             res = regint()
-        inst.convcbitvec(self.n, res, self)
+        inst.convcbitvec(self.n, res, self, sync)
         return res
+    def load_regint(self, other):
+        inst.convcint(self, other)
 
 class sbits(bits, Tape._no_secret_truth):
     """
@@ -473,7 +481,6 @@ class sbits(bits, Tape._no_secret_truth):
     store_inst = (inst.stmsbi, inst.stmsb)
     bitdec = inst.bitdecs
     bitcom = inst.bitcoms
-    conv_regint = inst.convsint
     @classmethod
     def conv_regint_by_bit(cls, n, res, other):
         tmp = cbits.get_type(n)()
@@ -537,6 +544,19 @@ class sbits(bits, Tape._no_secret_truth):
             inst.ldbits(self, self.n, value)
         else:
             bits.load_int(self, value)
+    def load_regint(self, other):
+        if Program.prog.options.garbled:
+            assert self.unit == 64
+            n_units = int(math.ceil(self.n / self.unit))
+            n_convs = min(other.size, n_units)
+            for i in range(n_convs):
+                x = self[i]
+                y = other[i]
+                inst.convsint(min(self.unit, self.n - i * self.unit), x, y)
+            for i in range(n_convs, n_units):
+                inst.ldbits(self[i], min(self.unit, self.n - i * self.unit), 0)
+        else:
+            self.load_other(cbits.get_type(self.n)(other))
     def load_other(self, other):
         if isinstance(other, cbits) and self.n == other.n:
             inst.convcbit2s(self.n, self, other)
@@ -643,6 +663,8 @@ class sbits(bits, Tape._no_secret_truth):
         res = self.clear_type.get_type(self.n)()
         inst.reveal(self.n, res, self)
         return res
+    def reveal_to_regint_by_bit(self):
+        return self.reveal().to_regint_by_bit()
     def equal(self, other, n=None):
         bits = (~(self + other)).bit_decompose()
         return reduce(operator.mul, bits)
@@ -672,21 +694,22 @@ class sbits(bits, Tape._no_secret_truth):
         :return: :py:obj:`sbits` of required length """
         return sbitvec([self]).popcnt().elements()[0]
     @classmethod
-    def trans(cls, rows):
+    def trans(cls, rows, n_columns=None):
         rows = list(rows)
         if len(rows) == 1 and rows[0].n <= rows[0].unit:
             return rows[0].bit_decompose()
-        for row in rows:
-            try:
-                n_columns = row.n
-                break
-            except:
-                pass
+        if not n_columns:
+            for row in rows:
+                try:
+                    n_columns = row.n
+                    break
+                except:
+                    pass
         for i in range(len(rows)):
             if util.is_zero(rows[i]):
                 rows[i] = cls.get_type(n_columns)(0)
         for row in rows:
-            assert(row.n == n_columns)
+            assert(row.n >= n_columns)
         if n_columns == 1 and len(rows) <= cls.unit:
             return [cls.bit_compose(rows)]
         else:
@@ -709,6 +732,25 @@ class sbits(bits, Tape._no_secret_truth):
         return sbitint.ripple_carry_adder(*args, **kwargs)
     def output(self):
         inst.print_reg_plainsb(self)
+    @classmethod
+    def concat(cls, parts):
+        parts = list(parts)
+        res = cls.get_type(sum(part.n for part in parts))()
+        inst.concatsb(res, *sum(([part.n, part] for part in parts), []))
+        return res
+    def copy_from_part(self, source, base, size):
+        unit = self.unit
+        parts = list(source)[base // unit:int(math.ceil((base + size) / unit))]
+        parts[0] = parts[0] >> base % unit
+        ns = [min(size, unit - base % unit)]
+        while sum(ns) < size:
+            ns.append(min(unit, size - sum(ns)))
+        inst.concatsb(self, *sum(((n, x) for n, x in zip(ns, parts)), ()))
+    def __rshift__(self, n_bits):
+        if n_bits:
+            return self.bit_compose(self.bit_decompose()[n_bits:])
+        else:
+            return self
 
 class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
     """ Vector of registers of secret bits, effectively a matrix of secret bits.
@@ -775,12 +817,16 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
             def malloc(cls, size, creator_tape=None):
                 return sbit.malloc(
                     size * cls.mem_size(), creator_tape=creator_tape)
+            free = lambda *args, **kwargs: None
             @staticmethod
             def n_elements():
                 return 1
             @staticmethod
             def mem_size():
                 return sbits.get_type(n).mem_size()
+            @staticmethod
+            def default_bit_length():
+                return n
             @classmethod
             def get_input_from(cls, player, size=1, f=0):
                 """ Secret input from :py:obj:`player`. The input is decomposed
@@ -805,9 +851,7 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
             @classmethod
             def from_vec(cls, vector, signed=True):
                 res = cls()
-                if isinstance(vector, sbitvec):
-                    vector = vector.v
-                v = list(vector)
+                v = sbitvec.from_vec(vector).v
                 if signed:
                     v = _complement_two_extend(v, n)
                 else:
@@ -831,14 +875,61 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
                         self.v = [type(x)(x) for x in self.bit_extend(v, n)]
                     elif isinstance(other, (list, tuple)):
                         self.v = self.bit_extend(sbitvec(other).v, n)
+                    elif isinstance(other, regint):
+                        if Program.prog.options.binary:
+                            unit = sbits.unit
+                            if n <= sbits.unit and \
+                               not Program.prog.options.garbled:
+                                total_size = other.size * unit
+                                self.v = self.from_concat_elements(
+                                    sbits.get_type(total_size)(
+                                        cbits.get_type(total_size)(other))).v
+                            else:
+                                self.v = type(self)(
+                                    [sbits.get_type(n)(x) for x in other]).v
+                        else:
+                            other = cint.conv(other)
+                            self.v = [sbits.get_type(other.size)(x)
+                                      for x in cbits.bit_decompose_clear(other, n)]
                     else:
                         self.v = sbits.get_type(n)(other).bit_decompose()
                     assert len(self.v) == n
                     assert size is None or size == self.v[0].n
             @classmethod
+            def from_right_length(cls, other, **kwargs):
+                assert n
+                if isinstance(other, _fix):
+                    assert n == other.k
+                    other = other.v
+                assert isinstance(other, sint)
+                return cls(sbitvec(other, length=n, input_length=n, **kwargs))
+            @classmethod
+            def from_concat_elements(cls, elements):
+                size = elements.n / util.min_multiple(n, sbits.unit)
+                assert size == int(size)
+                size = int(size)
+                tmp = cls._temp_vectors(size, n)
+                inst.transvec(n, tmp[0], size, elements)
+                parts = []
+                for i in range(n):
+                    part = sbits.get_type(size)()
+                    inst.picksb(part, tmp[0], i * len(part), 1)
+                    parts.append(part)
+                res = cls.from_vec(parts)
+                assert size == res.size
+                return res
+            @classmethod
             def load_mem(cls, address, size=None):
+                unit = sbits.unit
                 if isinstance(address, int) or len(address) == 1:
                     size = size or instructions_base.get_global_vector_size()
+                if n <= unit:
+                    size = size or len(address)
+                    address = bits.maybe_expand_address(address, size)
+                    tmp = cls._temp_vectors(size, n)
+                    tmp[1] = tmp[1].load_mem(address)
+                    return cls.from_concat_elements(tmp[1])
+                elif isinstance(address, int) or len(address) == 1:
                     address = [address + i * cls.mem_size()
                                for i in range(size or 1)]
                 else:
@@ -850,12 +941,15 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
                 for x in self.v:
                     if not util.is_constant(x):
                         size = max(size, x.n)
+                unit = sbits.unit
+                if n <= unit:
+                    return self.concat_elements().store_in_mem(address)
                 if isinstance(address, int) or len(address) == 1:
                     address = [address + i * self.mem_size()
                                for i in range(size)]
                 else:
                     assert size == len(address)
-                for x, dest in zip(self.elements(), address):
+                for x, dest in zip(sbitvec.elements(self), address):
                     x.store_in_mem(dest)
             @classmethod
             def two_power(cls, nn, size=1):
@@ -887,15 +981,44 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
             def get_random_bit():
                 assert instructions_base.get_global_vector_size() == 1
                 return sbit.get_random_bit()
+            @staticmethod
+            def get_secure_shuffle(n, full=False, size=1):
+                res = regint(size=size)
+                inst.gensecshuffleb(res, n, full)
+                return res
+            @staticmethod
+            def delete_shuffle(shuffle):
+                inst.delshuffleb(shuffle)
+            @read_mem_value
+            def secure_permute(self, handle, reverse=False, n_threads=None):
+                assert n <= 64
+                res = [sbits.get_type(self.size)() for i in range(len(self.v))]
+                inst.applyshuffleb(n * self.size, handle, reverse,
+                                   *(sum(zip(res, self.v), ())))
+                return self.from_vec(res)
+            def secure_shuffle(self):
+                return self.secure_permute(self.get_secure_shuffle(self.size))
         sbitvecn.basic_type = sbitvecn
         sbitvecn.reg_type = 'sb'
+        if issubclass(cls, sbitintvec):
+            sbitvecn.int_type = sbitvecn
+        else:
+            sbitvecn.int_type = sbitintvec.get_type(n)
         return sbitvecn
     @classmethod
     def from_vec(cls, vector):
         if isinstance(vector, sbitvec):
             vector = vector.v
         res = cls()
-        res.v = list(vector)
+        res.v = []
+        for x in vector:
+            if isinstance(x, sbitvec):
+                assert len(x.v) == 1
+                x = x.v[0]
+            res.v.append(x)
+            assert isinstance(x, (sbits, int))
+            if isinstance(x, sbits):
+                assert x.n == res.size
         return res
     compose = from_vec
     @classmethod
@@ -917,7 +1040,8 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
             v += [sbit(int(x))
                   for x in trans(bin(int(string[i:i + 2], 16))[2:].zfill(8))]
         return cls.from_vec(v)
-    def __init__(self, elements=None, length=None, input_length=None):
+    def __init__(self, elements=None, length=None, input_length=None,
+                 signed=False):
         if length:
             assert isinstance(elements, sint)
             prog = Program.prog
@@ -949,10 +1073,11 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
         while util.is_zero(res[-1]):
             del res[-1]
         return sbitintvec.get_type(len(res)).from_vec(res)
-    def elements(self, start=None, stop=None):
+    def elements(self, start=None, stop=None, n=None):
         if stop is None:
             start, stop = stop, start
-        return sbits.trans(self.v[start:stop])
+        return sbits.trans(self.v[start:stop],
+                           n_columns=min(self.size, n) if n else None)
     def coerce(self, other):
         if isinstance(other, cint):
             size = other.size
@@ -969,26 +1094,88 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
     __add__ = __radd__ = __sub__ = __rsub__ =__rxor__ = __xor__
     __rand__ = __and__
     def __invert__(self):
-        return self.from_vec(~x for x in self.v)
+        return self.from_vec(util.bit_not(x, self.size) for x in self.v)
     def if_else(self, x, y):
-        return util.if_else(self.v[0], x, y)
+        return self.v[0] * (x ^ y) ^ y
     def __iter__(self):
         return iter(self.elements())
     def __len__(self):
         return self.size
+    @staticmethod
+    def _temp_vectors(size, n):
+        unit = sbits.unit
+        part_size = util.min_multiple(size, unit)
+        tmp = [sbits.get_type(x)()
+               for x in (n * part_size, size * unit)]
+        return tmp
+    def concat_elements(self):
+        size = self.size
+        n = len(self.v)
+        part_size = util.min_multiple(size, sbits.unit)
+        tmp = self._temp_vectors(size, n)
+        inst.concatsb(tmp[0], *(sum(
+            ((part_size, x) for x in self.hard_conv(self).v), ())))
+        inst.transvec(size, tmp[1], n, tmp[0])
+        return tmp[1]
+    def get_vector(self, base=0, size=None, skip=1):
+        unit = sbits.unit
+        if base == 0 and size is None and skip == 1:
+            return self
+        elif len(self.v) <= unit:
+            size = size or (self.size - base) // skip
+            tmp = self.concat_elements()
+            picked = sbits.get_type(unit * size)()
+            inst.picksb(picked, tmp, base, skip)
+            return self.get_type(len(self.v)).from_concat_elements(picked)
+        else:
+            library.get_program().open_memory_scope()
+            tmp = Array.create_from(self)
+            res = tmp.get_vector(base=base, size=size, skip=skip)
+            library.get_program().close_memory_scope()
+            return res
     @classmethod
-    def conv(cls, other):
+    def zip(cls, *parts):
+        n_bits = max(part.n_bits for part in parts)
+        parts = [cls.get_type(n_bits).from_vec(part.v, signed=False)
+                 for part in parts]
+        unit = sbits.unit
+        if n_bits <= unit:
+            parts = [part.concat_elements() for part in parts]
+            total_size = sum(part.size for part in parts)
+            tmp = sbits.get_type(unit * total_size)()
+            inst.zipsb(tmp, *parts)
+            res = cls.get_type(n_bits).from_concat_elements(tmp)
+        else:
+            res = cls.get_type(n_bits)(sum(zip(*parts), ()))
+        return res
+    @classmethod
+    def concat(cls, parts):
+        n_bits = max(part.n_bits for part in parts)
+        parts = [sbitvec.get_type(n_bits).hard_conv(part, signed=False)
+                 for part in parts]
+        res = cls.get_type(n_bits).from_vec(
+            sbit.concat(x) for x in zip(*(part.v for part in parts)))
+        return res
+    @classmethod
+    def conv(cls, other, **kwargs):
         if isinstance(other, cls):
-            return cls.from_vec(other.v)
+            return cls.from_vec(other.v, **kwargs)
         else:
             return cls(other)
-    hard_conv = conv
+    @classmethod
+    def hard_conv(cls, other, **kwargs):
+        res = cls.conv(other, **kwargs)
+        res.v = [sbits.get_type(res.size)(x) if util.is_constant(x) else x
+                 for x in res.v]
+        return res
     @property
     def size(self):
-        if not self.v or util.is_constant(self.v[0]):
-            return 1
-        else:
-            return self.v[0].n
+        for x in self.v:
+            try:
+                return x.n
+            except:
+                pass
+        return 1
     @property
     def n_bits(self):
         return len(self.v)
@@ -996,12 +1183,19 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
         for i, x in enumerate(self.elements()):
             x.store_in_mem(address + i)
     def bit_decompose(self, n_bits=None, security=None, maybe_mixed=None):
-        return self.v[:n_bits]
+        return [sbitvec.get_type(1).from_vec([x]) for x in self.v[:n_bits]]
     bit_compose = from_vec
     def reveal(self):
-        return util.untuplify([x.reveal() for x in self.elements()])
+        if self.n_bits <= sbits.unit and not Program.prog.options.garbled:
+            res = self.concat_elements().reveal()
+        else:
+            res = [x.reveal() for x in self.elements()]
+        return util.untuplify(res)
+    def reveal_to_regint_by_bit(self):
+        assert self.n_bits == 1
+        return self.v[0].reveal_to_regint_by_bit()
     def long_one(self):
-        return [x.long_one() for x in self.v]
+        return self.from_vec([x.long_one() for x in self.v])
     def half_adder(self, other):
         other = self.coerce(other)
         res = zip(*(x.half_adder(y) for x, y in zip(self.v, other)))
@@ -1438,7 +1632,13 @@ class sbitintvec(sbitvec, _bitint, _number, _sbitintbase):
         return self.from_vec(b) - self.from_vec(a)
     def __mul__(self, other):
         if isinstance(other, sbits):
-            return self.from_vec(other * x for x in self.v)
+            if other.n == self.size:
+                return self.from_vec(other & x for x in self.v)
+            else:
+                return self.from_vec(other * x for x in self.v)
+        elif isinstance(other, sbitvec) and (len(self.v) == 1 or len(other.v) == 1):
+            return self.get_type(max(len(self.v), len(other.v))).from_vec(
+                sbitvec.from_vec(self.v) * sbitvec.from_vec(other.v))
         elif len(self.v) == 1:
             return other * self.v[0]
         elif isinstance(other, sbitfixvec):
@@ -1511,9 +1711,18 @@ class sbitintvec(sbitvec, _bitint, _number, _sbitintbase):
 
         :param k: bit length of input """
         return _sbitintbase.pow2(self, k)
+    def prefix_sum(self):
+        def op(x, y):
+            t = self.get_type(min(util.log2(self.size), max(x[0].n_bits, y[0].n_bits) + 1))
+            a, b = [t.from_vec(xx[0].v, signed=False) for xx in (x, y)]
+            res = a + b
+            return [res]
+        res = floatingpoint.PreOpL2_vec(op, self)[0]
+        return res
 
 sbits.vec = sbitvec
 sbitint.vec = sbitintvec
+sbitintvec.bit_type = sbitintvec.get_type(1)
 
 class cbitfix(object):
     malloc = staticmethod(lambda *args: cbits.malloc(*args))

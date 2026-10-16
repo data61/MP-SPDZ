@@ -56,6 +56,7 @@ public:
     typedef MC Direct_MC;
     typedef FakeProtocol<FakeSecret> Protocol;
     typedef FakeInput<FakeSecret> Input;
+    typedef SecureShuffleBase<FakeSecret> Shuffler;
 
     typedef SwitchableOutput out_type;
 
@@ -110,11 +111,11 @@ public:
     static void reveal_inst(T& processor, const ArgVector& args)
     { processor.reveal(args); }
 
-    static void trans(Processor<FakeSecret>& processor, int n_inputs,
+    static void trans(StackedVector<FakeSecret>& dest,
+            const StackedVector<FakeSecret>& source, int n_inputs,
             const ArgVector& args);
 
-    template <class T>
-    static void convcbit(Integer& dest, const Clear& source, T&) { dest = source; }
+    static void sync(vector<Integer>&, Player*) {}
 
     template<class U>
     static void convcbit2s(GC::Processor<U>&, const BaseInstruction&)

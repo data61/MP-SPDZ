@@ -10,6 +10,7 @@ using namespace std;
 class Hash
 {
 	crypto_generichash_state* state;
+	octetStream tmp;
 
 public:
 	static const int hash_length = crypto_generichash_BYTES;
@@ -36,7 +37,7 @@ public:
 	void update(const vector<T>& v, const vector<int>& bit_lengths)
 	{
 	    assert(v.size() == bit_lengths.size());
-	    octetStream tmp;
+	    tmp.reset_write_head();
 	    tmp.reserve(v.size() * sizeof(T));
 	    for (size_t i = 0; i < v.size(); i++)
 	        v[i].pack(tmp, bit_lengths[i]);
@@ -51,10 +52,14 @@ public:
 	}
 	void final(unsigned char* hashout, size_t length)
 	{
-		crypto_generichash_final(state, hashout, length);
+	    assert(crypto_generichash_final(state, hashout, length) == 0);
+	    reset();
 	}
 	void final(octetStream& os);
+	void append_final(octetStream& os);
 	octetStream final();
+
+	bool matches(octetStream& os);
 };
 
 void hash_update(Hash *ctx, const void *dataIn, unsigned long len);

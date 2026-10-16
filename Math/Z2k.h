@@ -196,6 +196,8 @@ public:
 	void randomize_part(PRNG& G, int n);
 	void almost_randomize(PRNG& G) { randomize(G); }
 
+	void from_random(const int128& other);
+
 	void force_to_bit() { throw runtime_error("impossible"); }
 
 	/**

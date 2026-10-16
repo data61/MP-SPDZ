@@ -49,6 +49,12 @@ public:
             vector<octetStream>& to_receive) const
     {
         auto my_channels = channels;
+        if (channels.empty())
+        {
+            my_channels.resize(P.num_players()  - 1);
+            for (auto& x : my_channels)
+                x.resize(P.num_players() - 1, true);
+        }
         my_channels.resize(P.num_players());
         for (auto& x : my_channels)
             x.resize(P.num_players());

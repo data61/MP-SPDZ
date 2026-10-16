@@ -16,6 +16,7 @@
 #include "EdabitBuffer.h"
 #include "Tools/TimerWithComm.h"
 #include "Tools/CheckVector.h"
+#include "Tools/CodeLocations.h"
 
 #include <fstream>
 #include <map>
@@ -82,6 +83,7 @@ public:
 
   void increase(const DataPositions& delta);
   DataPositions& operator-=(const DataPositions& delta);
+  DataPositions& operator/=(int divisor);
   DataPositions operator-(const DataPositions& delta) const;
   DataPositions operator+(const DataPositions& delta) const;
   void print_cost() const;
@@ -434,7 +436,10 @@ array<T, 3> Preprocessing<T>::get_triple(int n_bits)
 {
   if (T::clear::field_type() == DATA_GF2)
     count(DATA_TRIPLE, n_bits);
-  return get_triple_no_count(n_bits);
+  if (n_bits == T::default_length)
+      return Preprocessing<T>::get_triple_no_count(n_bits);
+  else
+      return get_triple_no_count(n_bits);
 }
 
 template<class T>

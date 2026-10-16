@@ -13,9 +13,12 @@ for i in 0 1; do
 done
 
 ./stream-fake-mascot-triples.x &
+pid=$!
 
-Scripts/mascot.sh test_thread_mul -f || exit 1
+Scripts/mascot.sh test_thread_mul -f -o debug_file_signature || exit 1
+
+kill $pid
 
 ./stream-fake-mascot-triples.x &
 
-Scripts/mascot.sh test_thread_mul -f || exit 1
+Scripts/mascot.sh test_thread_mul -f -o debug_file_signature || exit 1

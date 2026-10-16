@@ -56,7 +56,8 @@ public:
         }
     }
 
-    void apply_multiple(StackedVector<T> &a, vector<ShuffleTuple<T>>& shuffles)
+    void apply_multiple(StackedVector<T>& a,
+            vector<ShuffleTuple<typename T::Protocol::Shuffler::shuffle_type>>& shuffles)
     {
         for (auto &shuffle : shuffles)
             this->apply(a, shuffle.size, shuffle.unit_size, shuffle.dest,
@@ -298,21 +299,21 @@ public:
     }
 
     void cisc(SubProcessor<T>& processor, const StackedVector<Integer>& Ci,
-            const Instruction& instruction)
+            MemoryPart<T>& memory, const Instruction& instruction)
     {
-        cisc(processor, Ci, instruction, T::characteristic_two);
+        cisc(processor, Ci, memory, instruction, T::characteristic_two);
     }
 
     template<int = 0>
     void cisc(SubProcessor<T>&, const StackedVector<Integer>&,
-            const Instruction&, true_type)
+            MemoryPart<T>&, const Instruction&, true_type)
     {
         throw not_implemented();
     }
 
     template<int = 0>
     void cisc(SubProcessor<T>& processor, const StackedVector<Integer>& Ci,
-            const Instruction& instruction, false_type)
+            MemoryPart<T>& memory, const Instruction& instruction, false_type)
     {
         int r0 = instruction.get_r(0);
         string tag((char*)&r0, 4);
@@ -361,6 +362,26 @@ public:
                     auto& res = processor.get_S()[args[i + 2] + j];
                     res = ((T(processor.get_S()[args[i + 3] + j])
                             + (T(s) << (k - 1))) >> m) - (T(s) << (k - m - 1));
+                }
+            }
+        }
+        else if (tag == "Mod2")
+        {
+            for (size_t i = 0; i < args.size(); i += args[i])
+            {
+                assert(i + args[i] <= args.size());
+                assert(args[i] == 7);
+                int m = args[i + 5];
+                int s = args[i + 6];
+                assert((s == 0) or (s == 1));
+                for (size_t j = 0; j < args[i + 1]; j++)
+                {
+                    auto& res = processor.get_S()[args[i + 2] + j];
+                    auto x = processor.get_S()[args[i + 3] + j];
+                    bool sign = x.negative();
+                    res = abs(x) & ((T(1) << m) - 1);
+                    if (sign)
+                        res = -res;
                 }
             }
         }
@@ -427,6 +448,65 @@ public:
                     res = source.get_bit(Ci[args[i + 4]].get());
                 }
             }
+        }
+        else if (tag == "sort")
+        {
+            assert(args[0] == args.size());
+            int n = args[1];
+            vector<pair<T, int>> tmp;
+            tmp.reserve(n);
+            auto k = processor.get_S().begin() + args[2];
+            for (int i = 0; i < n; i++)
+                tmp.push_back({*(k + i), i});
+            stable_sort(tmp.begin(), tmp.end(), [](const auto& a, const auto& b) {
+                return a.first < b.first;
+            });
+            vector<T> D;
+            D.reserve(args[3]);
+            unsigned m = args[3] / n;
+            assert(n * m == args[3]);
+            auto address = Ci[args[4]].get();
+            auto start = memory.begin() + address;
+            auto reverse = args[5];
+            for (auto it = start; it < start + args[3]; it++)
+                D.push_back(*it);
+            for (int i = 0; i < n; i++)
+            {
+                int idx = tmp[i].second;
+                for (unsigned j = 0; j < m; j++)
+                    if (reverse)
+                        memory[address + idx * m + j] = D[i * m + j];
+                    else
+                        memory[address + i * m + j] = D[idx * m + j];
+            }
+        }
+        else if (tag == "Grou")
+        {
+            assert(args[0] == args.size());
+            int n = args[1];
+            auto base = processor.get_S().begin();
+            auto dest = base + args[2];
+            auto g = base + args[3];
+            auto x = base + args[4];
+            T sum;
+            int last = 0;
+            for (int i = 0; i < n; i++)
+            {
+                if ((g++)->is_one())
+                {
+                    for (int j = last; j < i; j++)
+                        *dest++ = sum;
+                    sum = *x++;
+                    last = i;
+                }
+                else
+                {
+                    sum += *x++;
+                }
+            }
+            for (int j = last; j < n; j++)
+                *dest++ = sum;
+            assert(dest == base + args[2] + n);
         }
         else
             throw runtime_error("unknown CISC instruction: " + tag);

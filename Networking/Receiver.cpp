@@ -63,10 +63,10 @@ void CommunicationThread::run()
         }
         catch (exception& e)
         {
-            cerr << "Fatal error in communication: " << e.what() << endl;
-            cerr << "This is probably because party " << other
-                    << " encountered a problem." << endl;
-            exit(1);
+            fprintf(stderr, "Fatal error in communication: %s. ", e.what());
+            fprintf(stderr, "This is probably because party %d"
+                    " encountered a problem.\n", other);
+            fail();
         }
     }
 }
@@ -105,7 +105,13 @@ void Receiver<T>::wait(octetStream& os)
     octetStream* queued = 0;
     out.pop(queued);
     if (queued != &os)
-      throw not_implemented();
+      throw runtime_error("error in receive thread");
+}
+
+template<class T>
+void Receiver<T>::fail()
+{
+    out.push(0);
 }
 
 template class Receiver<int>;

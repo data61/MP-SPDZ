@@ -69,6 +69,9 @@ public:
 
     void to(int128& other)                      { other = *this; }
     void to(word& other)                        { other = get_lower(); }
+
+    void pack(octetStream& os) const;
+    void unpack(octetStream& os);
 };
 
 template<class T>

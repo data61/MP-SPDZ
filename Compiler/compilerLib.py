@@ -373,6 +373,7 @@ class Compiler:
             if self.base_protocol() in \
                ("emulate", "ring", "rep-field", "rep4-ring", "astra", "trio"):
                 self.prog.use_trunc_pr = True
+            n_players = int(os.getenv("PLAYERS", 2))
             if not self.prog.options.split:
                 if self.base_protocol() in (
                         "ring", "ps-rep-ring", "sy-rep-ring", "astra", "trio"):
@@ -380,7 +381,11 @@ class Compiler:
                 if self.base_protocol() in ("ring", "astra", "trio"):
                     self.prog.use_unsplit = 1
                 if self.options.execute in ("semi2k",):
-                    self.prog.use_split(int(os.getenv("PLAYERS", 2)))
+                    self.prog.use_split(n_players)
+                if (re.match(".emi", self.options.execute) or \
+                   self.options.execute == "soho") and n_players == 2:
+                    self.prog.use_split(2)
+                    self.prog.use_binary_shuffle = True
                 if self.options.execute in ("rep4-ring",):
                     self.prog.use_split(4)
             if self.options.execute.find("dealer") >= 0:

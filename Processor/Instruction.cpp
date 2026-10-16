@@ -14,6 +14,7 @@
 #include "Instruction.hpp"
 
 #include <iomanip>
+#include <ranges>
 
 template<class cgf2n>
 void Instruction::execute_clear_gf2n(StackedVector<cgf2n>& registers,
@@ -115,6 +116,83 @@ void Instruction::bitdecint(ArithmeticProcessor& Proc) const
             Proc.get_Ci_ref(start[i] + j) = (a >> i) & 1;
         }
     }
+}
+
+void Instruction::groupsumint(StackedVector<Integer>& Ci) const
+{
+    vector<span<Integer>> spans;
+    for (int i = 0; i < 3; i++)
+        spans.push_back(Ci.span_for_size(r[i], size));
+    auto res = spans[0];
+    auto g = spans[1];
+    auto x = spans[2];
+
+    Integer sum = 0;
+    size_t base = 0;
+    for (int i = 0; i < size; i++)
+    {
+        if (g[i])
+        {
+            for (int j = base; j < i; j++)
+                res[j] = sum;
+            sum = 0;
+            base = i;
+        }
+        sum += x[i];
+    }
+
+    for (int j = base; j < size; j++)
+        res[j] = sum;
+}
+
+void Instruction::qs_perm(StackedVector<Integer>& Ci) const
+{
+    vector<span<Integer>> spans;
+    for (int i = 0; i < 4; i++)
+        spans.push_back({ Ci.begin() + start.at(i), size_t(size) });
+    auto res = spans[0];
+    auto g_out = spans[1];
+    auto g_in = spans[2];
+    auto c = spans[3];
+
+    for (int i = 0; i < size; i++)
+    {
+        res[i] = i;
+        g_out[i] = g_in[i];
+    }
+
+    long base = 0, curr = 0;
+    assert(g_in[0].get());
+
+    for (int i = 0; i < size; i++)
+    {
+        if (g_in[i].get())
+        {
+            if (i)
+            {
+                swap(res[base], res[curr]);
+                if (curr == i - 1)
+                    g_out[i - 1] = 1;
+                else
+                    g_out[curr + 1] = 1;
+            }
+            base = i;
+            curr = i;
+        }
+        else
+        {
+            if (c[i] == 0)
+            {
+                curr += 1;
+                swap(res[curr], res[i]);
+            }
+        }
+    }
+    swap(res[base], res[curr]);
+    if (curr == size - 1)
+        g_out[size - 1] = 1;
+    else
+        g_out[curr + 1] = 1;
 }
 
 string BaseInstruction::get_name() const

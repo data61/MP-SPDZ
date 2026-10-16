@@ -87,6 +87,12 @@ class Prime(Masking):
         inv2m(tmp, m)
         return (a - a_prime) * tmp
 
+    def ltz(self, a, k, **kwargs):
+        if program.Program.prog.use_split():
+            return LtzRing(a, k, **kwargs)
+        else:
+            return super(Prime, self).ltz(a, k, **kwargs)
+
     def bit_dec(self, a, k, m, maybe_mixed=False):
         if maybe_mixed:
             return BitDecFieldRaw(a, k, m)
