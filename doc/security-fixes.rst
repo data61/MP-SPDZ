@@ -5,6 +5,17 @@ Security Fixes
 This section explains select security fixes and credits people who
 have reported them.
 
+
+Insufficient check in SPDZ-wise replicated sharing over rings
+-------------------------------------------------------------
+
+`Nergiz Yuca <https://www.linkedin.com/in/nergiz-yuca-2104961a6>`_
+discovered that the implementation of the zero check by `Abspoel et
+al. <https://eprint.iacr.org/2019/1298>`_ would ignore the actual
+bits, which would make the check always pass together with another
+bug.
+
+
 Insufficient checks in malicious replicated sharing with Beaver multiplication
 ------------------------------------------------------------------------------
 

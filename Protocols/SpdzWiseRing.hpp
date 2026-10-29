@@ -32,8 +32,8 @@ void SpdzWiseRing<T>::zero_check(check_type t)
     for (int i = 0; i < l; i++)
     {
         auto b = opened.get_bit(i);
-        bits[i] = zero_check_type::constant(b, P.my_num()) + bits[i]
-                - 2 * b * bits[i];
+        bits[i] = zero_check_type::constant(1 - b, P.my_num()) - bit_masks[i]
+                + 2 * b * bit_masks[i];
     }
     while(bits.size() > 1)
     {
@@ -47,7 +47,7 @@ void SpdzWiseRing<T>::zero_check(check_type t)
         for (int i = 0; i < n_mults; i++)
             bits.push_back(protocol.finalize_mul());
     }
-    zero_output.CheckFor(0, {bits[0]}, P);
+    zero_output.CheckFor(1, {bits[0]}, P);
     zero_output.Check(P);
     zero_proc.protocol.check();
 }
