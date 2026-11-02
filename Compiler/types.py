@@ -3811,7 +3811,9 @@ class _bitint(Tape._no_truth):
 
     @classmethod
     def wallace_tree(cls, rows):
-        return cls.wallace_tree_from_columns([list(x) for x in zip(*rows)])
+        columns = [list(x) for x in zip(*rows)]
+        summands = cls.wallace_tree_without_finish(columns)
+        return cls.bit_adder(*summands, get_carry=True)
 
     @classmethod
     def wallace_reduction(cls, a, b, c, get_carry=True):
