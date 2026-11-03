@@ -499,7 +499,7 @@ def TruncInRing(to_shift, l, pow2m):
     rev = types.sint.bit_compose(reversed(bits))
     rev <<= n_shift
     rev *= pow2m
-    r_bits = [types.sint.get_random_bit() for i in range(l)]
+    r_bits = [types.sint.get_random_bit(size=rev.size) for i in range(l)]
     r = types.sint.bit_compose(r_bits)
     shifted = (rev - (r << n_shift)).reveal(False)
     masked = shifted >> n_shift

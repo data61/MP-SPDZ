@@ -3135,6 +3135,7 @@ class sint(_secret, _int):
         """
         return self - other * self.int_div(other, bit_length=bit_length)
 
+    @vectorize
     def trunc_zeros(self, n_zeros, bit_length=None, signed=True):
         bit_length = bit_length or program.bit_length
         return comparison.TruncZeros(self, bit_length, n_zeros, signed)
