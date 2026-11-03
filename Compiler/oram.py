@@ -1554,6 +1554,8 @@ class PackedIndexStructure(object):
             self.log_entries_per_block = \
                 self.log_elements_per_block + self.log_entries_per_element
             self.elements_per_block = 2**self.log_elements_per_block
+            if self.log_entries_per_element < 0:
+                self.elements_per_block = self.elements_per_entry
             self.entries_per_element = 2**self.log_entries_per_element
             self.entries_per_block = 2**self.log_entries_per_block
             self.used_bits = self.entries_per_element * sum(self.entry_size)
