@@ -1571,6 +1571,8 @@ class PackedIndexStructure(object):
         print('elements per block:', self.elements_per_block)
         print('used bits:', self.used_bits)
         entry_size = [self.used_bits] * self.elements_per_block
+        if self.log_entries_per_element < 0:
+            entry_size = [sum(x) for x in self.split_sizes]
         if real_size > 1:
             # no need to init underlying ORAM, will be initialized implicitely
             self.l = self.storage(real_size, value_type, \
@@ -1590,8 +1592,8 @@ class PackedIndexStructure(object):
             @for_range(real_init_rounds)
             def f(i):
                 if random_init:
-                    self.l[i] = [random_block(self.used_bits, self.value_type) \
-                                     for j in range(self.elements_per_block)]
+                    self.l[i] = [random_block(n, self.value_type) \
+                                     for n in entry_size]
                 else:
                     self.l[i] = [0] * self.elements_per_block
                 time()
