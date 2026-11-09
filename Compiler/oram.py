@@ -274,8 +274,11 @@ def demux_matrix(x, n_threads=None):
                     res[j * len(a) + i].assign_vector(
                         a[i].get_vector(**kwargs) * b[j].get_vector(**kwargs),
                         base=base)
-        a.delete()
-        b.delete()
+        # in a function block, a and b are used again on every call,
+        # so they must not be freed
+        if Program.prog.curr_block.alloc_pool.parent is None:
+            a.delete()
+            b.delete()
     return res
 
 def decompose_demux(x, n_bits, n_threads=None):
