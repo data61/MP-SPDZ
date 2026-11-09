@@ -64,8 +64,8 @@ void SimpleGenerator<T,FD>::run(bool exhaust)
     total = 0;
     while (total < machine.nTriplesPerThread or (exhaust and EC.has_left()))
     {
-        producer->run(P, setup.pk, setup.calpha, EC, dd, setup.alphai);
-        producer->sacrifice(P, MC);
+        producer->run_with_catch(P, setup.pk, setup.calpha, EC, dd, setup.alphai);
+        producer->sacrifice_with_catch(P, MC);
         total += producer->num_slots();
     }
     MC.Check(P);

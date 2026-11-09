@@ -36,6 +36,8 @@ public:
 
   map<string, Timer> timers;
 
+  static void remove_secrets(const char* phase);
+
   Producer(int output_thread = 0, bool write_output = true);
   virtual ~Producer() {}
   virtual string data_type() = 0;
@@ -46,10 +48,17 @@ public:
   virtual void clear_file(int my_num, int thread_num = 0, bool initial = true);
 
   virtual void clear() = 0;
+
+  void run_with_catch(const Player& P, const FHE_PK& pk,
+      const Ciphertext& calpha, EncCommitBase<T, FD, S>& EC,
+      DistDecrypt<FD>& dd, const T& alphai);
+  int sacrifice_with_catch(const Player& P, MAC_Check<T>& MC);
+
   virtual void run(const Player& P, const FHE_PK& pk,
       const Ciphertext& calpha, EncCommitBase<T, FD, S>& EC,
       DistDecrypt<FD>& dd, const T& alphai) = 0;
   virtual int sacrifice(const Player& P, MAC_Check<T>& MC) = 0;
+
   int num_slots() { return n_slots; }
 
   virtual size_t report_size(ReportType type) { (void)type; return 0; }

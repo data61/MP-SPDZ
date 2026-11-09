@@ -52,6 +52,20 @@ PairwiseGenerator<FD>::~PairwiseGenerator()
 template <class FD>
 void PairwiseGenerator<FD>::run()
 {
+    try
+    {
+        run_with_errors();
+    }
+    catch (...)
+    {
+        Producer<FD>::remove_secrets("pairwise generation");
+        throw;
+    }
+}
+
+template <class FD>
+void PairwiseGenerator<FD>::run_with_errors()
+{
     CODE_LOCATION
     PRNG G;
     G.ReSeed();

@@ -37,6 +37,8 @@ class PairwiseGenerator : public GeneratorBase
 
     size_t volatile_memory;
 
+    void run_with_errors();
+
 public:
     PairwiseMachine& machine;
 

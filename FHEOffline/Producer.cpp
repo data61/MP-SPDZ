@@ -22,6 +22,51 @@ Producer<FD>::Producer(int output_thread, bool write_output) :
 {
 }
 
+template<class FD>
+void Producer<FD>::remove_secrets(const char* phase)
+{
+  auto& filename = Share<T>::secrets_filename;
+
+  if (filename.empty())
+    fprintf(stderr, "WARNING: cannot remove secrets after %s failure\n", phase);
+  else
+    {
+      fprintf(stderr, "Removing %s because of %s failure\n", filename.c_str(),
+          phase);
+      unlink(filename.c_str());
+    }
+}
+
+template<class FD>
+void Producer<FD>::run_with_catch(const Player& P, const FHE_PK& pk,
+    const Ciphertext& calpha, EncCommitBase<T, FD, S>& EC, DistDecrypt<FD>& dd,
+    const T& alphai)
+{
+  try
+    {
+      run(P, pk, calpha, EC, dd, alphai);
+    }
+  catch (...)
+    {
+      remove_secrets("generation");
+      throw;
+    }
+}
+
+template<class FD>
+int Producer<FD>::sacrifice_with_catch(const Player& P, MAC_Check<T>& MC)
+{
+  try
+    {
+      return sacrifice(P, MC);
+    }
+  catch (...)
+    {
+      remove_secrets("sacrifice");
+      throw;
+    }
+}
+
 template <class T, class FD, class S>
 TripleProducer<T, FD, S>::TripleProducer(const FD& FieldD,
     int my_num, int output_thread, bool write_output, string dir) :
