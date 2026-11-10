@@ -9,4 +9,4 @@ sphinxcontrib-htmlhelp==2.*
 sphinxcontrib-jsmath==1.*
 sphinxcontrib-qthelp==2.*
 sphinxcontrib-serializinghtml==2.*
-setuptools==83.*
+setuptools==84.*
