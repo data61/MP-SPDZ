@@ -166,12 +166,14 @@ PairwiseGenerator<typename T::clear::FD>& CowGearPrep<T>::get_generator()
     lock.lock();
     if (this->machine == 0 or this->machine->enc_alphas.empty())
     {
-        PlainPlayer P(proc->P.N, "CowGear" + T::type_string());
+        auto& P = *OnlineOptions::singleton.new_player(proc->P.N,
+                "CowGear" + T::type_string());
         if (this->machine == 0)
             setup(P);
         else
             key_setup(P);
         BaseMachine::add_one_off(P.total_comm());
+        delete &P;
     }
     lock.unlock();
     if (pairwise_generator == 0)

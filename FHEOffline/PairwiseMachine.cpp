@@ -18,7 +18,7 @@ PairwiseMachine::PairwiseMachine(Player& P) :
 }
 
 RealPairwiseMachine::RealPairwiseMachine(int argc, const char** argv) :
-    MachineBase(argc, argv), PairwiseMachine(*new PlainPlayer(N, "pairwise"))
+    MachineBase(argc, argv), PairwiseMachine(*new CryptoPlayer(N, "pairwise"))
 {
     init();
 }

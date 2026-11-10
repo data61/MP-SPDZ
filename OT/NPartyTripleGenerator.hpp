@@ -10,6 +10,7 @@
 #include "GC/SemiSecret.h"
 #include "GC/SemiPrep.h"
 #include "Processor/OnlineOptions.h"
+#include "Networking/CryptoPlayer.h"
 
 #include "OT/Triple.hpp"
 #include "OT/OTMultiplier.hpp"
@@ -121,7 +122,7 @@ template<class T>
 OTTripleGenerator<T>::OTTripleGenerator(const OTTripleSetup& setup,
         const Names& names, int thread_num, int _nTriples, int nloops,
         MascotParams& machine, Player* parentPlayer) :
-        globalPlayer(parentPlayer ? *parentPlayer : *new PlainPlayer(names,
+        globalPlayer(parentPlayer ? *parentPlayer : *new CryptoPlayer(names,
                 to_string(thread_num))),
         parentPlayer(parentPlayer),
         thread_num(thread_num),

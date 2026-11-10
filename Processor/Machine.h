@@ -86,7 +86,7 @@ class Machine : public BaseMachine
 
   static void init_binary_domains(int security_parameter, int lg2);
 
-  Machine(Names& playerNames, bool use_encryption = true,
+  Machine(Names& playerNames,
           const OnlineOptions opts = sint());
   ~Machine();
 

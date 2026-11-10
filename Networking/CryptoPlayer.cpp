@@ -67,7 +67,8 @@ CryptoPlayer::CryptoPlayer(const Names& Nms, const string& id_base) :
     {
         PlainPlayer player(Nms, id_base + (i ? "recv" : ""));
         plaintext_sockets[i] = player.sockets;
-        close_client_socket(player.socket(my_num()));
+        if (player.socket(my_num()))
+            close_client_socket(player.socket(my_num()));
         player.sockets.clear();
     }
 

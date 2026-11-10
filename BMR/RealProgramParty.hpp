@@ -79,10 +79,7 @@ RealProgramParty<T>::RealProgramParty(int argc, const char** argv) :
 	this->_id = online_opts.playerno + 1;
 	Server::start_networking(N, online_opts.playerno, nparties,
 			network_opts.hostname, network_opts.portnum_base);
-	if (T::dishonest_majority)
-	    P = new PlainPlayer(N, 0);
-	else
-	    P = new CryptoPlayer(N, 0);
+	P = online_opts.new_player(N, "bmr");
 
 	delta = prng.get_doubleword();
 	delta.set_signal(1);

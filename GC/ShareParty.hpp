@@ -56,26 +56,6 @@ ShareParty<T>::ShareParty(int argc, const char** argv, ez::ezOptionParser& opt,
     NetworkOptionsWithNumber network_opts(opt, argc, argv,
             nplayers > 0 ? nplayers : (T::dishonest_majority ? 2 : 3),
             T::variable_players and nplayers == 0);
-    if (T::dishonest_majority)
-        opt.add(
-                "", // Default.
-                0, // Required?
-                0, // Number of args expected.
-                0, // Delimiter if expecting multiple args.
-                "Use encrypted channels.", // Help description.
-                "-e", // Flag token.
-                "--encrypted" // Flag token.
-        );
-    else
-        opt.add(
-                "", // Default.
-                0, // Required?
-                0, // Number of args expected.
-                0, // Delimiter if expecting multiple args.
-                "Unencrypted communication.", // Help description.
-                "-u", // Flag token.
-                "--unencrypted" // Flag token.
-        );
     opt.add(
             "", // Default.
             0, // Required?
@@ -89,11 +69,7 @@ ShareParty<T>::ShareParty(int argc, const char** argv, ez::ezOptionParser& opt,
     OnlineOptions::singleton = online_opts;
     this->progname = online_opts.progname;
     int my_num = online_opts.playerno;
-
-    if (T::dishonest_majority)
-        this->machine.use_encryption = opt.get("-e")->isSet;
-    else
-        this->machine.use_encryption = not opt.get("-u")->isSet;
+    this->machine.use_encryption = online_opts.use_encryption;
 
     this->machine.more_comm_less_comp = opt.get("-c")->isSet;
 
@@ -102,11 +78,7 @@ ShareParty<T>::ShareParty(int argc, const char** argv, ez::ezOptionParser& opt,
 
     network_opts.start_networking(this->N, my_num);
 
-    Player* P;
-    if (this->machine.use_encryption)
-        P = new CryptoPlayer(this->N, "shareparty");
-    else
-        P = new PlainPlayer(this->N, "shareparty");
+    Player* P = online_opts.new_player(this->N, "shareparty");
 
     if (online_opts.live_prep)
         this->mac_key = T::LivePrep::get_mac_key(*P);

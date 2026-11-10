@@ -76,7 +76,7 @@ public:
 
 class MultiplicativeMachine : public MultiplicativeMachineParams
 {
-    PlainPlayer P;
+    CryptoPlayer P;
 
 protected:
     void parse_options(int argc, const char** argv);

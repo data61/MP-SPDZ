@@ -56,7 +56,7 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
 #endif
   Player* player;
   string id = "thread" + to_string(num);
-  if (machine.use_encryption)
+  if (machine.opts.use_encryption)
     {
 #ifdef VERBOSE_OPTIONS
       cerr << "Using encrypted single-threaded communication" << endl;

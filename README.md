@@ -65,6 +65,7 @@ the top folder:
 Scripts/tldr.sh
 echo 1 2 3 4 > Player-Data/Input-P0-0
 echo 1 2 3 4 > Player-Data/Input-P1-0
+Scripts/setup-ssl.sh
 Scripts/compile-run.py -E mascot tutorial
 ```
 

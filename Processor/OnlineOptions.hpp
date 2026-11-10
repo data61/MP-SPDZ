@@ -13,7 +13,13 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
         const char** argv, T, bool default_live_prep, V) :
         OnlineOptions(opt, argc, argv, OnlineOptions(T()).batch_size,
                 default_live_prep, T::clear::prime_field,
-                T::LivePrep::homomorphic or T::malicious)
+                T::LivePrep::homomorphic or T::malicious,
+#ifdef PLAINTEXT_DEFAULT_FOR_DISHONEST
+                not T::dishonest_majority
+#else
+                true
+#endif
+                )
 {
     if (T::has_trunc_pr)
         opt.add(

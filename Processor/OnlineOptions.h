@@ -11,6 +11,8 @@
 #include "Math/Setup.h"
 #include "Math/gf2n.h"
 
+class Names;
+
 class OnlineOptions
 {
     void finalize_with_error(ez::ezOptionParser& opt);
@@ -47,13 +49,15 @@ public:
     string executable;
     bool code_locations;
     bool semi_honest;
+    bool use_encryption;
 
     OnlineOptions();
     OnlineOptions(ez::ezOptionParser& opt, int argc, const char** argv,
-            bool security);
+            bool security, bool encryption_by_default = true);
     OnlineOptions(ez::ezOptionParser& opt, int argc, const char** argv,
             int default_batch_size = 0, bool default_live_prep = true,
-            bool variable_prime_length = false, bool security = true);
+            bool variable_prime_length = false, bool security = true,
+            bool encryption_by_default = true);
     template<class T, class V = gf2n>
     OnlineOptions(ez::ezOptionParser& opt, int argc, const char** argv, T,
             bool default_live_prep = true, V = {});
@@ -87,6 +91,8 @@ public:
     int get_param(const string& param);
 
     int comp_sec();
+
+    Player* new_player(const Names& N, const string& id) const;
 };
 
 #endif /* PROCESSOR_ONLINEOPTIONS_H_ */

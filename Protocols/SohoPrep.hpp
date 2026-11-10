@@ -43,9 +43,11 @@ void SohoPrep<T>::buffer_triples()
     lock.lock();
     if (not setup)
     {
-        PlainPlayer P(proc->P.N, "Soho" + T::type_string());
+        auto& P = *OnlineOptions::singleton.new_player(proc->P.N,
+                "Soho" + T::type_string());
         basic_setup(P);
         BaseMachine::add_one_off(P.total_comm());
+        delete &P;
     }
     lock.unlock();
 
@@ -86,9 +88,11 @@ void SohoPrep<T>::buffer_squares()
     lock.lock();
     if (not setup)
     {
-        PlainPlayer P(proc->P.N, "Soho" + T::type_string());
+        auto& P = *OnlineOptions::singleton.new_player(proc->P.N,
+                "Soho" + T::type_string());
         basic_setup(P);
         BaseMachine::add_one_off(P.total_comm());
+        delete &P;
     }
     lock.unlock();
 

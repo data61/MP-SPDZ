@@ -131,11 +131,13 @@ typename ChaiGearPrep<T>::Generator& ChaiGearPrep<T>::get_generator()
     lock.lock();
     if (machine == 0 or machine->setup.part<FD>().alphai == 0)
     {
-        PlainPlayer P(proc->P.N, "ChaiGear" + T::type_string());
+        auto& P = *OnlineOptions::singleton.new_player(proc->P.N,
+                "ChaiGear" + T::type_string());
         if (machine == 0)
             basic_setup(P);
         key_setup(P);
         BaseMachine::add_one_off(P.total_comm());
+        delete &P;
     }
     lock.unlock();
     if (generator == 0)

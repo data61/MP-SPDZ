@@ -26,7 +26,6 @@ template<class V>
 OnlineMachine::OnlineMachine(int argc, const char** argv, ez::ezOptionParser& opt,
         OnlineOptions& online_opts, int nplayers, V) :
         argc(argc), argv(argv), online_opts(online_opts),
-        use_encryption(false),
         opt(opt), nplayers(nplayers)
 {
     opt.add(
@@ -100,18 +99,7 @@ DishonestMajorityMachine::DishonestMajorityMachine(int argc, const char** argv,
     opt.example = string() + argv[0] + " -p 0 -N 2 sample-prog\n" + argv[0]
             + " -h localhost -p 1 -N 2 sample-prog\n";
 
-    opt.add(
-          "", // Default.
-          0, // Required?
-          0, // Number of args expected.
-          0, // Delimiter if expecting multiple args.
-          "Use encrypted channels.", // Help description.
-          "-e", // Flag token.
-          "--encrypted" // Flag token.
-    );
     online_opts.finalize(opt, argc, argv);
-
-    use_encryption = opt.isSet("--encrypted");
 
     start_networking();
 }
@@ -161,10 +149,7 @@ void OnlineMachine::start_networking()
 inline
 Player* OnlineMachine::new_player(const string& id_base)
 {
-    if (use_encryption)
-        return new CryptoPlayer(playerNames, id_base);
-    else
-        return new PlainPlayer(playerNames, id_base);
+    return online_opts.new_player(playerNames, id_base);
 }
 
 template<class T, class U>
@@ -193,7 +178,7 @@ int OnlineMachine::run_with_error()
     try
 #endif
     {
-        Machine<T, U>(playerNames, use_encryption, online_opts).run(
+        Machine<T, U>(playerNames, online_opts).run(
                 online_opts.progname);
 
         if (online_opts.verbose)

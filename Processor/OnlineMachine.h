@@ -19,8 +19,6 @@ protected:
 
     Names playerNames;
 
-    bool use_encryption;
-
     ez::ezOptionParser& opt;
 
     int nplayers;

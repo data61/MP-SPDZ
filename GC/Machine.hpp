@@ -19,7 +19,7 @@ namespace GC
 template <class T>
 Machine<T>::Machine()
 {
-    use_encryption = false;
+    use_encryption = true;
     more_comm_less_comp = false;
     start_timer();
 }

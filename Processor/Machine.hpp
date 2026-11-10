@@ -53,11 +53,11 @@ void Machine<sint, sgf2n>::init_binary_domains(int security_parameter, int lg2)
 }
 
 template<class sint, class sgf2n>
-Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
+Machine<sint, sgf2n>::Machine(Names& playerNames,
     const OnlineOptions opts)
   : my_number(playerNames.my_num()), N(playerNames),
     max_trunc_size(0),
-    use_encryption(use_encryption), live_prep(opts.live_prep), opts(opts),
+    live_prep(opts.live_prep), opts(opts),
     external_clients(my_number)
 {
   OnlineOptions::singleton = opts;
@@ -89,10 +89,7 @@ Machine<sint, sgf2n>::Machine(Names& playerNames, bool use_encryption,
   mkdir_p(PREP_DIR);
 
   string id = "machine";
-  if (use_encryption)
-    P = new CryptoPlayer(N, id);
-  else
-    P = new PlainPlayer(N, id);
+  P = opts.new_player(N, id);
 
   if (opts.live_prep)
     {

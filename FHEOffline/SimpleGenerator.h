@@ -6,7 +6,7 @@
 #ifndef FHEOFFLINE_SIMPLEGENERATOR_H_
 #define FHEOFFLINE_SIMPLEGENERATOR_H_
 
-#include "Networking/Player.h"
+#include "Networking/CryptoPlayer.h"
 #include "FHEOffline/SimpleEncCommit.h"
 #include "FHEOffline/DataSetup.h"
 #include "FHEOffline/Producer.h"
@@ -31,7 +31,7 @@ public:
     map<string, Timer> timers;
 
     GeneratorBase(int thread_num, const Names& N, Player* player = 0) :
-            player(player ? 0 : new PlainPlayer(N, to_string(thread_num))),
+            player(player ? 0 : new CryptoPlayer(N, to_string(thread_num))),
             thread_num(thread_num),
             P(player ? *player : *this->player), thread(0), total(0)
     {

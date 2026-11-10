@@ -187,7 +187,7 @@ void TripleMachine::run()
         nConnections = 2;
     }
     // do the base OTs
-    PlainPlayer P(N[0], "base");
+    CryptoPlayer P(N[0], "base");
     OTTripleSetup setup(P, true);
     player = &P;
 

@@ -84,7 +84,7 @@ void ThreadMaster<T>::run_with_error()
         insecure("preprocessing from file in binary virtual machines");
     }
 
-    P = new PlainPlayer(N, "main");
+    P = opts.new_player(N, "main");
 
     machine.load_schedule(progname);
     machine.reset(machine.progs[0], memory);

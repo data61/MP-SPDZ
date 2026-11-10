@@ -65,9 +65,11 @@ void TemiPrep<T>::buffer_triples()
     lock.lock();
     if (setup == 0)
     {
-        PlainPlayer P(this->proc->P.N, "Temi" + T::type_string());
+        auto& P = *OnlineOptions::singleton.new_player(this->proc->P.N,
+                "Temi" + T::type_string());
         basic_setup(P);
         BaseMachine::add_one_off(P.total_comm());
+        delete &P;
     }
     lock.unlock();
 

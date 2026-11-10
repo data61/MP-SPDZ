@@ -40,7 +40,7 @@ int main(int argc, const char** argv)
     if (L == R) \
     { \
         Machine<FakeShare<SignedZ2<L>>, FakeShare<gf2n>>( \
-                N, false, online_opts).run(progname); \
+                N, online_opts).run(progname); \
         return 0; \
     }
 

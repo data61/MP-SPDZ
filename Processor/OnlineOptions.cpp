@@ -10,6 +10,8 @@
 #include "Protocols/HemiOptions.h"
 #include "Protocols/config.h"
 #include "FHEOffline/config.h"
+#include "Tools/benchmarking.h"
+#include "Networking/CryptoPlayer.h"
 
 #include "Math/gfp.hpp"
 
@@ -44,6 +46,8 @@ OnlineOptions::OnlineOptions() : playerno(-1)
     code_locations = false;
     have_warned_about_comp_sec = false;
     semi_honest = false;
+    use_encryption = true;
+
 #ifdef VERBOSE
     verbose = true;
 #else
@@ -56,7 +60,7 @@ OnlineOptions::OnlineOptions() : playerno(-1)
 }
 
 OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
-        const char** argv, bool security) :
+        const char** argv, bool security, bool encryption_by_default) :
         OnlineOptions()
 {
     use_security_parameter = security;
@@ -154,6 +158,31 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
             "--security" // Flag token.
         );
 
+    if (encryption_by_default)
+    {
+        opt.add(
+                "", // Default.
+                0, // Required?
+                0, // Number of args expected.
+                0, // Delimiter if expecting multiple args.
+                "Unencrypted communication.", // Help description.
+                "-u", // Flag token.
+                "--unencrypted" // Flag token.
+        );
+    }
+    else
+    {
+        opt.add(
+              "", // Default.
+              0, // Required?
+              0, // Number of args expected.
+              0, // Delimiter if expecting multiple args.
+              "Use encrypted channels.", // Help description.
+              "-e", // Flag token.
+              "--encrypted" // Flag token.
+        );
+    }
+
     opt.parse(argc, argv);
 
     interactive = opt.isSet("-I");
@@ -190,6 +219,18 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
     else
         security_parameter = 1000;
 
+    if (encryption_by_default)
+    {
+        use_encryption = not opt.get("-u")->isSet;
+    }
+    else
+    {
+        use_encryption = opt.isSet("--encrypted");
+    }
+
+    if (not use_encryption)
+        insecure("unencrypted communication");
+
     opt.resetArgs();
 
     if (argc > 0)
@@ -198,8 +239,8 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
 
 OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
         const char** argv, int default_batch_size, bool default_live_prep,
-        bool variable_prime_length, bool security) :
-        OnlineOptions(opt, argc, argv, security)
+        bool variable_prime_length, bool security, bool encryption_by_default) :
+        OnlineOptions(opt, argc, argv, security, encryption_by_default)
 {
     if (default_batch_size <= 0)
         default_batch_size = batch_size;
@@ -551,4 +592,12 @@ int OnlineOptions::comp_sec()
         have_warned_about_comp_sec = true;
     }
     return res;
+}
+
+Player* OnlineOptions::new_player(const Names& N, const string& id) const
+{
+    if (use_encryption)
+        return new CryptoPlayer(N, id);
+    else
+        return new PlainPlayer(N, id);
 }
