@@ -13,6 +13,22 @@
 #include "Tools/benchmarking.h"
 
 template<class T>
+template<int>
+inline void Shamir<T>::check_range(unsigned target, false_type)
+{
+    if (U::get_ZpD().get_t() == 1 and target >= U::pr())
+        throw runtime_error("Shamir evaluation point outside range, need larger prime");
+}
+
+template<class T>
+template<int>
+inline void Shamir<T>::check_range(unsigned target, true_type)
+{
+    if (target >= (1 << U::size_in_bits()))
+        throw runtime_error("Shamir evaluation point outside range, need larger GF(2^n)");
+}
+
+template<class T>
 typename T::open_type::Scalar Shamir<T>::get_rec_factor(int i, int n)
 {
     vector<int> points(n);
@@ -25,10 +41,12 @@ template<class T>
 typename T::open_type::Scalar Shamir<T>::get_rec_factor(int i,
         const vector<int>& points, int target)
 {
+    check_range(target + 1, U::characteristic_two);
     assert(find(points.begin(), points.end(), i) != points.end());
     U res = 1;
     for (auto& other : points)
     {
+        check_range(other + 1, U::characteristic_two);
         if (i != other)
         {
             res *= (U(other + 1) - U(target + 1)) / (U(other + 1) - U(i + 1));

@@ -48,6 +48,11 @@ public:
 
     Player& P;
 
+    template<int = 0>
+    static void check_range(unsigned target, false_type);
+    template<int = 0>
+    static void check_range(unsigned target, true_type);
+
     static U get_rec_factor(int i, int n);
     static U get_rec_factor(int i, const vector<int>& points, int target = -1);
     static vector<U> get_rec_factors(const vector<int>& points, int target = -1);
