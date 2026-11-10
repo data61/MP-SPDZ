@@ -83,4 +83,13 @@ void MascotMacKey<T>::read_or_generate(Player& P)
     write_mac_key<typename share_type::part_type>(P.N, key);
 }
 
+template<class T>
+MascotMacKey<T> MascotMacKey<T>::get_fresh(Player& P) const
+{
+    MascotMacKey res;
+    res.T::operator=(*this);
+    res.ot = ot.get_fresh(P);
+    return res;
+}
+
 #endif /* OT_MASCOTMACKEY_HPP_ */

@@ -44,6 +44,8 @@ public:
         res.ot = ot.get_fresh();
         return res;
     }
+
+    MascotMacKey get_fresh(Player& P) const;
 };
 
 #endif /* OT_MASCOTMACKEY_H_ */

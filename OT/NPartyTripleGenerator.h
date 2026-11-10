@@ -59,6 +59,8 @@ class OTTripleGenerator : public GeneratorThread
 protected:
     static complete_mac_key_type mac_key;
 
+    complete_mac_key_type local_mac_key;
+
     //OTTripleSetup* setup;
     Player& globalPlayer;
     Player* parentPlayer;
@@ -109,7 +111,7 @@ public:
 
     typename T::MAC_Check* MC;
 
-    static complete_mac_key_type& get_mac_key() { return mac_key; }
+    const complete_mac_key_type& get_mac_key() const { return local_mac_key; }
     static mac_key_type get_mac_key(Player& P, bool = false);
     static void reset_mac_key();
 

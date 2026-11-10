@@ -16,6 +16,10 @@ class OTTripleSetup
     typedef vector< array<BitVector, 2> > sender_type;
     typedef vector<BitVector> receiver_type;
 
+    static BitVector prf(const BitVector& key, const octetStream& input);
+    static sender_type prf(const sender_type& keys, const octetStream& input);
+    static receiver_type prf(const receiver_type& keys, const octetStream& input);
+
     void run(int i);
 
     vector<BaseOT*> baseOTs;
@@ -110,10 +114,11 @@ public:
     //T get_mac_key();
 
     OTTripleSetup get_fresh();
+    OTTripleSetup get_fresh(Player& P) const;
 
     BaseOT get_base(size_t index);
 
-    int index_for(int other)
+    int index_for(int other) const
     {
         assert(other != my_num);
         if (other > my_num)
@@ -125,7 +130,7 @@ public:
     void pack(octetStream& os) const;
     void unpack(octetStream& os);
 
-    void check(TwoPartyPlayer& P);
+    void check(TwoPartyPlayer& P) const;
 };
 
 class OnDemandOTTripleSetup

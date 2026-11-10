@@ -147,6 +147,8 @@ OTTripleGenerator<T>::OTTripleGenerator(const OTTripleSetup& setup,
     assert(size_t(nbase) == baseSenderInputs.at(0).size());
     players.resize(n-1);
 
+    local_mac_key = mac_key.get_fresh(globalPlayer);
+
     // copy base OT inputs + outputs
     for (int j = 0; j < 128; j++)
     {

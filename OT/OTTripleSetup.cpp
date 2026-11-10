@@ -57,6 +57,54 @@ void OTTripleSetup::close_connections()
     }
 }
 
+BitVector OTTripleSetup::prf(const BitVector& key, const octetStream& input)
+{
+    assert(crypto_generichash_KEYBYTES >= key.size_bytes());
+    octet hash[crypto_generichash_KEYBYTES];
+    crypto_generichash(hash, key.size_bytes(), input.get_data(), input.get_length(),
+            key.get_ptr(), key.size_bytes());
+    return BitVector(hash, key.size());
+}
+
+OTTripleSetup::sender_type OTTripleSetup::prf(const sender_type& keys,
+        const octetStream& input)
+{
+    sender_type res;
+    for (auto& x : keys)
+    {
+        res.push_back({});
+        assert(x.at(0) != x.at(1));
+        for (auto i = 0; i < 2; i++)
+            res.back().at(i) = prf(x.at(i), input);
+        assert(res.back().at(0) != res.back().at(1));
+    }
+    return res;
+}
+
+OTTripleSetup::receiver_type OTTripleSetup::prf(const receiver_type& keys,
+        const octetStream& input)
+{
+    receiver_type res;
+    for (auto& x : keys)
+        res.push_back(prf(x, input));
+    return res;
+}
+
+OTTripleSetup OTTripleSetup::get_fresh(Player& P) const
+{
+    GlobalPRNG G(P);
+    octetStream session_id;
+    G.get_octetStream(session_id, crypto_generichash_KEYBYTES);
+    OTTripleSetup res;
+    res.base_receiver_inputs = base_receiver_inputs;
+    for (int i = 0; i < nparties - 1; i++)
+    {
+        res.baseSenderInputs.push_back(prf(baseSenderInputs.at(i), session_id));
+        res.baseReceiverOutputs.push_back(prf(baseReceiverOutputs.at(i), session_id));
+    }
+    return res;
+}
+
 OTTripleSetup OTTripleSetup::get_fresh()
 {
     OTTripleSetup res = *this;
@@ -109,7 +157,7 @@ void OTTripleSetup::unpack(octetStream& os)
         assert(x.size() == size_t(nbase));
 }
 
-void OTTripleSetup::check(TwoPartyPlayer& P)
+void OTTripleSetup::check(TwoPartyPlayer& P) const
 {
     insecure("reveal for check");
     int index = index_for(P.other_player_num());
