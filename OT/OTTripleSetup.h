@@ -16,10 +16,6 @@ class OTTripleSetup
     typedef vector< array<BitVector, 2> > sender_type;
     typedef vector<BitVector> receiver_type;
 
-    static BitVector prf(const BitVector& key, const octetStream& input);
-    static sender_type prf(const sender_type& keys, const octetStream& input);
-    static receiver_type prf(const receiver_type& keys, const octetStream& input);
-
     void run(int i);
 
     vector<BaseOT*> baseOTs;
@@ -53,6 +49,10 @@ public:
     vector<sender_type> baseSenderInputs;
     vector<receiver_type> baseReceiverOutputs;
     BitVector base_receiver_inputs;
+
+    static BitVector prf(const BitVector& key, const octetStream& input);
+    static sender_type prf(const sender_type& keys, const octetStream& input);
+    static receiver_type prf(const receiver_type& keys, const octetStream& input);
 
     int get_nparties() const { return nparties; }
     int get_nbase() const { return base_receiver_inputs.size(); }

@@ -670,7 +670,10 @@ void MascotMultiplier<T>::multiplyForBits(true_type)
     if (OnlineOptions::singleton.has_option("debug_mac"))
         cerr << "key bits: " << extKeyBits.str() << endl;
     extKeyBits.resize_zero(128);
-    auto extSenderOutput = this->senderOutput;
+    octetStream session_id;
+    GlobalPRNG(*generator.players[this->thread_num]).get_octetStream(session_id,
+            crypto_generichash_KEYBYTES);
+    auto extSenderOutput = OTTripleSetup::prf(this->senderOutput, session_id);
     extSenderOutput.resize(128, {{2, BitVector(128)}});
     SeededPRNG G;
     for (auto& x : extSenderOutput)
@@ -680,7 +683,8 @@ void MascotMultiplier<T>::multiplyForBits(true_type)
                 y.resize(128);
                 y.randomize(G);
             }
-    auto extReceiverOutput = this->receiverOutput;
+    auto extReceiverOutput = OTTripleSetup::prf(this->receiverOutput,
+            session_id);
     extReceiverOutput.resize(128, 128);
     OTExtensionWithMatrix auth_ot_ext(generator.players[this->thread_num], BOTH,
             true);

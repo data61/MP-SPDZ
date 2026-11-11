@@ -827,6 +827,15 @@ void VirtualTwoPartyPlayer::exchange(octetStream& o)
   P.exchange_no_stats(other_player, o, o);
 }
 
+void VirtualTwoPartyPlayer::partial_broadcast(const vector<bool>&,
+    const vector<bool>&, vector<octetStream>& o) const
+{
+  auto& to_send = o.at(my_num());
+  TimeScope ts(comm_stats["Broadcast"].add(to_send));
+  comm_stats.sent += o.at(my_num()).get_length();
+  P.exchange_no_stats(other_player, to_send, o.at(1 - my_num()));
+}
+
 void OffsetPlayer::send_receive_player(vector<octetStream>& o) const
 {
   P.exchange(P.get_player(offset), o[0], o[1]);

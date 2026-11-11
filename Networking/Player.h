@@ -589,6 +589,9 @@ public:
   void pass_around(octetStream& o, int _ = 1) const { (void)_, (void) o; throw not_implemented(); }
   void exchange(octetStream& o);
 
+  void partial_broadcast(const vector<bool>&,
+      const vector<bool>&, vector<octetStream>& o) const;
+
   size_t send(const PlayerBuffer& buffer, bool block) const;
   size_t recv(const PlayerBuffer& buffer, bool block) const;
 
