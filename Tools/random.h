@@ -101,7 +101,7 @@ class PRNG
     * @param P communication instances
     * @param secure seeding prevents tampering at higher cost
     */
-   void SeedGlobally(const Player& P, bool secure = true);
+   void SeedGlobally(const PlayerBase& P, bool secure = true);
 
    /// Initialize with ``SEED_SIZE`` bytes from pointer.
    void SetSeed(const unsigned char*);
@@ -209,7 +209,7 @@ class GlobalPRNG : public PRNG
 public:
   GlobalPRNG(const PlayerBase& P)
   {
-    SeedGlobally(P);
+    SeedGlobally(P, true);
   }
 };
 

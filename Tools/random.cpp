@@ -54,10 +54,10 @@ void PRNG::SeedGlobally(const PlayerBase& P, const vector<bool>& parties)
   SetSeed(seed);
 }
 
-void PRNG::SeedGlobally(const Player& P, bool secure)
+void PRNG::SeedGlobally(const PlayerBase& P, bool secure)
 {
   if (secure)
-    SeedGlobally(static_cast<const PlayerBase&>(P));
+    SeedGlobally(P, vector<bool>());
   else
     {
       octetStream os;

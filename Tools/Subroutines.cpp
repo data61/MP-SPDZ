@@ -18,7 +18,7 @@
 
 
 // Special version for octetStreams
-void Commit(vector< vector<octetStream> >& Comm_data,
+void CommitSession::Commit(vector< vector<octetStream> >& Comm_data,
             vector<octetStream>& Open_data,
             const vector< vector<octetStream> >& data,const Player& P,int num_runs)
 {
@@ -35,7 +35,7 @@ void Commit(vector< vector<octetStream> >& Comm_data,
 
 
 // Special version for octetStreams
-void Open(vector< vector<octetStream> >& data,
+void CommitSession::Open(vector< vector<octetStream> >& data,
           const vector< vector<octetStream> >& Comm_data,
           const vector<octetStream>& My_Open_data,
           const Player& P,int num_runs,int dont)
@@ -59,7 +59,7 @@ void Open(vector< vector<octetStream> >& data,
 }
 
 
-void Open(vector< vector<octetStream> >& data,
+void CommitSession::Open(vector< vector<octetStream> >& data,
           const vector< vector<octetStream> >& Comm_data,
           const vector<octetStream>& My_Open_data,
           const vector<int> open,
@@ -87,7 +87,7 @@ void Open(vector< vector<octetStream> >& data,
 
 
 
-void Commit_To_Challenge(vector<unsigned int>& e,
+void CommitSession::Commit_To_Challenge(vector<unsigned int>& e,
                          vector<octetStream>& Comm_e,vector<octetStream>& Open_e,
                          const Player& P,int num_runs)
 {
@@ -106,7 +106,7 @@ void Commit_To_Challenge(vector<unsigned int>& e,
 }
 
 
-int Open_Challenge(vector<unsigned int>& e,vector<octetStream>& Open_e,
+int CommitSession::Open_Challenge(vector<unsigned int>& e,vector<octetStream>& Open_e,
                    const vector<octetStream>& Comm_e,
                    const Player& P,int num_runs)
 {
@@ -146,7 +146,8 @@ void Create_Random_Seed(octet* seed, const PlayerBase& P, int len,
   vector<octetStream> Open_e(P.num_players());
 
   G.get_octetStream(e[P.my_num()],len);
-  Commit(Comm_e[P.my_num()],Open_e[P.my_num()],e[P.my_num()],P.my_num());
+  CommitSession session;
+  session.Commit(Comm_e[P.my_num()],Open_e[P.my_num()],e[P.my_num()],P.my_num());
   P.partial_broadcast(my_parties, my_parties, Comm_e);
 
   P.partial_broadcast(my_parties, my_parties, Open_e);
@@ -157,7 +158,7 @@ void Create_Random_Seed(octet* seed, const PlayerBase& P, int len,
       {
         if (i != P.my_num())
           {
-            if (!Open(e[i], Comm_e[i], Open_e[i], i))
+            if (!session.Open(e[i], Comm_e[i], Open_e[i], i))
               throw invalid_commitment();
           }
         for (int j = 0; j < len; j++)
@@ -177,7 +178,9 @@ void Commit_And_Open_(vector<octetStream>& datas, const Player& P, Coordinator& 
   vector<octetStream> Comm_data(P.num_players());
   vector<octetStream> Open_data(P.num_players());
 
-  Commit(Comm_data[P.my_num()],Open_data[P.my_num()],datas[P.my_num()],P.my_num());
+
+  CommitSession session(P);
+  session.Commit(Comm_data[P.my_num()],Open_data[P.my_num()],datas[P.my_num()],P.my_num());
   P.Broadcast_Receive(Comm_data);
 
   coordinator.wait(P.get_id());
@@ -185,14 +188,14 @@ void Commit_And_Open_(vector<octetStream>& datas, const Player& P, Coordinator& 
 
   for (int i = 0; i < P.num_players(); i++)
     { if (i != P.my_num())
-        { if (!Open(datas[i],Comm_data[i],Open_data[i],i))
+        { if (!session.Open(datas[i],Comm_data[i],Open_data[i],i))
              { throw invalid_commitment(); }
         }
     }
 }
 
 
-void Commit_To_Seeds(vector<PRNG>& G,
+void CommitSession::Commit_To_Seeds(vector<PRNG>& G,
                      vector< vector<octetStream> >& seeds,
                      vector< vector<octetStream> >& Comm_seeds,
 		     vector<octetStream>& Open_seeds,

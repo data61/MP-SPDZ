@@ -1017,5 +1017,12 @@ TwoPartyPlayer* VirtualTwoPartyPlayer::fork(string suffix)
   return res;
 }
 
+word PlayerBase::get_session_id() const
+{
+  if (not session_gen.is_initialized())
+    session_gen.SeedGlobally(*this, true);
+  return session_gen.get_word();
+}
+
 template class MultiPlayer<int>;
 template class MultiPlayer<ssl_socket*> ;

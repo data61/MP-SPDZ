@@ -13,25 +13,6 @@
 
 #include "Subroutines.hpp"
 
-/* Run just the Open Protocol for data[i][j] of type octetStream
- *   0 <= i < num_runs
- *   0 <= j < num_players
- * On output data[i][j] contains all the data
- * If dont!=-1 then dont open this run
- */
-void Open(vector< vector<octetStream> >& data,
-          const vector< vector<octetStream> >& Comm_data,
-          const vector<octetStream>& My_Open_data,
-          const Player& P,int num_runs,int dont=-1);
-
-/* This one takes a vector open which contains 0 and 1
- * If 1 then we open this value, otherwise we do not
- */
-void Open(vector< vector<octetStream> >& data,
-          const vector< vector<octetStream> >& Comm_data,
-          const vector<octetStream>& My_Open_data,
-          const vector<int> open,
-          const Player& P,int num_runs);
 
 
 
@@ -91,16 +72,6 @@ void Create_Random_Seed(octet* seed, const PlayerBase& P, int len,
 
 
 
-/* Functions to Commit to Seed Values 
- *  This also initialises the PRNG's in G
- */
-void Commit_To_Seeds(vector<PRNG>& G,
-                     vector< vector<octetStream> >& seeds,
-                     vector< vector<octetStream> >& Comm_seeds,
-		     vector<octetStream>& Open_seeds,
-		     const Player& P,int num_runs);
-
-
 
 /* Run just the Commit Protocol for data[i][j] of type T
  *   0 <= i < num_runs
@@ -108,7 +79,7 @@ void Commit_To_Seeds(vector<PRNG>& G,
  * On input data[i][j] is only defined for j=my_number
  */
 template<class T>
-void Commit(vector< vector<octetStream> >& Comm_data,
+void CommitSession::Commit(vector< vector<octetStream> >& Comm_data,
             vector<octetStream>& Open_data,
             const vector< vector<T> >& data,const Player& P,int num_runs)
 {
@@ -131,10 +102,10 @@ void Commit(vector< vector<octetStream> >& Comm_data,
  * If dont!=-1 then dont open this run
  */
 template<class T>
-void Open(vector< vector<T> >& data,
+void CommitSession::Open(vector< vector<T> >& data,
           const vector< vector<octetStream> >& Comm_data,
           const vector<octetStream>& My_Open_data,
-          const Player& P,int num_runs,int dont=-1)
+          const Player& P,int num_runs,int dont)
 {
   octetStream os;
   int my_number=P.my_num();

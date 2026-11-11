@@ -290,6 +290,7 @@ void Run_Gen_Protocol(FHE_PK& pk,FHE_SK& sk,const Player& P,int num_runs,
 {
   CODE_LOCATION
   const FHE_Params& params=pk.get_params();
+  CommitSession session(P);
 
 #ifdef VERBOSE_KEYGEN
   double start,stop;
@@ -303,7 +304,7 @@ void Run_Gen_Protocol(FHE_PK& pk,FHE_SK& sk,const Player& P,int num_runs,
   vector<unsigned int> e(P.num_players());
   vector<octetStream> Comm_e(P.num_players());
   vector<octetStream> Open_e(P.num_players());
-  Commit_To_Challenge(e,Comm_e,Open_e,P,num_runs);
+  session.Commit_To_Challenge(e,Comm_e,Open_e,P,num_runs);
 
 #ifdef VERBOSE_KEYGEN
   cout << "Done Step 1 " << endl;
@@ -321,7 +322,7 @@ void Run_Gen_Protocol(FHE_PK& pk,FHE_SK& sk,const Player& P,int num_runs,
   vector<octetStream> Open_seeds(num_runs);
 
   vector<PRNG> G(num_runs);
-  Commit_To_Seeds(G,seeds,Comm_seeds,Open_seeds,P,num_runs);
+  session.Commit_To_Seeds(G,seeds,Comm_seeds,Open_seeds,P,num_runs);
 
 #ifdef VERBOSE_KEYGEN
   cout << "Done Step 2 " << endl;
@@ -489,7 +490,7 @@ void Run_Gen_Protocol(FHE_PK& pk,FHE_SK& sk,const Player& P,int num_runs,
    *     Step 13/14      *
    ***********************/
 
-  int challenge=Open_Challenge(e,Open_e,Comm_e,P,num_runs);
+  int challenge=session.Open_Challenge(e,Open_e,Comm_e,P,num_runs);
 
 #ifdef VERBOSE_KEYGEN
   cout << "Done Step 13/14 " << endl;
@@ -503,7 +504,7 @@ void Run_Gen_Protocol(FHE_PK& pk,FHE_SK& sk,const Player& P,int num_runs,
    *       Step 15       *
    ***********************/
   // Dont open the challenge run
-  Open(seeds,Comm_seeds,Open_seeds,P,num_runs,challenge);
+  session.Open(seeds,Comm_seeds,Open_seeds,P,num_runs,challenge);
 
   /********************************************************************/
 

@@ -24,6 +24,7 @@ using namespace std;
 #include "Tools/ezOptionParser.h"
 #include "Networking/PlayerBuffer.h"
 #include "Tools/Lock.h"
+#include "Tools/random.h"
 
 template<class T> class MultiPlayer;
 class Server;
@@ -202,6 +203,8 @@ protected:
   size_t& sent;
   mutable NamedCommStats comm_stats;
 
+  mutable PRNG session_gen;
+
 public:
   mutable Timer timer;
 
@@ -217,6 +220,8 @@ public:
   int get_player(int offset) const
   { return positive_modulo(offset + my_num(), num_players()); }
 
+  virtual void send_all(const octetStream&) const
+  { throw not_implemented(); }
   virtual void receive_player(int, octetStream&) const
   { throw not_implemented(); }
   virtual void pass_around(octetStream&, int = 1) const
@@ -231,6 +236,8 @@ public:
   virtual void partial_broadcast(const vector<bool>&,
       const vector<bool>&, vector<octetStream>&) const
   { throw not_implemented(); }
+
+  word get_session_id() const;
 };
 
 /**

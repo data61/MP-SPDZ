@@ -22,7 +22,8 @@ void Create_Random(T& ans,const Player& P)
   e[P.my_num()].randomize(G);
   octetStream ee;
   e[P.my_num()].pack(ee);
-  Commit(Comm_e[P.my_num()],Open_e[P.my_num()],ee,P.my_num());
+  CommitSession session(P);
+  session.Commit(Comm_e[P.my_num()],Open_e[P.my_num()],ee,P.my_num());
   P.Broadcast_Receive(Comm_e);
 
   P.Broadcast_Receive(Open_e);
@@ -30,7 +31,7 @@ void Create_Random(T& ans,const Player& P)
   ans.assign_zero();
   for (int i = 0; i < P.num_players(); i++)
     { if (i != P.my_num())
-        { if (!Open(ee,Comm_e[i],Open_e[i],i))
+        { if (!session.Open(ee,Comm_e[i],Open_e[i],i))
              { throw invalid_commitment(); }
           e[i].unpack(ee);
           }

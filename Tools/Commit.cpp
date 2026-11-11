@@ -3,21 +3,41 @@
 #include "random.h"
 #include "int.h"
 
-void Commit(octetStream& comm,octetStream& open,const octetStream& message, int send_player)
+CommitSession::CommitSession() :
+        session_id(0)
 {
+}
+
+CommitSession::CommitSession(const PlayerBase& P)
+{
+    session_id = P.get_session_id();
+}
+
+void CommitSession::Commit(octetStream& comm, octetStream& open, const octetStream& message,
+        int send_player)
+{
+    if (session_id)
+        open.store(session_id);
+
     open.store(send_player);
     open.append(message.get_data(), message.get_length());
     open.append_random(SEED_SIZE);
     comm = open.hash();
 }
 
-bool Open(octetStream& message,const octetStream& comm, octetStream& open, int send_player)
+
+bool CommitSession::Open(octetStream& message, const octetStream& comm, octetStream& open,
+        int send_player)
 {
     octetStream h = open.hash();
+
     // first 4 bytes are player no.
     int open_player;
     try
     {
+        if (session_id and open.get<word>() != session_id)
+            throw runtime_error("wrong session id");
+
         open_player = open.get<int>();
     }
     catch (exception& e)
@@ -35,6 +55,11 @@ bool Open(octetStream& message,const octetStream& comm, octetStream& open, int s
     return true;
 }
 
+Commitment::Commitment(word session_id, int send_player) :
+        session_id(session_id), send_player(send_player)
+{
+}
+
 void Commitment::commit(const octetStream& message)
 {
     open.reset_write_head();
@@ -45,6 +70,7 @@ void Commitment::commit(const octetStream& message)
 void Commitment::commit(const octetStream& message, const octetStream& open)
 {
     Hash hash;
+    hash.update(&session_id, sizeof(session_id));
     hash.update(&send_player, sizeof(send_player));
     hash.update(message);
     hash.update(open);
@@ -61,6 +87,12 @@ void Commitment::check(const octetStream& message, const octetStream& comm,
         throw invalid_commitment(send_player);
 }
 
+AllCommitments::AllCommitments(const Player& P) :
+        P(P), comms(P.num_players()), opens(P.num_players()),
+        session_id(P.get_session_id())
+{
+}
+
 void AllCommitments::commit_and_open(const octetStream& message)
 {
     commit(message);
@@ -69,7 +101,7 @@ void AllCommitments::commit_and_open(const octetStream& message)
 
 void AllCommitments::commit(const octetStream& message)
 {
-    Commitment mine(P.my_num());
+    Commitment mine(session_id, P.my_num());
     mine.commit(message);
     comms[P.my_num()] = mine.comm;
     opens[P.my_num()] = mine.open;
@@ -93,7 +125,7 @@ void AllCommitments::open(const octetStream& message)
 
 void AllCommitments::check(int player, const octetStream& message)
 {
-    Commitment(player).check(message, comms[player], opens[player]);
+    Commitment(session_id, player).check(message, comms[player], opens[player]);
 }
 
 void AllCommitments::check_relative(int diff, const octetStream& message)

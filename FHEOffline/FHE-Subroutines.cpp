@@ -16,8 +16,9 @@ void Commit_And_Open(vector< vector<T> >& data,const Player& P,int num_runs)
   int num_players=P.num_players();
   vector< vector<octetStream> > Comm_data(num_runs, vector<octetStream>(num_players));
   vector<octetStream> Open_data(num_runs);
-  Commit(Comm_data,Open_data,data,P,num_runs);
-  Open(data,Comm_data,Open_data,P,num_runs);
+  CommitSession session(P);
+  session.Commit(Comm_data,Open_data,data,P,num_runs);
+  session.Open(data,Comm_data,Open_data,P,num_runs);
 }
 
 

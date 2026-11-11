@@ -92,7 +92,8 @@ void covert_generation(Plaintext_<FD>& mess, vector<Ciphertext>& C,
   vector<octetStream> Open_seeds(num_runs);
 
   vector<PRNG> G(num_runs);
-  Commit_To_Seeds(G,seeds,Comm_seeds,Open_seeds,*P,num_runs);
+  CommitSession session(*P);
+  session.Commit_To_Seeds(G,seeds,Comm_seeds,Open_seeds,*P,num_runs);
 
   // Generate the messages and ciphertexts
   vector< Plaintext_<FD> > m(num_runs,mess.get_field());
@@ -120,13 +121,13 @@ void covert_generation(Plaintext_<FD>& mess, vector<Ciphertext>& C,
   vector<unsigned int> e((*P).num_players());
   vector<octetStream> Comm_e((*P).num_players());
   vector<octetStream> Open_e((*P).num_players());
-  Commit_To_Challenge(e,Comm_e,Open_e,*P,num_runs);
+  session.Commit_To_Challenge(e,Comm_e,Open_e,*P,num_runs);
   
   // Open challenge
-  int challenge=Open_Challenge(e,Open_e,Comm_e,*P,num_runs);
+  int challenge=session.Open_Challenge(e,Open_e,Comm_e,*P,num_runs);
 
   // Open seeds, but not the challenge run
-  Open(seeds,Comm_seeds,Open_seeds,*P,num_runs,challenge);
+  session.Open(seeds,Comm_seeds,Open_seeds,*P,num_runs,challenge);
 
   // Now check all the prior executions
   Plaintext_<FD> mm(mess.get_field());
@@ -240,6 +241,7 @@ void EncCommit<T,FD,S>::Create_More() const
   vector<Rq_Element> z(4,Rq_Element(params.FFTD(),polynomial,polynomial));
   vector<octetStream> Comm_data((*P).num_players());
 
+  CommitSession session(*P);
   char filename[1024];
   bool fail=true;
   int iter=0;
@@ -257,7 +259,7 @@ void EncCommit<T,FD,S>::Create_More() const
       for (int j=0; j<(*P).num_players(); j++)
 	{ Comm_data[j].reset_write_head();  }
       
-      Commit_To_Seeds(Gseed,seeds,Comm_seeds,Open_seeds,*P,2*TT);
+      session.Commit_To_Seeds(Gseed,seeds,Comm_seeds,Open_seeds,*P,2*TT);
 
       // Now generate and transmit/receive the Delta's
       Rq_Element m_Delta(Rq_Element(params.FFTD(),polynomial,polynomial));
@@ -304,7 +306,7 @@ void EncCommit<T,FD,S>::Create_More() const
         }
     
       // Now open the seeds we have decided to open
-      Open(seeds,Comm_seeds,Open_seeds,open,*P,2*TT);
+      session.Open(seeds,Comm_seeds,Open_seeds,open,*P,2*TT);
     
       // Now check all opened Delta's are OK for all players
       octetStream occ,ctx_D;
