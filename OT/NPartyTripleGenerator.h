@@ -17,8 +17,6 @@
 #include <map>
 #include <vector>
 
-#define N_AMPLIFY 3
-
 template <class T, int N>
 class ShareTriple;
 template <class T, int N>
@@ -55,6 +53,8 @@ class OTTripleGenerator : public GeneratorThread
     typedef MascotMacKey<typename T::mac_key_type> complete_mac_key_type;
 
     template<class> friend class OTTripleGenerator;
+
+    static const int MAX_AMPLIFY = 4;
 
 protected:
     static complete_mac_key_type mac_key;
@@ -104,7 +104,7 @@ public:
 
     MascotParams& machine;
 
-    vector<PlainTriple<open_type, N_AMPLIFY>> preampTriples;
+    vector<PlainTriple<open_type, MAX_AMPLIFY>> preampTriples;
     vector<array<open_type, 3>> plainTriples;
     vector<dabit<T>> plainBits;
     vector<array<open_type, 3>> mixedTriples;

@@ -49,11 +49,11 @@ public:
     }
 
     template <int M>
-    void amplify(const Triple<T,M>& uncheckedTriple, PRNG& G)
+    void amplify(const Triple<T,M>& uncheckedTriple, PRNG& G, int nAmplify)
     {
         b = uncheckedTriple.b;
         for (int i = 0; i < N; i++)
-            for (int j = 0; j < M; j++)
+            for (int j = 0; j < nAmplify; j++)
             {
                 typename T::value_type r;
                 r.randomize(G);

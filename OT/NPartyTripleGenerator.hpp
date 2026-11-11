@@ -133,7 +133,19 @@ OTTripleGenerator<T>::OTTripleGenerator(const OTTripleSetup& setup,
         MC(0)
 {
     field_size = T::open_type::size() * 8;
-    nAmplify = machine.amplify ? N_AMPLIFY : 1;
+
+    if (machine.amplify)
+    {
+        if (2 * OnlineOptions::singleton.security_parameter
+                < T::open_type::length())
+            nAmplify = 3;
+        else
+            nAmplify = 4;
+    }
+    else
+        nAmplify = 1;
+
+    assert(0 < nAmplify and nAmplify <= MAX_AMPLIFY);
     set_batch_size(_nTriples);
 
     int n = nparties;
@@ -768,7 +780,7 @@ void SimpleMascotTripleGenerator<U>::generateTriples()
             for (int iTriple = 0; iTriple < nTriplesPerLoop; iTriple++)
             {
                 PlainTriple<T,2> triple;
-                triple.amplify(preampTriples[iTriple], G);
+                triple.amplify(preampTriples[iTriple], G, this->nAmplify);
 
                 if (machine.generateMACs)
                     amplifiedTriples[iTriple] = triple;
