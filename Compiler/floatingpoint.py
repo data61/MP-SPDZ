@@ -453,6 +453,9 @@ def Trunc(a, l, m, compute_modulo=False, signed=False):
     else:
         kappa = program.Program.prog.security
     prog.reading('secret truncation', 'ABZS13', 'Section 3')
+    # a can be an int (int >> sint), and m one shift for a vector a
+    size = max(getattr(x, 'size', 1) for x in (a, m))
+    instructions_base.set_global_vector_size(size)
     r = [types.sint() for i in range(l)]
     r_dprime = types.sint(0)
     r_prime = types.sint(0)
@@ -480,6 +483,7 @@ def Trunc(a, l, m, compute_modulo=False, signed=False):
     d = program.Program.prog.non_linear.ltz(c_dprime - r_prime, l)
     if compute_modulo:
         b = c_dprime - r_prime + pow2m * d
+        instructions_base.reset_global_vector_size()
         return b, pow2m
     else:
         to_shift = a - c_dprime + r_prime
@@ -489,6 +493,7 @@ def Trunc(a, l, m, compute_modulo=False, signed=False):
             pow2inv = Inv(pow2m)
             shifted = to_shift * pow2inv
         b = shifted - d
+    instructions_base.reset_global_vector_size()
     return b
 
 @instructions_base.ret_cisc
