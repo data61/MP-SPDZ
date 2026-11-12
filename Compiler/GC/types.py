@@ -1607,7 +1607,10 @@ class sbitintvec(sbitvec, _bitint, _number, _sbitintbase):
     functions = {}
     @classmethod
     def popcnt_bits(cls, bits):
-        return sbitvec.from_vec(bits).popcnt()
+        res = sbitvec.from_vec(bits).popcnt()
+        if cls is sbitintvec:
+            return res
+        return cls.from_vec(res.v, signed=False)
     def elements(self):
         return [sbitint.get_type(len(self.v))(x)
                 for x in sbitvec.elements(self)]
