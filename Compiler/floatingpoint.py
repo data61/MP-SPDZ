@@ -394,8 +394,11 @@ def BitDecField(a, k, m, bits_to_compute=None):
 def Pow2(a, l):
     comparison.program.curr_tape.require_bit_length(l - 1)
     m = int(ceil(log(l, 2)))
+    instructions_base.set_global_vector_size(a.size)
     t = BitDec(a, m, m)
-    return Pow2_from_bits(t)
+    res = Pow2_from_bits(t)
+    instructions_base.reset_global_vector_size()
+    return res
 
 def Pow2_from_bits(bits):
     comparison.program.reading('power of two', 'ABZS13', 'Section 3')
