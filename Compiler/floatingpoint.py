@@ -247,7 +247,10 @@ def PreOpN(op, items):
 
 def PreOR(a=None, raw=False):
     if comparison.const_rounds and a and isinstance(a[0], types._secret):
-        return PreORC(a, raw=raw)
+        instructions_base.set_global_vector_size(a[0].size)
+        res = PreORC(a, raw=raw)
+        instructions_base.reset_global_vector_size()
+        return res
     else:
         return PreOpL(or_op, a)
 
