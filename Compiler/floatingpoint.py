@@ -25,6 +25,15 @@ def two_power(n):
 def shift_two(n, pos):
     return n >> pos
 
+def vectorize(function):
+    """ :py:func:`library.vectorize`, imported when called because
+    library is loaded after this module """
+    def vectorized_function(*args, **kwargs):
+        from . import library
+        return library.vectorize(function)(*args, **kwargs)
+    vectorized_function.__name__ = function.__name__
+    return vectorized_function
+
 
 def maskRing(a, k):
     shift = int(program.Program.prog.options.ring) - k
@@ -103,6 +112,7 @@ def or_op(a, b, void=None):
 def mul_op(a, b, void=None):
     return a * b
 
+@vectorize
 def PreORC(a, m=None, raw=False):
     k = len(a)
     if k == 1:
@@ -247,7 +257,7 @@ def PreOpN(op, items):
 
 def PreOR(a=None, raw=False):
     if comparison.const_rounds and a and isinstance(a[0], types._secret):
-        return PreORC(a, raw=raw)
+        return PreORC(a, raw=raw, size=a[0].size)
     else:
         return PreOpL(or_op, a)
 
@@ -388,6 +398,7 @@ def BitDecField(a, k, m, bits_to_compute=None):
 
 
 @instructions_base.ret_cisc
+@vectorize
 def Pow2(a, l):
     comparison.program.curr_tape.require_bit_length(l - 1)
     m = int(ceil(log(l, 2)))
@@ -435,6 +446,7 @@ def B2U_from_Pow2(pow2a, l):
     #print ' '.join(str(b.value) for b in y)
     return [types.sint.conv(1 - y[i]) for i in range(l)]
 
+@vectorize
 def Trunc(a, l, m, compute_modulo=False, signed=False):
     """ Oblivious truncation by secret m """
     prog = program.Program.prog
