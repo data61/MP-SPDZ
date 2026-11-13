@@ -1029,7 +1029,7 @@ TwoPartyPlayer* VirtualTwoPartyPlayer::fork(string suffix)
 word PlayerBase::get_session_id() const
 {
   if (not session_gen.is_initialized())
-    session_gen.SeedGlobally(*this, true);
+    session_gen.SeedGlobally(*this);
   return session_gen.get_word();
 }
 

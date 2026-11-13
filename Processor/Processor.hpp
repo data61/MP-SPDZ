@@ -111,13 +111,22 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
   binary_input.open(binary_input_filename);
 
   secure_prng.ReSeed();
-  shared_prng.SeedGlobally(P, false);
-  vector<IntBase<octet>> seed(shared_prng.get_seed(), shared_prng.get_seed() + SEED_SIZE);
-  Procp.protocol.forward_sync(seed);
-  shared_prng.SetSeed((octet*) seed.data());
 
   setup_redirection(P.my_num(), thread_num, opts, out, sint::real_shares(P));
   Procb.out = out;
+}
+
+
+template<class sint, class sgf2n>
+void Processor<sint, sgf2n>::init_shared_prng_if_needed()
+{
+  if (not shared_prng.is_initialized())
+    {
+      shared_prng.SeedGlobally(P);
+      vector<IntBase<octet>> seed(shared_prng.get_seed(), shared_prng.get_seed() + SEED_SIZE);
+      Procp.protocol.forward_sync(seed);
+      shared_prng.SetSeed((octet*) seed.data());
+    }
 }
 
 

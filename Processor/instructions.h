@@ -207,7 +207,8 @@
     X(PRINTCHR, Proc.out << string((char*)&n,1) << flush,) \
     X(SHUFFLE, shuffle(Proc),) \
     X(BITDECINT, bitdecint(Proc),) \
-    X(RAND, auto dest = &Ci[r[0]]; auto source = &Ci[r[1]], \
+    X(RAND, Proc.init_shared_prng_if_needed(); \
+            auto dest = &Ci[r[0]]; auto source = &Ci[r[1]], \
             *dest++ = Proc.shared_prng.get_uint() % (1 << (*source++).get())) \
     X(GROUPSUMINT, groupsumint(Ci),) \
     X(QS_PERM, qs_perm(Ci),) \

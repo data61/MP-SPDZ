@@ -92,16 +92,14 @@ class PRNG
    /// Initialize from local randomness.
    void ReSeed();
 
-   // Agree securely on seed
-   void SeedGlobally(const PlayerBase& P,
-           const vector<bool>& parties = { });
-
    /**
     * Coordinate random seed
     * @param P communication instances
-    * @param secure seeding prevents tampering at higher cost
+    * @param parties involved parties
     */
-   void SeedGlobally(const PlayerBase& P, bool secure = true);
+   void SeedGlobally(const PlayerBase& P,
+           const vector<bool>& parties = { });
+   void SeedGloballyIfNeeded(const PlayerBase& P);
 
    /// Initialize with ``SEED_SIZE`` bytes from pointer.
    void SetSeed(const unsigned char*);
@@ -209,7 +207,7 @@ class GlobalPRNG : public PRNG
 public:
   GlobalPRNG(const PlayerBase& P)
   {
-    SeedGlobally(P, true);
+    SeedGlobally(P);
   }
 };
 

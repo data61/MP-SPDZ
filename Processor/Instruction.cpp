@@ -97,6 +97,7 @@ void Instruction::incint(StackedVector<Integer>& Ci) const
 
 void Instruction::shuffle(ArithmeticProcessor& Proc) const
 {
+    Proc.init_shared_prng_if_needed();
     for (int i = 0; i < size; i++)
         Proc.write_Ci(r[0] + i, Proc.read_Ci(r[1] + i));
     for (int i = 0; i < size; i++)

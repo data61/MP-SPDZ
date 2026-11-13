@@ -210,6 +210,11 @@ public:
     throw not_implemented();
   }
 
+  virtual void init_shared_prng_if_needed()
+  {
+    throw not_implemented();
+  }
+
   void shuffle(const Instruction& instruction);
   void bitdecint(const Instruction& instruction);
 };
@@ -317,6 +322,8 @@ class Processor : public ArithmeticProcessor
   TimerWithComm prep_time();
 
   void jump(int n);
+
+  void init_shared_prng_if_needed();
 
   private:
 
