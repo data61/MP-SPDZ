@@ -1072,6 +1072,7 @@ class sbitvec(Tape._no_secret_truth, _vec, _bit, _binary):
         res = sbitint.wallace_tree([[b] for b in self.v])
         while util.is_zero(res[-1]):
             del res[-1]
+        res += [0]
         return sbitintvec.get_type(len(res)).from_vec(res)
     def elements(self, start=None, stop=None, n=None):
         if stop is None:
