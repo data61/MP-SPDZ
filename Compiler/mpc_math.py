@@ -481,13 +481,15 @@ def log2_fx(x, use_division=True):
 
     """
     library.get_program().reading('logarithm', 'AS19', 'Section 5')
+    corr = 0
     if isinstance(x, types._fix):
         # transforms sfix to f*2^n, where f is [o.5,1] bounded
         # obtain number bounded by [0,5 and 1] by transforming input to sfloat
         v, p, z, s = floatingpoint.Int2FL(x.v, x.k, x.f)
         p -= x.f
+        corr = max(0, 4 - x.f)
         vlen = x.f
-        v = x._new(v, k=x.k, f=x.f)
+        v = x._new(v << corr, k=x.k + corr, f=x.f + corr)
     elif isinstance(x, (types._register, types.cfix)):
         return log2_fx(types.sfix(x), use_division)
     else:
@@ -505,6 +507,8 @@ def log2_fx(x, use_division=True):
     else:
         approx = p_eval(p_2508, v)
     # the log is returned by adding the result of the division plus p.
+    if corr:
+        approx = x._new(approx.v >> corr, f=x.f, k=x.k)
     a = approx + (vlen + p)
     return a  # *(1-(f.z))*(1-f.s)*(1-f.error)
 
