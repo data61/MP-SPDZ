@@ -546,7 +546,7 @@ void Spdz2kTripleGenerator<T>::generateTriples()
 		r.set_mac(r_mac);
 
 		MC.set_random_element(r);
-		sacrificeZ2k(MC, G);
+		sacrificeZ2k(MC);
 	}
 }
 
@@ -821,7 +821,7 @@ void SimpleMascotTripleGenerator<U>::generateTriples()
 
                 if (machine.check)
                 {
-                    sacrifice(this->MC ? *this->MC : MC, G);
+                    sacrifice(this->MC ? *this->MC : MC);
                 }
             }
         }
@@ -829,7 +829,7 @@ void SimpleMascotTripleGenerator<U>::generateTriples()
 }
 
 template<class T>
-void MascotTripleGenerator<T>::sacrifice(typename T::MAC_Check& MC, PRNG& G)
+void MascotTripleGenerator<T>::sacrifice(typename T::MAC_Check& MC)
 {
     CODE_LOCATION
     auto& machine = this->machine;
@@ -842,6 +842,7 @@ void MascotTripleGenerator<T>::sacrifice(typename T::MAC_Check& MC, PRNG& G)
 
     vector<T> maskedAs(nTriplesPerLoop);
     vector<TripleToSacrifice<T> > maskedTriples(nTriplesPerLoop);
+    GlobalPRNG G(globalPlayer);
     for (int j = 0; j < nTriplesPerLoop; j++)
     {
         maskedTriples[j].template prepare_sacrifice<T>(uncheckedTriples[j], G);
@@ -890,7 +891,7 @@ void MascotTripleGenerator<T>::sacrifice(typename T::MAC_Check& MC, PRNG& G)
 
 template<class W>
 template<class U>
-void Spdz2kTripleGenerator<W>::sacrificeZ2k(U& MC, PRNG& G)
+void Spdz2kTripleGenerator<W>::sacrificeZ2k(U& MC)
 {
     CODE_LOCATION
     typedef sacri_type T;
@@ -905,6 +906,7 @@ void Spdz2kTripleGenerator<W>::sacrificeZ2k(U& MC, PRNG& G)
 
     vector<prep_check_type> maskedAs(nTriplesPerLoop);
     vector<TripleToSacrifice<Share<T>> > maskedTriples(nTriplesPerLoop);
+    GlobalPRNG G(globalPlayer);
     for (int j = 0; j < nTriplesPerLoop; j++)
     {
         // compute [p] = t * [a] - [ahat]

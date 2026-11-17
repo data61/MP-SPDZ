@@ -165,7 +165,7 @@ class SimpleMascotTripleGenerator : public NPartyTripleGenerator<T>
     typedef typename T::mac_key_type mac_key_type;
     typedef typename T::MAC_Check MAC_Check;
 
-    virtual void sacrifice(typename T::MAC_Check&, PRNG&) { throw not_implemented(); }
+    virtual void sacrifice(typename T::MAC_Check&) { throw not_implemented(); }
 
 public:
     vector< ShareTriple<T, 2> > uncheckedTriples;
@@ -192,7 +192,7 @@ class MascotTripleGenerator : public SimpleMascotTripleGenerator<T>
     template <class U>
     void generateBitsFromTriples(MAC_Check& MC, ofstream& outputFile, U);
 
-    void sacrifice(typename T::MAC_Check& MC, PRNG& G);
+    void sacrifice(typename T::MAC_Check& MC);
 
 public:
     vector<T> bits;
@@ -212,7 +212,7 @@ class Spdz2kTripleGenerator : public NPartyTripleGenerator<T>
     void generateBits() { throw not_implemented(); }
 
     template<class U>
-    void sacrificeZ2k(U& MC, PRNG& G);
+    void sacrificeZ2k(U& MC);
 
 public:
     vector< ShareTriple<Share<sacri_type>, 2> > uncheckedTriples;
