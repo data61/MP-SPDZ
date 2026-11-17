@@ -3094,6 +3094,8 @@ class sint(_secret, _int):
                                                 signed=signed)
         else:
             if secret:
+                if self.size == 1 and m.size > 1:
+                    self = self.expand_to_vector(m.size)
                 return floatingpoint.Trunc(self, k, m)
             return self.TruncPr(k, m, signed=signed)
 

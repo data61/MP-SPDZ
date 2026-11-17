@@ -1112,6 +1112,40 @@ def get_n_threads_for_tree(size):
     else:
         return n_threads_for_tree
 
+class _PairedBucketRAM(object):
+    """ Two buckets of the same depth as one RAM of vectors of size two
+    (bucket p1 in the first element, p2 in the second), so that pop and
+    add evict both buckets at once. """
+    def __init__(self, oram, p1, p2):
+        bs = oram.bucket_size
+        self.size = bs
+        self._arrays = oram.ram.l
+        self._p1 = p1
+        self._p2 = p2
+        self.l = []
+        for arr in self._arrays:
+            t = arr.value_type
+            v1 = arr.get_vector(p1 * bs, bs)
+            v2 = arr.get_vector(p2 * bs, bs)
+            z = t.zip(v1, v2)  # [v1_0, v2_0, v1_1, v2_1, ...]
+            self.l.append([z.get_vector(2 * i, 2) for i in range(bs)])
+    def get_empty_bits(self):
+        return self.l[0]
+    def __len__(self):
+        return self.size
+    def __getitem__(self, i):
+        return Entry(col[i] for col in self.l)
+    def __setitem__(self, i, value):
+        for col, v in zip(self.l, value.values()):
+            col[i] = v
+    def writeback(self):
+        bs = self.size
+        for arr, col in zip(self._arrays, self.l):
+            t = arr.value_type
+            packed = t.concat(col)  # [v1_0, v2_0, v1_1, v2_1, ...]
+            arr.assign_vector(packed.get_vector(0, bs, 2), self._p1 * bs)
+            arr.assign_vector(packed.get_vector(1, bs, 2), self._p2 * bs)
+
 class TreeORAM(AbstractORAM):
     """ Tree ORAM. """
     def __init__(self, size, value_type=None, value_length=1, entry_size=None, \
@@ -1191,10 +1225,41 @@ class TreeORAM(AbstractORAM):
                                                         op='evic')
                 bucket.ref_children(1-b).bucket.check(index=secret_entry.v, \
                                                           op='evic')
+    def _paired_ref(self, p1, p2):
+        # bucket reference whose pop and add act on buckets p1 and p2 at once
+        ref = self.bucket_oram.ref_type(p1, self)
+        ref.ram = _PairedBucketRAM(self, p1, p2)
+        return ref
     @method_block
     def evict2(self, p_bucket1, p_bucket2, d):
-        self.evict_bucket(RefBucket(p_bucket1, self), d)
-        self.evict_bucket(RefBucket(p_bucket2, self), d)
+        if debug or debug_online or crash_on_overflow or debug_ram_size or \
+           self.value_type == sgf2n or \
+           (comparison.use_inv and not comparison.do_precomp):
+            # fall back to the default case: the debug options check single
+            # buckets, sgf2n has no zip, and the comparisons of -c sinv don't
+            # support vectors
+            self.evict_bucket(RefBucket(p_bucket1, self), d)
+            self.evict_bucket(RefBucket(p_bucket2, self), d)
+            return
+        # evict() passes two different buckets of the same depth, which are
+        # evicted as in evict_bucket, but at once, with vectors of size two
+        bt = self.value_type.bit_type
+        p1 = regint.conv(p_bucket1)
+        p2 = regint.conv(p_bucket2)
+        # an empty entry for each bucket
+        empty2 = Entry([t(1 if c == 0 else 0, size=2)
+                        for c, t in enumerate(self.entry_type)])
+        parent = self._paired_ref(p1, p2)
+        entry = parent.pop()
+        parent.ram.writeback()
+        rand2 = bt.concat([bt.get_random_bit(), bt.get_random_bit()])
+        b = if_else(entry.empty(), rand2,
+                    get_bit(entry.x[0], self.D - 1 - d, self.D))
+        block = cond_swap(b, entry, empty2)
+        for c in (0, 1):
+            child = self._paired_ref((p1 << 1) + c, (p2 << 1) + c)
+            child.add(block[c])
+            child.ram.writeback()
     @method_block
     def read_and_renew_index(self, u):
         l_star = random_block(self.D, self.index_type)
