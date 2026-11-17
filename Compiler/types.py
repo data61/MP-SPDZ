@@ -4949,7 +4949,7 @@ class _fix(_single):
         elif isinstance(other, float):
             if int(other) == other:
                 return self.mul(int(other))
-            v = int(round(other * 2 ** self.f))
+            v = cfix.int_rep(other, f=self.f, k=self.k)
             if v == 0:
                 return 0
             f = self.f
