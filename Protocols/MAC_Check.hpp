@@ -16,6 +16,8 @@
 #include "MascotPrep.h"
 
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
 
 #include "Protocols/MAC_Check_Base.hpp"
 #include "mac_key.hpp"
@@ -179,7 +181,12 @@ void mac_fail_remove(const Player& P)
   else
     filename = U::LivePrep::get_full_secrets_filename(P);
   cerr << "Removing " << filename << " because of MAC check failure" << endl;
-  assert(unlink(filename.c_str()) == 0);
+  // The MAC check failure must be reported even if the file cannot be
+  // removed, for example because the MAC key was read from a file
+  // generated elsewhere.
+  if (unlink(filename.c_str()) != 0)
+    cerr << "Could not remove " << filename << ": " << strerror(errno)
+        << endl;
   throw mac_fail();
 }
 
