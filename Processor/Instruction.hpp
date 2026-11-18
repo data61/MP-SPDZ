@@ -1542,6 +1542,10 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
           auto inst =  p[Proc.last_PC].get_name();
           fprintf(stderr, "Fatal error at %s:%d (%s): %s\n", name.c_str(),
                   Proc.last_PC, inst.c_str(), e.what());
+#ifndef INSECURE
+          thread_info<sint, sgf2n>::purge_preprocessing(Proc.P.N,
+                  Proc.thread_num);
+#endif
           exit(1);
       }
     }
