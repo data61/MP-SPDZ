@@ -18,6 +18,17 @@ OTExtension::OTExtension(const BaseOT& baseOT, TwoPartyPlayer* player,
     init(baseOT.receiver_inputs, baseOT.sender_inputs, baseOT.receiver_outputs);
 }
 
+void OTExtension::init_prf(PlayerBase& P, const BitVector& baseReceiverInput,
+        const vector<array<BitVector, 2> >& baseSenderInput,
+        const vector<BitVector>& baseReceiverOutput)
+{
+    octetStream session_id;
+    session_id.store(P.get_session_id());
+    auto tmpBaseSenderInput = OTTripleSetup::prf(baseSenderInput, session_id);
+    auto tmpBaseReceiverOutput = OTTripleSetup::prf(baseReceiverOutput, session_id);
+    init(baseReceiverInput, tmpBaseSenderInput, tmpBaseReceiverOutput);
+}
+
 void OTExtension::init(const OTTripleSetup& setup, int index)
 {
     init(setup.base_receiver_inputs, setup.baseSenderInputs.at(index),

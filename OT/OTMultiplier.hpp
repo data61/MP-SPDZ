@@ -480,8 +480,9 @@ template <int K, int S>
 void Spdz2kMultiplier<K, S>::init_authenticator(const BitVector& keyBits,
 		const vector< array<BitVector, 2> >& senderOutput,
 		const vector<BitVector>& receiverOutput) {
-	this->mac_vole->init(keyBits, senderOutput, receiverOutput);
-	input_mac_vole->init(keyBits, senderOutput, receiverOutput);
+	auto& P = *this->generator.players[this->thread_num];
+	this->mac_vole->init_prf(P, keyBits, senderOutput, receiverOutput);
+	input_mac_vole->init_prf(P, keyBits, senderOutput, receiverOutput);
 }
 
 template<class T>
