@@ -276,6 +276,7 @@ void ShareSecret<U>::reveal_inst(Processor<U>& processor,
     assert(party.MC);
     PointerVector<typename U::open_type> opened;
     party.MC->POpen(opened, shares, *party.P);
+    party.MC->Check(*party.P);
     for (size_t i = 0; i < args.size(); i += 3)
     {
         int n = args[i];
