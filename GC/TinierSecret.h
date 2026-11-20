@@ -52,6 +52,13 @@ public:
         return new MC(mac_key);
     }
 
+    static void set_secrets_filename(string filename)
+    {
+        super::set_secrets_filename(filename);
+        // for the MAC check of the binary shares themselves
+        super::part_type::set_secrets_filename(filename);
+    }
+
     template<class U>
     static void generate_mac_key(typename super::mac_key_type& dest, const U&)
     {
