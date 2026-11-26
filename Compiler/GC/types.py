@@ -333,7 +333,7 @@ class cbits(bits):
         assert n == other.size
         cls.conv_cint_vec(cint(other, size=other.size), res)
     @classmethod
-    def conv(cls, other):
+    def conv(cls, other, hard=False):
         if isinstance(other, cbits) and cls.n != None and \
            cls.n // cls.unit == other.n // cls.unit:
             if isinstance(other, cls):
@@ -344,7 +344,7 @@ class cbits(bits):
                     cls.mov(res[i], other[i])
                 return res
         else:
-            return super(cbits, cls).conv(other)
+            return super(cbits, cls).conv(other, hard=hard)
     types = {}
     def store_in_dynamic_mem(self, address):
         inst.stmsdci(self, cbits.conv(address))
