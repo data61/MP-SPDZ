@@ -136,7 +136,7 @@ class bits(Tape.Register, _structure, _bit, _binary):
     @classmethod
     def load_mem(cls, address, mem_type=None, size=None):
         if size not in (None, 1):
-            return cls.vec.load_mem(address, size=size)
+            return cls.vec.get_type(cls.n).load_mem(address, size=size)
         res = cls()
         if mem_type == 'sd':
             return cls.load_dynamic_mem(address)
